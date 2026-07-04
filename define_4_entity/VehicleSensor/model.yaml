@@ -1,0 +1,65 @@
+VehicleSensor:
+  description: "Mô hình thực thể Cảm biến lưu lượng phương tiện (VehicleSensor) đặt tại một hướng tiếp cận của giao lộ."
+  properties:
+    id:
+      description: "Định danh duy nhất của thực thể cảm biến"
+      type: string
+    type:
+      description: "Loại thực thể NGSI-LD"
+      type: string
+      enum:
+        - VehicleSensor
+    direction:
+      description: "Hướng tiếp cận mà cảm biến đang thu thập dữ liệu"
+      type: string
+      enum: [North, South, East, West]
+    vehicleCount:
+      description: "Tổng số xe đo được trên hướng này trong chu kỳ hiện tại"
+      type: integer
+      minimum: 0
+    leftTurnCount:
+      description: "Số lượng xe có quỹ đạo rẽ trái"
+      type: integer
+      minimum: 0
+    straightCount:
+      description: "Số lượng xe có quỹ đạo đi thẳng"
+      type: integer
+      minimum: 0
+    rightTurnCount:
+      description: "Số lượng xe có quỹ đạo rẽ phải"
+      type: integer
+      minimum: 0
+    averageSpeed:
+      description: "Tốc độ di chuyển trung bình (km/h) của dòng xe"
+      type: number
+      minimum: 0
+    waitingVehicleCount:
+      description: "Số lượng xe đang dừng chờ (vận tốc ~ 0) trước vạch dừng"
+      type: integer
+      minimum: 0
+    queueLength:
+      description: "Chiều dài hàng đợi ước tính (mét)"
+      type: number
+      minimum: 0
+    occupancy:
+      description: "Độ chiếm dụng mặt đường (%)"
+      type: number
+      minimum: 0
+      maximum: 100
+    density:
+      description: "Phân loại mức độ mật độ giao thông cục bộ"
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    lastUpdate:
+      description: "Thời gian chốt số liệu đo lường gần nhất"
+      type: string
+      format: date-time
+    refIntersection:
+      description: "Mối quan hệ trỏ về Giao lộ chứa cảm biến này"
+      type: string
+      format: uri
+  required:
+    - id
+    - type
+    - direction
+    - refIntersection

@@ -1,0 +1,73 @@
+Intersection:
+  description: "Mô hình thực thể Giao lộ (Intersection) cho hệ thống Smart Traffic."
+  properties:
+    id:
+      description: "Định danh duy nhất của thực thể"
+      type: string
+    type:
+      description: "Loại thực thể NGSI"
+      type: string
+      enum:
+        - Intersection
+    name:
+      description: "Tên của giao lộ"
+      type: string
+    location:
+      description: "Tọa độ địa lý của giao lộ (GeoJSON Point)"
+      type: object
+    status:
+      description: "Trạng thái hoạt động của giao lộ"
+      type: string
+      enum: [ACTIVE, INACTIVE, MAINTENANCE]
+    totalVehicleCount:
+      description: "Tổng số xe đang lưu thông tại ngã tư"
+      type: integer
+      minimum: 0
+    averageSpeed:
+      description: "Tốc độ trung bình (km/h)"
+      type: number
+      minimum: 0
+    totalQueueLength:
+      description: "Tổng chiều dài hàng đợi (mét)"
+      type: number
+      minimum: 0
+    density:
+      description: "Mức độ ùn tắc"
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+    currentPhase:
+      description: "Pha đèn tín hiệu đang chạy"
+      type: string
+    nextPhase:
+      description: "Pha đèn tín hiệu tiếp theo"
+      type: string
+    phaseRemainingSeconds:
+      description: "Thời gian đếm ngược (giây) của pha hiện tại"
+      type: integer
+      minimum: 0
+    phaseDuration:
+      description: "Tổng thời gian (giây) của pha hiện tại"
+      type: integer
+      minimum: 0
+    incidentDetected:
+      description: "Cờ báo hiệu có sự cố tại giao lộ"
+      type: boolean
+    incidentCount:
+      description: "Số lượng sự cố đang ghi nhận"
+      type: integer
+      minimum: 0
+    incidentDirection:
+      description: "Hướng xảy ra sự cố"
+      type: string
+    scenario:
+      description: "Kịch bản mô phỏng đang chạy"
+      type: string
+    lastUpdate:
+      description: "Thời gian chốt số liệu gần nhất"
+      type: string
+      format: date-time
+  required:
+    - id
+    - type
+    - location
+    - name

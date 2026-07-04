@@ -1,0 +1,54 @@
+TrafficLight:
+  description: "Mô hình thực thể Đèn tín hiệu giao thông (TrafficLight) điều khiển một hướng cụ thể."
+  properties:
+    id:
+      description: "Định danh duy nhất của thực thể đèn tín hiệu"
+      type: string
+    type:
+      description: "Loại thực thể NGSI-LD"
+      type: string
+      enum:
+        - TrafficLight
+    direction:
+      description: "Hướng giao thông mà cụm đèn này điều khiển"
+      type: string
+      enum: [North, South, East, West]
+    color:
+      description: "Màu đèn tín hiệu đang hiển thị thực tế"
+      type: string
+      enum: [red, green, yellow]
+    remainingSeconds:
+      description: "Thời gian đếm ngược (giây) của màu đèn hiện tại"
+      type: integer
+      minimum: 0
+    currentPhase:
+      description: "Tên pha đèn vĩ mô của toàn bộ giao lộ đang chạy"
+      type: string
+    nextPhase:
+      description: "Tên pha đèn vĩ mô tiếp theo"
+      type: string
+    greenDuration:
+      description: "Cấu hình thời lượng (giây) cho pha đèn xanh"
+      type: integer
+      minimum: 0
+    yellowDuration:
+      description: "Cấu hình thời lượng (giây) cho pha đèn vàng"
+      type: integer
+      minimum: 0
+    redDuration:
+      description: "Cấu hình thời lượng (giây) cho pha đèn đỏ"
+      type: integer
+      minimum: 0
+    mode:
+      description: "Chế độ điều khiển hiện hành của đèn"
+      type: string
+      enum: [AUTO, MANUAL]
+    refIntersection:
+      description: "Mối quan hệ (Relationship) trỏ về Giao lộ chứa cụm đèn này"
+      type: string
+      format: uri
+  required:
+    - id
+    - type
+    - direction
+    - refIntersection
