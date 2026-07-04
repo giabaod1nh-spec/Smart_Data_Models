@@ -1,4 +1,4 @@
-Optimized tool selectionDưới đây là nội dung README.md bằng tiếng Việt cho dự án của bạn. Bạn có thể sao chép toàn bộ nội dung này và lưu vào file README.md ở thư mục gốc của dự án (hoặc cho tôi biết và tôi sẽ áp dụng thay đổi trực tiếp trong workspace).
+
 
 ---
 
@@ -82,4 +82,3 @@ Ghi chú bổ sung
 
 - Đây là một hệ thống mẫu cho dự án Camera và có thể mở rộng cho các thiết bị/điểm đếm khác. Bạn có thể nhân rộng mẫu Data Model cho các thiết bị hoặc hệ thống khác bằng cách sao chép và chỉnh sửa model.yaml cùng với các payload tương ứng trong examples.
 
-Bạn muốn tôi tự động cập nhật README.md trong workspace với nội dung này không? Nếu có, tôi sẽ áp dụng một patch để ghi đè hoặc cập nhật README.md hiện có.

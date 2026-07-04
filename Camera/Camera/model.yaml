@@ -1,120 +1,330 @@
 Camera:
-  description: "Smart traffic camera entity used for monitoring traffic conditions at an intersection."
-  type: object
+  description: >
+    Data Model for a traffic surveillance camera in a Smart Traffic
+    Simulation System (NGSI-LD / FIWARE Orion). Trimmed and extended from the
+    Smart Data Models "Camera" model: generic schema.org boilerplate removed,
+    duplicate/overlapping fields consolidated, and traffic-domain
+    Relationships/Properties added.
 
   properties:
+    # ---------------- CORE NGSI-LD FIELDS ----------------
 
     id:
-      description: "Unique identifier of the entity."
+      description: >
+        Unique identifier. Pattern:
+        urn:ngsi-ld:Camera:{intersectionId}:{cameraNum}
+        Example: urn:ngsi-ld:Camera:Intersection001:01
+      maxLength: 256
+      minLength: 1
+      pattern: ^[\w\-\.\{\}\$\+\*\[\]`|~^@!,:\\]+$
       type: string
-      format: uri
+      x-ngsi:
+        type: Property
 
     type:
-      description: "Entity type. It must be Camera."
-      type: string
+      description: NGSI entity type. Must be Camera.
       enum:
         - Camera
-
-    cameraName:
-      description: "Human-readable name of the camera."
       type: string
+      x-ngsi:
+        type: Property
+
+    name:
+      description: Human-readable display name of the camera.
+      type: string
+      x-ngsi:
+        type: Property
+
+    description:
+      description: Description of the camera installation.
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateCreated:
+      description: Entity creation timestamp.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateModified:
+      description: Last modification timestamp.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    location:
+      description: Physical location of the camera.
+      properties:
+        coordinates:
+          items:
+            type: number
+          minItems: 2
+          type: array
+        type:
+          enum:
+            - Point
+          type: string
+      required:
+        - type
+        - coordinates
+      title: GeoJSON Point
+      type: object
+      x-ngsi:
+        type: GeoProperty
+
+    # ---------------- DEVICE INFORMATION ----------------
+
+    cameraNum:
+      description: Camera number within the intersection.
+      type: integer
+      minimum: 1
+      x-ngsi:
+        type: Property
 
     cameraType:
-      description: "Physical type of the camera."
-      type: string
+      description: Camera hardware type.
       enum:
         - FIXED
         - PTZ
         - DOME
+        - DAY/NIGHT
+        - C-MOUNT
+        - BULLET
+      type: string
+      x-ngsi:
+        type: Property
 
     cameraUsage:
-      description: "Purpose of the camera."
-      type: string
+      description: Camera purpose.
       enum:
         - TRAFFIC
-
-    cameraStatus:
-      description: "Operational status of the camera."
+        - SURVEILLANCE
+        - RLVD
+        - ANPR/LPR
       type: string
-      enum:
-        - ONLINE
-        - OFFLINE
-        - ERROR
-        - MAINTENANCE
+      x-ngsi:
+        type: Property
 
-    location:
-      description: "Geographical location of the camera."
-      $ref: "https://geojson.org/schema/Point.json"
-
-    vehicleCount:
-      description: "Current number of detected vehicles."
-      type: integer
+    orientationAngle:
+      description: Camera viewing direction (degrees).
       minimum: 0
+      maximum: 360
+      type: number
+      x-ngsi:
+        type: Property
 
-    trafficDensity:
-      description: "Traffic density detected by the camera."
+    streamURL:
+      description: Video stream URL.
       type: string
-      enum:
-        - LOW
-        - MEDIUM
-        - HIGH
+      format: uri
+      x-ngsi:
+        type: Property
 
-    congestionLevel:
-      description: "Estimated congestion level."
-      type: string
+    status:
+      description: Operational status.
       enum:
-        - LOW
-        - MEDIUM
-        - HIGH
-        - SEVERE
+        - ok
+        - offline
+        - maintenance
+        - error
+      type: string
+      x-ngsi:
+        type: Property
+
+    # ---------------- RELATIONSHIPS ----------------
+
+    refIntersection:
+      description: Intersection monitored by this camera.
+      type: string
+      format: uri
+      x-ngsi:
+        type: Relationship
+
+    refTrafficLight:
+      description: Traffic light controlled using this camera's observations.
+      type: string
+      format: uri
+      x-ngsi:
+        type: Relationship
+
+    refVehicleSensor:
+      description: Vehicle sensors associated with this camera.
+      type: array
+      items:
+        type: string
+        format: uri
+      x-ngsi:
+        type: Relationship
+
+    # ---------------- TRAFFIC OBSERVATION ----------------
+
+    dateObserved:
+      description: Timestamp of the latest traffic observation.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    trafficDirection:
+      description: Direction monitored by this camera.
+      enum:
+        - NORTHBOUND
+        - SOUTHBOUND
+        - EASTBOUND
+        - WESTBOUND
+        - ALL_DIRECTIONS
+      type: string
+      x-ngsi:
+        type: Property
+
+    monitoredLane:
+      description: Lane(s) monitored by the camera.
+      type: array
+      items:
+        type: string
+      x-ngsi:
+        type: Property
+
+    detectionZone:
+      description: Detection polygon.
+      properties:
+        coordinates:
+          items:
+            items:
+              items:
+                type: number
+              minItems: 2
+              type: array
+            minItems: 4
+            type: array
+          type: array
+        type:
+          enum:
+            - Polygon
+          type: string
+      required:
+        - type
+        - coordinates
+      title: GeoJSON Polygon
+      type: object
+      x-ngsi:
+        type: GeoProperty
+
+    vehicleCountCurrent:
+      description: Number of vehicles currently detected.
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    averageSpeed:
+      description: Average speed (km/h).
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    occupancyRate:
+      description: Occupancy percentage (0-100).
+      minimum: 0
+      maximum: 100
+      type: number
+      x-ngsi:
+        type: Property
+
+    trafficStatus:
+      description: Overall traffic condition.
+      enum:
+        - FREE_FLOW
+        - LIGHT
+        - MODERATE
+        - HEAVY
+        - CONGESTED
+      type: string
+      x-ngsi:
+        type: Property
 
     incidentDetected:
-      description: "Whether an incident is currently detected."
+      description: Whether an incident is detected.
       type: boolean
+      x-ngsi:
+        type: Property
 
-    incidentCount:
-      description: "Total number of incidents detected."
-      type: integer
-      minimum: 0
+    incidentType:
+      description: >
+        Type of traffic incident currently detected.
+      enum:
+        - NONE
+        - ACCIDENT
+        - MINOR_ACCIDENT
+        - BROKEN_VEHICLE
+        - WRONG_WAY
+        - LANE_BLOCKED
+        - ROAD_CLOSED
+        - PEDESTRIAN
+        - CONSTRUCTION
+      type: string
+      x-ngsi:
+        type: Property
 
-    minorAccidentCount:
-      description: "Number of minor accidents detected."
-      type: integer
-      minimum: 0
+    incidentSeverity:
+      description: Severity level of the incident.
+      enum:
+        - NONE
+        - LOW
+        - MEDIUM
+        - HIGH
+        - CRITICAL
+      type: string
+      x-ngsi:
+        type: Property
 
-    laneBlockedCount:
-      description: "Number of blocked lanes."
-      type: integer
+    confidence:
+      description: >
+        Confidence score (0.0 - 1.0) of the latest AI traffic analysis.
       minimum: 0
-
-    roadClosedCount:
-      description: "Number of road closures detected."
-      type: integer
-      minimum: 0
+      maximum: 1
+      type: number
+      x-ngsi:
+        type: Property
 
     recommendedSignalAction:
-      description: "Suggested traffic light action based on camera analysis."
-      type: string
+      description: >
+        Recommended action for the associated traffic light based on
+        the current traffic condition.
       enum:
         - KEEP
         - EXTEND_GREEN
         - SHORTEN_GREEN
+        - SWITCH_GREEN
         - EMERGENCY
-
-    lastUpdate:
-      description: "Timestamp of the latest camera update."
       type: string
-      format: date-time
-
-    refIntersection:
-      description: "Reference to the monitored intersection."
-      type: string
-      format: uri
+      x-ngsi:
+        type: Property
 
   required:
     - id
     - type
-    - cameraStatus
-    - vehicleCount
+    - location
+    - status
     - refIntersection
-    - lastUpdate
+    - dateObserved
+    - vehicleCountCurrent
+    - trafficStatus
+
+  type: object
+
+  x-derived-from: "https://smart-data-models.github.io/CrossSector/Camera/schema.json"
+
+  x-disclaimer: >
+    Trimmed and adapted from the Smart Data Models Camera model
+    for the graduation project
+    "Xây dựng hệ thống mô phỏng giao thông thông minh
+    sử dụng NGSI-LD và REST API".
+
+  x-license-url: https://github.com/smart-data-models/dataModel.Device/blob/master/Camera/LICENSE.md
+
+  x-version: 2.1.0
