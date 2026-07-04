@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://smartdatamodels.org/dataModel.SmartTraffic/Camera/schema.json",
+    "title": "Smart Traffic - Camera",
+    "description": "Schema kiểm duyệt cho thực thể Camera giám sát",
+    "type": "object",
+    "required": ["id", "type", "refIntersection"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^urn:ngsi-ld:Camera:.*$"
+      },
+      "type": {
+        "type": "string",
+        "enum": ["Camera"]
+      },
+      "vehicleCount": { "type": "integer", "minimum": 0 },
+      "incidentDetected": { "type": "boolean" },
+      "incidentCount": { "type": "integer", "minimum": 0 },
+      "minorAccidentCount": { "type": "integer", "minimum": 0 },
+      "laneBlockedCount": { "type": "integer", "minimum": 0 },
+      "roadClosedCount": { "type": "integer", "minimum": 0 },
+      "cameraStatus": {
+        "type": "string",
+        "enum": ["ONLINE", "OFFLINE", "ERROR"]
+      },
+      "lastUpdate": { "type": "string", "format": "date-time" },
+      "refIntersection": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^urn:ngsi-ld:Intersection:.*$"
+      }
+    }
+  }

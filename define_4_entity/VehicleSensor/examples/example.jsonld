@@ -1,0 +1,23 @@
+{
+    "id": "urn:ngsi-ld:VehicleSensor:A-North",
+    "type": "VehicleSensor",
+    "direction": { "type": "Property", "value": "North" },
+    "vehicleCount": { "type": "Property", "value": 80 },
+    "leftTurnCount": { "type": "Property", "value": 20 },
+    "straightCount": { "type": "Property", "value": 50 },
+    "rightTurnCount": { "type": "Property", "value": 10 },
+    "averageSpeed": { "type": "Property", "value": 24 },
+    "waitingVehicleCount": { "type": "Property", "value": 25 },
+    "queueLength": { "type": "Property", "value": 25.0 },
+    "occupancy": { "type": "Property", "value": 62.0 },
+    "density": { "type": "Property", "value": "MEDIUM" },
+    "lastUpdate": {
+      "type": "Property",
+      "value": { "@type": "DateTime", "@value": "2026-06-30T08:15:21Z" }
+    },
+    "refIntersection": {
+      "type": "Relationship",
+      "object": "urn:ngsi-ld:Intersection:A"
+    },
+    "@context": [ "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld" ]
+  }

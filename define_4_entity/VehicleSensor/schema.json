@@ -1,0 +1,40 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://smartdatamodels.org/dataModel.SmartTraffic/VehicleSensor/schema.json",
+    "title": "Smart Traffic - Vehicle Sensor",
+    "description": "Schema kiểm duyệt cho thực thể Cảm biến phương tiện",
+    "type": "object",
+    "required": ["id", "type", "direction", "refIntersection"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^urn:ngsi-ld:VehicleSensor:.*$"
+      },
+      "type": {
+        "type": "string",
+        "enum": ["VehicleSensor"]
+      },
+      "direction": {
+        "type": "string",
+        "enum": ["North", "South", "East", "West"]
+      },
+      "vehicleCount": { "type": "integer", "minimum": 0 },
+      "leftTurnCount": { "type": "integer", "minimum": 0 },
+      "straightCount": { "type": "integer", "minimum": 0 },
+      "rightTurnCount": { "type": "integer", "minimum": 0 },
+      "averageSpeed": { "type": "number", "minimum": 0 },
+      "waitingVehicleCount": { "type": "integer", "minimum": 0 },
+      "queueLength": { "type": "number", "minimum": 0 },
+      "occupancy": { "type": "number", "minimum": 0, "maximum": 100 },
+      "density": {
+        "type": "string",
+        "enum": ["LOW", "MEDIUM", "HIGH"]
+      },
+      "lastUpdate": { "type": "string", "format": "date-time" },
+      "refIntersection": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^urn:ngsi-ld:Intersection:.*$"
+      }
+    }
+  }
