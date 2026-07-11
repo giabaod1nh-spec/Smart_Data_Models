@@ -310,7 +310,7 @@ Camera:
     - type
     - location
     - status
-    - refIntersection
+    - refIntersection 
     - dateObserved
     - vehicleCountCurrent
     - trafficStatus
