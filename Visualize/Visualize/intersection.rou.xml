@@ -22,53 +22,93 @@
     <vType id="firetruck" vClass="emergency" guiShape="firebrigade" length="8.0" width="2.5"
            maxSpeed="16.0" accel="2.5" decel="4.0" imgFile="images/firetruck_bg.png"/>
 
-    <!-- Mỗi loại xe ~40 xe/giờ mỗi hướng chính → spawn đồng đều -->
-    <!-- ===== Bắc -> Nam ===== -->
-    <flow id="ns_moto"      type="motorcycle" from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_car"       type="car"        from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_bus"       type="bus"        from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_truck"     type="truck"      from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_container" type="container"  from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_amb"       type="ambulance"  from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_fire"      type="firetruck"  from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ns_police"    type="police"     from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <!-- Lưới 2x2 ngã tư: J1 (Tây-Nam), J2 (Đông-Nam), J3 (Tây-Bắc), J4 (Đông-Bắc) -->
+    <!-- Flow chỉ cần khai báo edge vào (from) và edge ra (to), SUMO tự tìm đường qua các ngã tư -->
+    <!-- Mỗi loại xe 20 xe/giờ trên mỗi trục chính → spawn đồng đều -->
 
-    <!-- ===== Nam -> Bắc ===== -->
-    <flow id="sn_moto"      type="motorcycle" from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_car"       type="car"        from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_bus"       type="bus"        from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_truck"     type="truck"      from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_container" type="container"  from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_amb"       type="ambulance"  from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_fire"      type="firetruck"  from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="sn_police"    type="police"     from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <!-- ===== Trục dọc phía Tây: Bắc <-> Nam (qua J3, J1) ===== -->
+    <flow id="ns_w_moto"      type="motorcycle" from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_car"       type="car"        from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_bus"       type="bus"        from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_truck"     type="truck"      from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_container" type="container"  from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_amb"       type="ambulance"  from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_fire"      type="firetruck"  from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_w_police"    type="police"     from="N1J3" to="J1S1" begin="0" end="3600" vehsPerHour="20"/>
 
-    <!-- ===== Tây -> Đông ===== -->
-    <flow id="we_moto"      type="motorcycle" from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_car"       type="car"        from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_bus"       type="bus"        from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_truck"     type="truck"      from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_container" type="container"  from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_amb"       type="ambulance"  from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_fire"      type="firetruck"  from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="we_police"    type="police"     from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_w_moto"      type="motorcycle" from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_car"       type="car"        from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_bus"       type="bus"        from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_truck"     type="truck"      from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_container" type="container"  from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_amb"       type="ambulance"  from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_fire"      type="firetruck"  from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_w_police"    type="police"     from="S1J1" to="J3N1" begin="0" end="3600" vehsPerHour="20"/>
 
-    <!-- ===== Đông -> Tây ===== -->
-    <flow id="ew_moto"      type="motorcycle" from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_car"       type="car"        from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_bus"       type="bus"        from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_truck"     type="truck"      from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_container" type="container"  from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_amb"       type="ambulance"  from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_fire"      type="firetruck"  from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
-    <flow id="ew_police"    type="police"     from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <!-- ===== Trục dọc phía Đông: Bắc <-> Nam (qua J4, J2) ===== -->
+    <flow id="ns_e_moto"      type="motorcycle" from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_car"       type="car"        from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_bus"       type="bus"        from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_truck"     type="truck"      from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_container" type="container"  from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_amb"       type="ambulance"  from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_fire"      type="firetruck"  from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ns_e_police"    type="police"     from="N2J4" to="J2S2" begin="0" end="3600" vehsPerHour="20"/>
 
-    <!-- ===== Luồng rẽ: mỗi loại 1 luồng ===== -->
-    <flow id="nw_moto"      type="motorcycle" from="NC" to="CW" begin="0" end="3600" vehsPerHour="20"/>
-    <flow id="ne_car"       type="car"        from="NC" to="CE" begin="0" end="3600" vehsPerHour="20"/>
-    <flow id="ws_bus"       type="bus"        from="WC" to="CS" begin="0" end="3600" vehsPerHour="20"/>
-    <flow id="es_truck"     type="truck"      from="EC" to="CS" begin="0" end="3600" vehsPerHour="20"/>
-    <flow id="wn_container" type="container"  from="WC" to="CN" begin="0" end="3600" vehsPerHour="20"/>
-    <flow id="en_amb"       type="ambulance"  from="EC" to="CN" begin="0" end="3600" vehsPerHour="20"/>
-    <flow id="sw_fire"      type="firetruck"  from="SC" to="CW" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_moto"      type="motorcycle" from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_car"       type="car"        from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_bus"       type="bus"        from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_truck"     type="truck"      from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_container" type="container"  from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_amb"       type="ambulance"  from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_fire"      type="firetruck"  from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sn_e_police"    type="police"     from="S2J2" to="J4N2" begin="0" end="3600" vehsPerHour="20"/>
+
+    <!-- ===== Trục ngang phía Nam: Tây <-> Đông (qua J1, J2) ===== -->
+    <flow id="we_s_moto"      type="motorcycle" from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_car"       type="car"        from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_bus"       type="bus"        from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_truck"     type="truck"      from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_container" type="container"  from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_amb"       type="ambulance"  from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_fire"      type="firetruck"  from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_s_police"    type="police"     from="W1J1" to="J2E1" begin="0" end="3600" vehsPerHour="20"/>
+
+    <flow id="ew_s_moto"      type="motorcycle" from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_car"       type="car"        from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_bus"       type="bus"        from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_truck"     type="truck"      from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_container" type="container"  from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_amb"       type="ambulance"  from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_fire"      type="firetruck"  from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_s_police"    type="police"     from="E1J2" to="J1W1" begin="0" end="3600" vehsPerHour="20"/>
+
+    <!-- ===== Trục ngang phía Bắc: Tây <-> Đông (qua J3, J4) ===== -->
+    <flow id="we_n_moto"      type="motorcycle" from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_car"       type="car"        from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_bus"       type="bus"        from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_truck"     type="truck"      from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_container" type="container"  from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_amb"       type="ambulance"  from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_fire"      type="firetruck"  from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="we_n_police"    type="police"     from="W2J3" to="J4E2" begin="0" end="3600" vehsPerHour="20"/>
+
+    <flow id="ew_n_moto"      type="motorcycle" from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_car"       type="car"        from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_bus"       type="bus"        from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_truck"     type="truck"      from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_container" type="container"  from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_amb"       type="ambulance"  from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_fire"      type="firetruck"  from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ew_n_police"    type="police"     from="E2J4" to="J3W2" begin="0" end="3600" vehsPerHour="20"/>
+
+    <!-- ===== Luồng chéo (phải rẽ qua nhiều ngã tư): mỗi loại 1 luồng, 10 xe/giờ ===== -->
+    <flow id="x1_moto"      type="motorcycle" from="W1J1" to="J4N2" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x2_car"       type="car"        from="S1J1" to="J2E1" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x3_bus"       type="bus"        from="N1J3" to="J2E1" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x4_truck"     type="truck"      from="E1J2" to="J3N1" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x5_container" type="container"  from="W2J3" to="J2S2" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x6_amb"       type="ambulance"  from="S2J2" to="J3W2" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x7_fire"      type="firetruck"  from="N2J4" to="J1W1" begin="0" end="3600" vehsPerHour="10"/>
+    <flow id="x8_police"    type="police"     from="E2J4" to="J1S1" begin="0" end="3600" vehsPerHour="10"/>
 </routes>
