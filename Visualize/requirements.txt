@@ -1,0 +1,4 @@
+# SUMO TraCI backend (Visualize/)
+# traci itself ships with SUMO (SUMO_HOME/tools) — not installed via pip.
+requests>=2.28.0
+pytest>=7.0.0
