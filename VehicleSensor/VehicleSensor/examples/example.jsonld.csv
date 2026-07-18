@@ -1,0 +1,2 @@
+id;type;name;sensorType;sensorStatus;trafficDirection;refIntersection;dateObserved;vehicleCount;pcuEquivalent;occupancyRate;trafficStatus;queueLength;averageSpeed
+urn:ngsi-ld:VehicleSensor:Intersection001:NORTHBOUND;VehicleSensor;Nguyen Hue - Le Loi North approach;VIRTUAL;ok;NORTHBOUND;urn:ngsi-ld:Intersection:Intersection001;2026-07-18T05:00:00.000Z;42;18.56;35.2;MODERATE;28.4;22.5

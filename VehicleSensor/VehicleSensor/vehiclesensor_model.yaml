@@ -1,0 +1,333 @@
+VehicleSensor:
+  description: >
+    Data Model for a per-approach vehicle sensor in a Smart Traffic
+    Simulation System (NGSI-LD / FIWARE Orion). One entity represents traffic
+    metrics for a single approach direction at an Intersection, including
+    PCU-based metrics for Vietnam mixed traffic and queue-by-movement for
+    adaptive signal control (CBR+GA).
+  properties:
+    # ---------------- CORE NGSI-LD FIELDS ----------------
+    id:
+      description: >
+        Unique identifier. Pattern: urn:ngsi-ld:VehicleSensor:{intersectionId}:{direction}
+        Example: urn:ngsi-ld:VehicleSensor:Intersection001:NORTHBOUND
+      maxLength: 256
+      minLength: 1
+      pattern: ^[\w\-\.\{\}\$\+\*\[\]`|~^@!,:\\]+$
+      type: string
+      x-ngsi:
+        type: Property
+
+    type:
+      description: NGSI entity type. Must be VehicleSensor
+      enum:
+        - VehicleSensor
+      type: string
+      x-ngsi:
+        type: Property
+
+    name:
+      description: Display name of the sensor (e.g. "A-North approach sensor")
+      type: string
+      x-ngsi:
+        type: Property
+
+    description:
+      description: Free-text description of the sensor's installation/purpose
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateCreated:
+      description: Entity creation timestamp, allocated by Orion
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateModified:
+      description: Timestamp of the last modification, allocated by Orion
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    location:
+      description: GeoJSON Point — sensor's physical location on the approach
+      properties:
+        coordinates:
+          items:
+            type: number
+          minItems: 2
+          type: array
+        type:
+          enum:
+            - Point
+          type: string
+      required:
+        - type
+        - coordinates
+      title: GeoJSON Point
+      type: object
+      x-ngsi:
+        type: GeoProperty
+
+    # ---------------- SENSOR-SPECIFIC ----------------
+    sensorType:
+      description: "Enum: VIRTUAL, INDUCTIVE_LOOP, CAMERA_DERIVED, RADAR, MAGNETOMETER"
+      enum:
+        - VIRTUAL
+        - INDUCTIVE_LOOP
+        - CAMERA_DERIVED
+        - RADAR
+        - MAGNETOMETER
+      type: string
+      x-ngsi:
+        type: Property
+
+    sensorStatus:
+      description: >
+        Device health status. Enum: ok, error, maintenance, offline.
+      enum:
+        - ok
+        - error
+        - maintenance
+        - offline
+      type: string
+      x-ngsi:
+        type: Property
+
+    trafficDirection:
+      description: >
+        Approach direction this sensor monitors.
+        Enum: NORTHBOUND, SOUTHBOUND, EASTBOUND, WESTBOUND
+      enum:
+        - NORTHBOUND
+        - SOUTHBOUND
+        - EASTBOUND
+        - WESTBOUND
+      type: string
+      x-ngsi:
+        type: Property
+
+    # ---------------- RELATIONSHIPS ----------------
+    refIntersection:
+      description: >
+        Relationship (mandatory). The Intersection this sensor belongs to.
+        Example: urn:ngsi-ld:Intersection:001
+      format: uri
+      type: string
+      x-ngsi:
+        type: Relationship
+
+    refCamera:
+      description: >
+        Relationship (optional). Camera covering the same approach, used
+        for cross-validating vehicle counts.
+      format: uri
+      type: string
+      x-ngsi:
+        type: Relationship
+
+    refTrafficLight:
+      description: >
+        Relationship (optional). TrafficLight governing this approach.
+      format: uri
+      type: string
+      x-ngsi:
+        type: Relationship
+
+    # ---------------- TRAFFIC OBSERVATION (simulator-updated) ----------------
+    dateObserved:
+      description: >
+        Timestamp of the most recent traffic observation.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    vehicleCount:
+      description: >
+        Headcount of vehicles currently on this approach at dateObserved.
+        Kept alongside pcuEquivalent: headcount for dashboard display,
+        PCU for control algorithms.
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    pcuEquivalent:
+      description: >
+        Passenger Car Unit equivalent of vehicles on this approach.
+        Primary input for CBR+GA similarity/fitness. Vietnam factors:
+        motorcycle=0.24, car=1.0, bus=2.5, truck=2.5.
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    vehicleClassComposition:
+      description: >
+        Share of each vehicle class on this approach (0.0-1.0 each).
+        Keys: motorcycle, car, bus, truck.
+      type: object
+      properties:
+        motorcycle:
+          type: number
+          minimum: 0
+          maximum: 1
+        car:
+          type: number
+          minimum: 0
+          maximum: 1
+        bus:
+          type: number
+          minimum: 0
+          maximum: 1
+        truck:
+          type: number
+          minimum: 0
+          maximum: 1
+      x-ngsi:
+        type: Property
+
+    leftTurnCount:
+      description: Number of vehicles intending/queued for left turn
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    straightCount:
+      description: Number of vehicles intending/queued to go straight
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    rightTurnCount:
+      description: Number of vehicles intending/queued for right turn
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    averageSpeed:
+      description: Average speed (km/h) of vehicles on this approach
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    waitingVehicleCount:
+      description: Number of vehicles currently waiting (e.g. at red light)
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    queueLength:
+      description: >
+        Physical queue length in metres for this approach (max across
+        movement lanes — reflects road occupancy, not sum of lanes).
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    queueStraight:
+      description: Queue length (m) on the straight-movement lane — Akçelik input
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    queueLeft:
+      description: Queue length (m) on the left-turn lane — Akçelik input
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    queueRight:
+      description: Queue length (m) on the right-turn lane — Akçelik input
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    occupancyRate:
+      description: >
+        Percentage (0-100) of approach lane occupied by vehicles.
+      maximum: 100
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    trafficStatus:
+      description: >
+        Congestion level for this approach.
+        Enum: FREE_FLOW, LIGHT, MODERATE, HEAVY, CONGESTED
+      enum:
+        - FREE_FLOW
+        - LIGHT
+        - MODERATE
+        - HEAVY
+        - CONGESTED
+      type: string
+      x-ngsi:
+        type: Property
+
+    arrivalRatePcuPerSec:
+      description: Arrival rate in PCU per second over the last sampling window
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    waitingReasonCounts:
+      description: >
+        Counts of waiting vehicles by reason. Typical keys: RED_PHASE, CONGESTION.
+      type: object
+      additionalProperties:
+        type: integer
+        minimum: 0
+      x-ngsi:
+        type: Property
+
+    dominantWaitingReason:
+      description: "Dominant waiting reason. Enum: RED_PHASE, CONGESTION, INCIDENT, null"
+      enum:
+        - RED_PHASE
+        - CONGESTION
+        - INCIDENT
+      type: string
+      x-ngsi:
+        type: Property
+      nullable: true
+
+    theoreticalSpeed:
+      description: >
+        Theoretical free-flow / Greenshields-derived speed (km/h) for this
+        approach under current density — simulation diagnostic metric.
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+  required:
+    - id
+    - type
+    - refIntersection
+    - trafficDirection
+    - dateObserved
+    - vehicleCount
+    - pcuEquivalent
+    - sensorStatus
+
+  type: object
+  x-disclaimer: >
+    Data model for the graduation project "Xây dựng hệ thống mô phỏng
+    giao thông thông minh sử dụng NGSI-LD và REST API", GVHD: Trương Đông Nam.
+  x-version: 1.0.0

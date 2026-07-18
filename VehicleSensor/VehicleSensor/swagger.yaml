@@ -1,0 +1,32 @@
+openapi: 3.0.0
+
+info:
+  title: VehicleSensor
+  description: |
+    Per-approach vehicle sensor for a Smart Traffic Simulation System (NGSI-LD).
+  version: "1.0.0"
+
+paths:
+  /ngsi-ld/v1/entities:
+    get:
+      description: Retrieve VehicleSensor entities from an NGSI-LD system
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum:
+              - VehicleSensor
+      responses:
+        "200":
+          description: OK
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/VehicleSensor"
+
+components:
+  schemas:
+    VehicleSensor:
+      $ref: "./vehiclesensor_model.yaml#/VehicleSensor"

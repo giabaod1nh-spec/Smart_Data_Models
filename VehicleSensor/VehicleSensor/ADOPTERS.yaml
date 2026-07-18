@@ -1,0 +1,11 @@
+description: Adopters of the VehicleSensor data model for the Smart Traffic Simulation project.
+currentAdopters:
+-
+ adopter: Graduation Project - Smart Traffic Simulation
+ description: >
+   Per-approach vehicle sensor entity (PCU, queue-by-movement, arrival rate).
+ mail:
+ organization:
+ project: Xây dựng hệ thống mô phỏng giao thông thông minh sử dụng NGSI-LD và REST API
+ comments: GVHD Trương Đông Nam
+ startDate: 2026-07-18
