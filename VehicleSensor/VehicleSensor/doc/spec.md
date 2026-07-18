@@ -1,198 +1,68 @@
 # VehicleSensor
 
-Data Model for a per-approach vehicle sensor in a Smart Traffic Simulation System (NGSI-LD / FIWARE Orion).
+Data Model for a per-approach vehicle sensing device (physical or virtual/simulated: induction loop, radar, magnetometer, or camera-derived counting) in a >
+-  `id`: Unique identifier. Pattern: urn:ngsi-ld:VehicleSensor:{intersectionId}:{direction} Example: urn:ngsi-ld:VehicleSensor:Intersection001:NORTHBOUND
+   -  Attribute type: **Property**.
+   -  Required
+-  `type`: NGSI entity type. Must be VehicleSensor.. One of : `VehicleSensor`.
+   -  Attribute type: **Property**.
+   -  Required
+-  `name`: Human-readable display name of the sensor.
+   -  Attribute type: **Property**.
+   -  Optional
+-  `description`: Description of the sensor installation (which approach/purpose).
+   -  Attribute type: **Property**.
+   -  Optional
+-  `dateCreated`: Entity creation timestamp.
+   -  Attribute type: **Property**.
+   -  Optional
+-  `dateModified`: Last modification timestamp.
+   -  Attribute type: **Property**.
+   -  Optional
+-  `location`: GeoJSON Point — physical/logical location of the sensor for this approach (e.g. stop-line position of the approach it covers).
+   -  Attribute type: **GeoProperty**.
+   -  Required
+-  `sensorType`: Sensing technology, including virtual/simulated types since this is a simulation project (not always real hardware).. One of : `VIRTUAL`, >
+   -  Attribute type: **Property**.
+   -  Optional
+-  `sensorStatus`: Operational health of the sensor.. One of : `OK`, `ERROR`, `MAINTENANCE`, `OFFLINE`.
+   -  Attribute type: **Property**.
+   -  Required
+-  `trafficDirection`: Approach direction this sensor covers (all lanes of that approach combined). No ALL_DIRECTIONS option — a sensor always covers exact>
+   -  Attribute type: **Property**.
+   -  Required
+-  `refIntersection`: The Intersection entity this sensor is deployed at.
+   -  Attribute type: **Relationship**.
+   -  Required
+-  `refCamera`: The Camera whose detectionZone overlaps this approach, used to cross-validate vehicleCount/trafficStatus between the two independent data s>
+   -  Optional
+-  `queueLength`: Overall queue length on this approach, in metres.
+   -  Attribute type: **Property**.
+   -  Optional
+-  `queueLeft`: Queue length (metres) specifically on the left-turn lane(s).
+   -  Attribute type: **Property**.
+   -  Optional
+-  `queueStraight`: Queue length (metres) specifically on the through lane(s).
+   -  Attribute type: **Property**.
+   -  Optional
+-  `queueRight`: Queue length (metres) specifically on the right-turn lane(s).
+   -  Attribute type: **Property**.
+   -  Optional
+-  `waitingReasonCounts`: Breakdown of waiting vehicles by cause, keyed by reason code (e.g. RED_PHASE, CONGESTION, INCIDENT) with integer counts as values.
+   -  Attribute type: **Property**.
+   -  Optional
+-  `dominantWaitingReason`: The single most common reason vehicles are currently waiting, if any.. One of : `RED_PHASE`, `CONGESTION`, `INCIDENT`.
+   -  Attribute type: **Property**.
+   -  Optional
 
-One entity = traffic metrics for a **single approach direction** at an Intersection.
 
-## Attributes
-
-### `id`
-- Unique identifier. Pattern: `urn:ngsi-ld:VehicleSensor:{intersectionId}:{direction}`
-- Attribute type: **Property**.
-- **Required**
-
-### `type`
-- Entity type.
-- One of: `VehicleSensor`.
-- Attribute type: **Property**.
-- **Required**
-
-### `name`
-- Sensor display name.
-- Attribute type: **Property**.
-- Optional
-
-### `description`
-- Sensor description.
-- Attribute type: **Property**.
-- Optional
-
-### `dateCreated`
-- Entity creation timestamp.
-- Attribute type: **Property**.
-- Optional
-
-### `dateModified`
-- Last modification timestamp.
-- Attribute type: **Property**.
-- Optional
-
-### `location`
-- Sensor geographical position (GeoJSON Point).
-- Attribute type: **GeoProperty**.
-- Optional
-
-### `sensorType`
-- Sensor hardware/virtual type.
-- One of:
-  - `VIRTUAL`
-  - `INDUCTIVE_LOOP`
-  - `CAMERA_DERIVED`
-  - `RADAR`
-  - `MAGNETOMETER`
-- Attribute type: **Property**.
-- Optional
-
-### `sensorStatus`
-- Sensor operational status.
-- One of:
-  - `ok`
-  - `offline`
-  - `maintenance`
-  - `error`
-- Attribute type: **Property**.
-- **Required**
-
-### `trafficDirection`
-- Approach direction monitored by this sensor.
-- One of:
-  - `NORTHBOUND`
-  - `SOUTHBOUND`
-  - `EASTBOUND`
-  - `WESTBOUND`
-- Attribute type: **Property**.
-- **Required**
-
-### `refIntersection`
-- Related Intersection.
-- Attribute type: **Relationship**.
-- **Required**
-
-### `refCamera`
-- Related Camera (same approach, for cross-validation).
-- Attribute type: **Relationship**.
-- Optional
-
-### `refTrafficLight`
-- Related TrafficLight governing this approach.
-- Attribute type: **Relationship**.
-- Optional
-
-### `dateObserved`
-- Observation timestamp.
-- Attribute type: **Property**.
-- **Required**
-
-### `vehicleCount`
-- Headcount of vehicles on this approach.
-- Attribute type: **Property**.
-- **Required**
-
-### `pcuEquivalent`
-- Passenger Car Unit equivalent (primary CBR+GA input).
-- Attribute type: **Property**.
-- **Required**
-
-### `vehicleClassComposition`
-- Share of motorcycle / car / bus / truck (0.0–1.0 each).
-- Attribute type: **Property**.
-- Optional
-
-### `leftTurnCount`
-- Vehicles for left turn.
-- Attribute type: **Property**.
-- Optional
-
-### `straightCount`
-- Vehicles going straight.
-- Attribute type: **Property**.
-- Optional
-
-### `rightTurnCount`
-- Vehicles for right turn.
-- Attribute type: **Property**.
-- Optional
-
-### `averageSpeed`
-- Average speed (km/h).
-- Attribute type: **Property**.
-- Optional
-
-### `waitingVehicleCount`
-- Vehicles currently waiting.
-- Attribute type: **Property**.
-- Optional
-
-### `queueLength`
-- Queue length (metres) for the approach.
-- Attribute type: **Property**.
-- Optional
-
-### `queueStraight`
-- Queue length (m) on straight lane.
-- Attribute type: **Property**.
-- Optional
-
-### `queueLeft`
-- Queue length (m) on left-turn lane.
-- Attribute type: **Property**.
-- Optional
-
-### `queueRight`
-- Queue length (m) on right-turn lane.
-- Attribute type: **Property**.
-- Optional
-
-### `occupancyRate`
-- Occupancy percentage (0–100).
-- Attribute type: **Property**.
-- Optional
-
-### `trafficStatus`
-- Congestion level for this approach.
-- One of:
-  - `FREE_FLOW`
-  - `LIGHT`
-  - `MODERATE`
-  - `HEAVY`
-  - `CONGESTED`
-- Attribute type: **Property**.
-- Optional
-
-### `arrivalRatePcuPerSec`
-- Arrival rate in PCU/s.
-- Attribute type: **Property**.
-- Optional
-
-### `waitingReasonCounts`
-- Counts by waiting reason (e.g. `RED_PHASE`, `CONGESTION`).
-- Attribute type: **Property**.
-- Optional
-
-### `dominantWaitingReason`
-- Dominant waiting reason.
-- One of:
-  - `RED_PHASE`
-  - `CONGESTION`
-  - `INCIDENT`
-- Attribute type: **Property**.
-- Optional
-
-### `theoreticalSpeed`
-- Theoretical / Greenshields-derived speed (km/h).
-- Attribute type: **Property**.
-- Optional
 
 ## Examples
 
 ### OK
+
+
+
+### OK
+
+
