@@ -1,0 +1,74 @@
+<routes>
+    <!-- Loại xe theo thực tế VN -->
+    <vType id="motorcycle" vClass="motorcycle" guiShape="motorcycle" length="2.0" width="0.9"
+           maxSpeed="16.7" accel="3.0" decel="5.0" imgFile="images/bike_bg.png"/>
+    <vType id="car" vClass="passenger" guiShape="passenger/sedan" length="4.5" width="2.2"
+           maxSpeed="13.9" accel="2.5" decel="4.5" imgFile="images/car_final.png"/>
+    <vType id="bus" vClass="bus" guiShape="bus" length="12.0" width="2.8"
+           maxSpeed="11.0" accel="1.5" decel="3.5" imgFile="images/bus_bg.png"/>
+    <vType id="truck" vClass="truck" guiShape="truck" length="7.1" width="2.4"
+           maxSpeed="11.1" accel="1.2" decel="3.0" imgFile="images/truck_bg.png"/>
+    <vType id="container" vClass="trailer" guiShape="truck/semitrailer" length="16.5" width="2.5"
+           maxSpeed="10.0" accel="0.8" decel="2.5" imgFile="images/tractor_head.png">
+        <param key="locomotiveLength" value="4.0"/> <!-- Chiều dài của đầu kéo -->
+        <param key="carriageLength" value="12.0"/>  <!-- Chiều dài của thùng rơ-moóc -->
+        <param key="carriageGap" value="0.5"/>      <!-- Khoảng cách giữa đầu kéo và thùng -->
+        <param key="carriageImages" value="images/trailer_box.png"/> <!-- Ảnh của thùng rơ-moóc -->
+    </vType>
+    <vType id="ambulance" vClass="emergency" guiShape="emergency" length="5.5" width="2.2"
+           maxSpeed="18.0" accel="3.0" decel="5.0" imgFile="images/ambulance_bg.png"/>
+    <vType id="police" vClass="authority" guiShape="police" length="5.0" width="2.2"
+           maxSpeed="19.0" accel="3.5" decel="5.5" imgFile="images/police_bg.png"/>
+    <vType id="firetruck" vClass="emergency" guiShape="firebrigade" length="8.0" width="2.5"
+           maxSpeed="16.0" accel="2.5" decel="4.0" imgFile="images/firetruck_bg.png"/>
+
+    <!-- Mỗi loại xe ~40 xe/giờ mỗi hướng chính → spawn đồng đều -->
+    <!-- ===== Bắc -> Nam ===== -->
+    <flow id="ns_moto"      type="motorcycle" from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_car"       type="car"        from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_bus"       type="bus"        from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_truck"     type="truck"      from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_container" type="container"  from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_amb"       type="ambulance"  from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_fire"      type="firetruck"  from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ns_police"    type="police"     from="NC" to="CS" begin="0" end="3600" vehsPerHour="40"/>
+
+    <!-- ===== Nam -> Bắc ===== -->
+    <flow id="sn_moto"      type="motorcycle" from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_car"       type="car"        from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_bus"       type="bus"        from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_truck"     type="truck"      from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_container" type="container"  from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_amb"       type="ambulance"  from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_fire"      type="firetruck"  from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="sn_police"    type="police"     from="SC" to="CN" begin="0" end="3600" vehsPerHour="40"/>
+
+    <!-- ===== Tây -> Đông ===== -->
+    <flow id="we_moto"      type="motorcycle" from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_car"       type="car"        from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_bus"       type="bus"        from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_truck"     type="truck"      from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_container" type="container"  from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_amb"       type="ambulance"  from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_fire"      type="firetruck"  from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="we_police"    type="police"     from="WC" to="CE" begin="0" end="3600" vehsPerHour="40"/>
+
+    <!-- ===== Đông -> Tây ===== -->
+    <flow id="ew_moto"      type="motorcycle" from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_car"       type="car"        from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_bus"       type="bus"        from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_truck"     type="truck"      from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_container" type="container"  from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_amb"       type="ambulance"  from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_fire"      type="firetruck"  from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+    <flow id="ew_police"    type="police"     from="EC" to="CW" begin="0" end="3600" vehsPerHour="40"/>
+
+    <!-- ===== Luồng rẽ: mỗi loại 1 luồng ===== -->
+    <flow id="nw_moto"      type="motorcycle" from="NC" to="CW" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ne_car"       type="car"        from="NC" to="CE" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="ws_bus"       type="bus"        from="WC" to="CS" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="es_truck"     type="truck"      from="EC" to="CS" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="wn_container" type="container"  from="WC" to="CN" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="en_amb"       type="ambulance"  from="EC" to="CN" begin="0" end="3600" vehsPerHour="20"/>
+    <flow id="sw_fire"      type="firetruck"  from="SC" to="CW" begin="0" end="3600" vehsPerHour="20"/>
+</routes>

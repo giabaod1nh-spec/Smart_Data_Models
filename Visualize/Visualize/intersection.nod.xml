@@ -1,0 +1,9 @@
+<nodes>
+    <!-- Nút trung tâm: ngã tư có đèn giao thông -->
+    <node id="C" x="0" y="0" type="traffic_light"/>
+    <!-- 4 đầu mút của 4 nhánh, mỗi nhánh dài 150m -->
+    <node id="N" x="0" y="150"/>
+    <node id="S" x="0" y="-150"/>
+    <node id="E" x="150" y="0"/>
+    <node id="W" x="-150" y="0"/>
+</nodes>

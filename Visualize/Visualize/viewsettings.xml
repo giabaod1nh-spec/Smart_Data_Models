@@ -1,0 +1,7 @@
+<viewsettings>
+    <viewport zoom="200" x="0" y="0"/>
+    <background backgroundColor="white"/>
+    <!-- scheme="real world" equivalent settings -->
+        <vehicles vehicleMode="3" vehicleQuality="3" vehicleExaggeration="1.0" vehicleName_show="0"/>
+    <polygons polygonMode="0"/>
+</viewsettings>

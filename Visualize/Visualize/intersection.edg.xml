@@ -1,0 +1,12 @@
+<edges>
+    <!-- Mỗi hướng 2 chiều, mỗi chiều 2 làn, tốc độ tối đa 50 km/h (13.9 m/s) -->
+    <!-- Tên edge: NC = từ North vào Center, CN = từ Center ra North, v.v. -->
+    <edge id="NC" from="N" to="C" numLanes="2" speed="13.9"/>
+    <edge id="CN" from="C" to="N" numLanes="2" speed="13.9"/>
+    <edge id="SC" from="S" to="C" numLanes="2" speed="13.9"/>
+    <edge id="CS" from="C" to="S" numLanes="2" speed="13.9"/>
+    <edge id="EC" from="E" to="C" numLanes="2" speed="13.9"/>
+    <edge id="CE" from="C" to="E" numLanes="2" speed="13.9"/>
+    <edge id="WC" from="W" to="C" numLanes="2" speed="13.9"/>
+    <edge id="CW" from="C" to="W" numLanes="2" speed="13.9"/>
+</edges>
