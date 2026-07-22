@@ -1,0 +1,17 @@
+<nodes>
+    <!-- 4 ngã tư có đèn giao thông, xếp thành lưới 2x2, cách nhau 120m -->
+    <node id="J1" x="0"   y="0"   type="traffic_light"/>  <!-- Tây-Nam -->
+    <node id="J2" x="120" y="0"   type="traffic_light"/>  <!-- Đông-Nam -->
+    <node id="J3" x="0"   y="120" type="traffic_light"/>  <!-- Tây-Bắc -->
+    <node id="J4" x="120" y="120" type="traffic_light"/>  <!-- Đông-Bắc -->
+
+    <!-- Các đầu mút bên ngoài, mỗi nhánh dài 100m -->
+    <node id="N1" x="0"   y="220"/>
+    <node id="N2" x="120" y="220"/>
+    <node id="S1" x="0"   y="-100"/>
+    <node id="S2" x="120" y="-100"/>
+    <node id="W1" x="-100" y="0"/>
+    <node id="W2" x="-100" y="120"/>
+    <node id="E1" x="220" y="0"/>
+    <node id="E2" x="220" y="120"/>
+</nodes>

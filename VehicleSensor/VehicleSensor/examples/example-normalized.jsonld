@@ -1,0 +1,133 @@
+{
+  "id": "urn:ngsi-ld:VehicleSensor:Intersection001:NORTHBOUND",
+  "type": "VehicleSensor",
+  "name": {
+    "type": "Property",
+    "value": "Nguyen Hue - Le Loi North approach"
+  },
+  "description": {
+    "type": "Property",
+    "value": "Virtual vehicle sensor for NORTHBOUND approach at Intersection 001"
+  },
+  "location": {
+    "type": "GeoProperty",
+    "value": {
+      "type": "Point",
+      "coordinates": [106.7009, 10.7769]
+    }
+  },
+  "sensorType": {
+    "type": "Property",
+    "value": "VIRTUAL"
+  },
+  "sensorStatus": {
+    "type": "Property",
+    "value": "ok"
+  },
+  "trafficDirection": {
+    "type": "Property",
+    "value": "NORTHBOUND"
+  },
+  "refIntersection": {
+    "type": "Relationship",
+    "object": "urn:ngsi-ld:Intersection:Intersection001"
+  },
+  "refCamera": {
+    "type": "Relationship",
+    "object": "urn:ngsi-ld:Camera:Intersection001:01"
+  },
+  "refTrafficLight": {
+    "type": "Relationship",
+    "object": "urn:ngsi-ld:TrafficLight:Intersection001:NORTHBOUND"
+  },
+  "dateObserved": {
+    "type": "Property",
+    "value": {
+      "@type": "DateTime",
+      "@value": "2026-07-18T05:00:00.000Z"
+    }
+  },
+  "vehicleCount": {
+    "type": "Property",
+    "value": 42
+  },
+  "pcuEquivalent": {
+    "type": "Property",
+    "value": 18.56
+  },
+  "vehicleClassComposition": {
+    "type": "Property",
+    "value": {
+      "motorcycle": 0.85,
+      "car": 0.12,
+      "bus": 0.02,
+      "truck": 0.01
+    }
+  },
+  "leftTurnCount": {
+    "type": "Property",
+    "value": 8
+  },
+  "straightCount": {
+    "type": "Property",
+    "value": 26
+  },
+  "rightTurnCount": {
+    "type": "Property",
+    "value": 8
+  },
+  "averageSpeed": {
+    "type": "Property",
+    "value": 22.5
+  },
+  "waitingVehicleCount": {
+    "type": "Property",
+    "value": 15
+  },
+  "queueLength": {
+    "type": "Property",
+    "value": 28.4
+  },
+  "queueStraight": {
+    "type": "Property",
+    "value": 22.0
+  },
+  "queueLeft": {
+    "type": "Property",
+    "value": 28.4
+  },
+  "queueRight": {
+    "type": "Property",
+    "value": 12.5
+  },
+  "occupancyRate": {
+    "type": "Property",
+    "value": 35.2
+  },
+  "trafficStatus": {
+    "type": "Property",
+    "value": "MODERATE"
+  },
+  "arrivalRatePcuPerSec": {
+    "type": "Property",
+    "value": 0.42
+  },
+  "waitingReasonCounts": {
+    "type": "Property",
+    "value": {
+      "RED_PHASE": 12,
+      "CONGESTION": 3
+    }
+  },
+  "dominantWaitingReason": {
+    "type": "Property",
+    "value": "RED_PHASE"
+  },
+  "theoreticalSpeed": {
+    "type": "Property",
+    "value": 38.0
+  },
+  "@context": [
+    "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld"
+  ]
+}

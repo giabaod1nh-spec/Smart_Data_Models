@@ -1,0 +1,39 @@
+# Git — chỉ push code simulator (ẩn test / md / pdf)
+
+# Test & verification
+test_*.py
+*_test.py
+deep_test.py
+verify_claims.py
+verify_*.py
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Tài liệu / báo cáo (không đẩy lên GitHub)
+*.md
+*.pdf
+*.PDF
+
+# Môi trường & IDE
+.env
+.env.*
+.venv/
+venv/
+*.egg-info/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Log / runtime
+*.log
+*.tmp
+*.bak

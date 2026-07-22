@@ -1,0 +1,290 @@
+Camera:
+  description: >
+    Data Model for a traffic surveillance camera in a Smart Traffic
+    Simulation System (NGSI-LD / FIWARE Orion). Trimmed and extended from the
+    Smart Data Models "Camera" model: generic schema.org boilerplate removed,
+    duplicate/overlapping fields consolidated, and traffic-domain
+    Relationships/Properties added.
+  properties:
+    # ---------------- CORE NGSI-LD FIELDS ----------------
+    id:
+      description: >
+        Unique identifier. Pattern: urn:ngsi-ld:Camera:{intersectionId}:{cameraNum}
+        Example: urn:ngsi-ld:Camera:Intersection001:01
+      maxLength: 256
+      minLength: 1
+      pattern: ^[\w\-\.\{\}\$\+\*\[\]`|~^@!,:\\]+$
+      type: string
+      x-ngsi:
+        type: Property
+
+    type:
+      description: NGSI entity type. Must be Camera
+      enum:
+        - Camera
+      type: string
+      x-ngsi:
+        type: Property
+
+    name:
+      description: Display name of the camera (replaces the old duplicate cameraName)
+      type: string
+      x-ngsi:
+        type: Property
+
+    description:
+      description: Free-text description of the camera's installation/purpose
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateCreated:
+      description: Entity creation timestamp, allocated by Orion
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateModified:
+      description: Timestamp of the last modification, allocated by Orion
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    location:
+      description: GeoJSON Point — camera's physical location on the map
+      properties:
+        coordinates:
+          items:
+            type: number
+          minItems: 2
+          type: array
+        type:
+          enum:
+            - Point
+          type: string
+      required:
+        - type
+        - coordinates
+      title: GeoJSON Point
+      type: object
+      x-ngsi:
+        type: GeoProperty
+
+    # ---------------- DEVICE-SPECIFIC (kept, minimal) ----------------
+    cameraNum:
+      description: Camera index within its intersection (e.g. 1, 2, 3...)
+      type: integer
+      x-ngsi:
+        type: Property
+
+    cameraType:
+      description: "Enum: FIXED, PTZ, DOME, DAY/NIGHT, C-MOUNT, BULLET"
+      enum:
+        - FIXED
+        - PTZ
+        - DOME
+        - DAY/NIGHT
+        - C-MOUNT
+        - BULLET
+      type: string
+      x-ngsi:
+        type: Property
+
+    cameraUsage:
+      description: "Enum: SURVEILLANCE, RLVD, ANPR/LPR, TRAFFIC"
+      enum:
+        - SURVEILLANCE
+        - RLVD
+        - ANPR/LPR
+        - TRAFFIC
+      type: string
+      x-ngsi:
+        type: Property
+
+    orientationAngle:
+      description: >
+        Camera facing direction in degrees (0-360, 0 = North), simplified
+        from the original cameraOrientation object — a single number is
+        enough for the simulator/dashboard to draw the camera's field of view.
+      maximum: 360
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    streamURL:
+      description: URL for live video/stream feed (RTSP or HTTP), used by the dashboard
+      type: string
+      x-ngsi:
+        type: Property
+
+    cameraStatus:
+      description: >
+        Device health status. Enum: ok, error, maintenance, offline.
+        Named cameraStatus (not "status") to match the shared
+        traffic-system-context.jsonld term used across all entity types.
+      enum:
+        - ok
+        - error
+        - maintenance
+        - offline
+      type: string
+      x-ngsi:
+        type: Property
+
+    # ---------------- RELATIONSHIPS ----------------
+    refIntersection:
+      description: >
+        Relationship (mandatory). The Intersection this camera is installed at.
+        Example: urn:ngsi-ld:Intersection:001
+      format: uri
+      type: string
+      x-ngsi:
+        type: Relationship
+
+    refTrafficLight:
+      description: >
+        Relationship (optional). TrafficLight this camera directly supervises,
+        used to trigger phase-change decisions based on detected vehicle count.
+      format: uri
+      type: string
+      x-ngsi:
+        type: Relationship
+
+    refVehicleSensor:
+      description: >
+        Relationship (optional, array). VehicleSensor(s) in the same zone,
+        for cross-validating camera-based counts.
+      items:
+        format: uri
+        type: string
+      type: array
+      x-ngsi:
+        type: Relationship
+
+    # ---------------- TRAFFIC OBSERVATION (simulator-updated) ----------------
+    dateObserved:
+      description: Timestamp of the most recent traffic observation
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    trafficDirection:
+      description: "Enum: NORTHBOUND, SOUTHBOUND, EASTBOUND, WESTBOUND, ALL_DIRECTIONS"
+      enum:
+        - NORTHBOUND
+        - SOUTHBOUND
+        - EASTBOUND
+        - WESTBOUND
+        - ALL_DIRECTIONS
+      type: string
+      x-ngsi:
+        type: Property
+
+    monitoredLane:
+      description: Lane identifier(s) monitored by this camera (e.g. "1", "left-turn")
+      items:
+        type: string
+      type: array
+      x-ngsi:
+        type: Property
+
+    detectionZone:
+      description: >
+        GeoJSON Polygon — ground-plane area covered by the camera's
+        vehicle-detection logic in the simulation.
+      properties:
+        coordinates:
+          items:
+            items:
+              items:
+                type: number
+              minItems: 2
+              type: array
+            minItems: 4
+            type: array
+          type: array
+        type:
+          enum:
+            - Polygon
+          type: string
+      required:
+        - type
+        - coordinates
+      title: GeoJSON Polygon
+      type: object
+      x-ngsi:
+        type: GeoProperty
+
+    vehicleCount:
+      description: >
+        Number of vehicles currently detected in the zone at dateObserved.
+        Named vehicleCount (not vehicleCountCurrent) to match the shared
+        traffic-system-context.jsonld term. Accumulated/historical counting
+        is left to VehicleSensor, not duplicated here.
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    averageSpeed:
+      description: Average speed (km/h) of vehicles detected in the current window
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    occupancyRate:
+      description: Percentage (0-100) of the detection zone occupied by vehicles
+      maximum: 100
+      minimum: 0
+      type: number
+      x-ngsi:
+        type: Property
+
+    trafficStatus:
+      description: "Enum: FREE_FLOW, LIGHT, MODERATE, HEAVY, CONGESTED"
+      enum:
+        - FREE_FLOW
+        - LIGHT
+        - MODERATE
+        - HEAVY
+        - CONGESTED
+      type: string
+      x-ngsi:
+        type: Property
+
+    confidence:
+      description: >
+        Confidence score (0.0-1.0) of the vehicle-detection result for this
+        observation, as reported/simulated by the detection algorithm.
+      maximum: 1.0
+      minimum: 0.0
+      type: number
+      x-ngsi:
+        type: Property
+
+    incidentDetected:
+      description: Whether an incident (stopped vehicle, wrong-way, accident) is flagged
+      type: boolean
+      x-ngsi:
+        type: Property
+
+  required:
+    - id
+    - type
+    - refIntersection
+    - location
+
+  type: object
+  x-derived-from: "https://smart-data-models.github.io/CrossSector/Camera/schema.json"
+  x-disclaimer: >
+    Trimmed and adapted from the Smart Data Models Camera model
+    (Copyleft (c) 2022 Contributors to Smart Data Models Program) for the
+    graduation project "Xây dựng hệ thống mô phỏng giao thông thông minh sử
+    dụng NGSI-LD và REST API", GVHD: Trương Đông Nam.
+  x-license-url: https://github.com/smart-data-models/dataModel.Device/blob/master/Camera/LICENSE.md
+  x-version: 2.0.0

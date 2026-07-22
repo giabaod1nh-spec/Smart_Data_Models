@@ -1,0 +1,193 @@
+TrafficLight:
+  description: >
+    Data Model for a traffic light signal pole in a Smart Traffic Simulation
+    System (NGSI-LD / FIWARE Orion). Controlled adaptively based on Camera
+    observations (vehicleCount, trafficStatus, incidentDetected) or via
+    fixed-time cycles. Field naming aligned with Camera v2.0.0 and
+    Intersection v1.1.0.
+  type: object
+  required:
+    - id
+    - type
+    - currentStatus
+    - timingMode
+    - refIntersection
+
+  properties:
+    # ---------------- CORE NGSI-LD FIELDS ----------------
+    id:
+      description: >
+        Unique identifier. Pattern: urn:ngsi-ld:TrafficLight:{intersectionId}:{signalId}
+        Example: urn:ngsi-ld:TrafficLight:Intersection001:SignalA
+      maxLength: 256
+      minLength: 1
+      pattern: ^[\w\-\.\{\}\$\+\*\[\]`|~^@!,:\\]+$
+      type: string
+      x-ngsi:
+        type: Property
+
+    type:
+      description: NGSI entity type. Must be TrafficLight.
+      enum:
+        - TrafficLight
+      type: string
+      x-ngsi:
+        type: Property
+
+    name:
+      description: Human-readable display name of the signal pole.
+      type: string
+      x-ngsi:
+        type: Property
+
+    description:
+      description: Description of the signal pole (e.g. which approach it governs).
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateCreated:
+      description: Entity creation timestamp.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    dateModified:
+      description: Last modification timestamp.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    location:
+      description: >
+        GeoJSON Point — physical position of this specific signal pole
+        (an intersection typically has several poles at different corners).
+      properties:
+        coordinates:
+          items:
+            type: number
+          minItems: 2
+          type: array
+        type:
+          enum:
+            - Point
+          type: string
+      required:
+        - type
+        - coordinates
+      title: GeoJSON Point
+      type: object
+      x-ngsi:
+        type: GeoProperty
+
+    # ---------------- SIGNAL STATE ----------------
+    currentStatus:
+      description: The active color phase of the traffic signal.
+      enum:
+        - RED
+        - YELLOW
+        - GREEN
+        - FLASHING_YELLOW
+        - OFF
+      type: string
+      x-ngsi:
+        type: Property
+
+    phaseStartedAt:
+      description: >
+        Timestamp when currentStatus last changed. Combined with the relevant
+        *DurationCurrent field, the dashboard can compute a live countdown
+        to the next phase change.
+      format: date-time
+      type: string
+      x-ngsi:
+        type: Property
+
+    timingMode:
+      description: Control strategy currently applied to this signal.
+      enum:
+        - FIXED_TIME
+        - ADAPTIVE
+        - MANUAL
+        - EMERGENCY_PRIORITY
+      type: string
+      x-ngsi:
+        type: Property
+
+    workingState:
+      description: Hardware health status.
+      enum:
+        - OK
+        - BULB_BURNT
+        - CONTROLLER_ERROR
+        - OFFLINE
+      type: string
+      x-ngsi:
+        type: Property
+
+    trafficDirection:
+      description: >
+        Approach direction this signal head governs. Matches the same enum
+        used by Camera.trafficDirection, so a light and the camera watching
+        its approach can be paired by value.
+      enum:
+        - NORTHBOUND
+        - SOUTHBOUND
+        - EASTBOUND
+        - WESTBOUND
+        - ALL_DIRECTIONS
+      type: string
+      x-ngsi:
+        type: Property
+
+    # ---------------- TIMING PARAMETERS ----------------
+    greenDurationCurrent:
+      description: The currently active or calculated green light duration in seconds.
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    redDurationCurrent:
+      description: The currently active or calculated red light duration in seconds.
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    yellowDuration:
+      description: >
+        Yellow phase duration in seconds. Typically a fixed safety constant
+        (not recalculated adaptively like green/red).
+      minimum: 0
+      type: integer
+      x-ngsi:
+        type: Property
+
+    # ---------------- RELATIONSHIPS ----------------
+    refIntersection:
+      description: The Intersection entity this traffic light belongs to.
+      type: string
+      format: uri
+      x-ngsi:
+        type: Relationship
+
+    refCamera:
+      description: >
+        The Camera providing traffic observations (vehicleCount,
+        trafficStatus, incidentDetected) used to drive this light's
+        adaptive timing decisions, when timingMode = ADAPTIVE.
+      type: string
+      format: uri
+      x-ngsi:
+        type: Relationship
+
+  x-derived-from: ""
+  x-disclaimer: >
+    Adapted for the graduation project "Xây dựng hệ thống mô phỏng giao thông
+    thông minh sử dụng NGSI-LD và REST API" to align field-for-field with the
+    project's Camera v2.0.0 (refTrafficLight, trafficDirection, vehicleCount,
+    trafficStatus, incidentDetected) and Intersection v1.1.0 (refTrafficLights).
+  x-version: 1.0.0

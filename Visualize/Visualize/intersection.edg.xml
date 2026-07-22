@@ -1,0 +1,32 @@
+<edges>
+    <!-- Mỗi hướng 2 chiều, mỗi chiều 2 làn, tốc độ tối đa 50 km/h (13.9 m/s) -->
+    <!-- Tên edge = tên node đi + tên node đến, ví dụ W1J1 = từ W1 vào J1 -->
+
+    <!-- ===== Các nhánh ngoài vào/ra 4 ngã tư ===== -->
+    <edge id="N1J3" from="N1" to="J3" numLanes="2" speed="13.9"/>
+    <edge id="J3N1" from="J3" to="N1" numLanes="2" speed="13.9"/>
+    <edge id="N2J4" from="N2" to="J4" numLanes="2" speed="13.9"/>
+    <edge id="J4N2" from="J4" to="N2" numLanes="2" speed="13.9"/>
+    <edge id="S1J1" from="S1" to="J1" numLanes="2" speed="13.9"/>
+    <edge id="J1S1" from="J1" to="S1" numLanes="2" speed="13.9"/>
+    <edge id="S2J2" from="S2" to="J2" numLanes="2" speed="13.9"/>
+    <edge id="J2S2" from="J2" to="S2" numLanes="2" speed="13.9"/>
+    <edge id="W1J1" from="W1" to="J1" numLanes="2" speed="13.9"/>
+    <edge id="J1W1" from="J1" to="W1" numLanes="2" speed="13.9"/>
+    <edge id="W2J3" from="W2" to="J3" numLanes="2" speed="13.9"/>
+    <edge id="J3W2" from="J3" to="W2" numLanes="2" speed="13.9"/>
+    <edge id="E1J2" from="E1" to="J2" numLanes="2" speed="13.9"/>
+    <edge id="J2E1" from="J2" to="E1" numLanes="2" speed="13.9"/>
+    <edge id="E2J4" from="E2" to="J4" numLanes="2" speed="13.9"/>
+    <edge id="J4E2" from="J4" to="E2" numLanes="2" speed="13.9"/>
+
+    <!-- ===== Các đoạn nối giữa 4 ngã tư ===== -->
+    <edge id="J1J2" from="J1" to="J2" numLanes="2" speed="13.9"/>
+    <edge id="J2J1" from="J2" to="J1" numLanes="2" speed="13.9"/>
+    <edge id="J3J4" from="J3" to="J4" numLanes="2" speed="13.9"/>
+    <edge id="J4J3" from="J4" to="J3" numLanes="2" speed="13.9"/>
+    <edge id="J1J3" from="J1" to="J3" numLanes="2" speed="13.9"/>
+    <edge id="J3J1" from="J3" to="J1" numLanes="2" speed="13.9"/>
+    <edge id="J2J4" from="J2" to="J4" numLanes="2" speed="13.9"/>
+    <edge id="J4J2" from="J4" to="J2" numLanes="2" speed="13.9"/>
+</edges>

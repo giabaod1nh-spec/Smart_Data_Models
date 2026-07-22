@@ -1,0 +1,112 @@
+{
+  "@context": "dtmi:dtdl:context;2",
+  "@id": "dtmi:com:smartTraffic:VehicleSensor;1",
+  "@type": "Interface",
+  "displayName": "VehicleSensor",
+  "description": "Per-approach vehicle sensor for Smart Traffic Simulation.",
+  "contents": [
+    {
+      "@type": "Property",
+      "name": "name",
+      "schema": "string",
+      "displayName": "name",
+      "comment": "Display name of the sensor"
+    },
+    {
+      "@type": "Property",
+      "name": "sensorType",
+      "schema": "string",
+      "displayName": "sensorType",
+      "comment": "VIRTUAL | INDUCTIVE_LOOP | CAMERA_DERIVED | RADAR | MAGNETOMETER"
+    },
+    {
+      "@type": "Property",
+      "name": "sensorStatus",
+      "schema": "string",
+      "displayName": "sensorStatus",
+      "comment": "ok | error | maintenance | offline"
+    },
+    {
+      "@type": "Property",
+      "name": "trafficDirection",
+      "schema": "string",
+      "displayName": "trafficDirection",
+      "comment": "NORTHBOUND | SOUTHBOUND | EASTBOUND | WESTBOUND"
+    },
+    {
+      "@type": "Relationship",
+      "name": "refIntersection",
+      "displayName": "refIntersection",
+      "comment": "Intersection this sensor belongs to",
+      "target": "dtmi:com:smartTraffic:Intersection;1"
+    },
+    {
+      "@type": "Relationship",
+      "name": "refCamera",
+      "displayName": "refCamera",
+      "comment": "Camera covering the same approach"
+    },
+    {
+      "@type": "Relationship",
+      "name": "refTrafficLight",
+      "displayName": "refTrafficLight",
+      "comment": "TrafficLight governing this approach"
+    },
+    {
+      "@type": "Property",
+      "name": "dateObserved",
+      "schema": "dateTime",
+      "displayName": "dateObserved",
+      "comment": "Most recent observation timestamp"
+    },
+    {
+      "@type": "Property",
+      "name": "vehicleCount",
+      "schema": "integer",
+      "displayName": "vehicleCount",
+      "comment": "Headcount of vehicles on this approach"
+    },
+    {
+      "@type": "Property",
+      "name": "pcuEquivalent",
+      "schema": "double",
+      "displayName": "pcuEquivalent",
+      "comment": "PCU equivalent — primary CBR+GA input"
+    },
+    {
+      "@type": "Property",
+      "name": "averageSpeed",
+      "schema": "double",
+      "displayName": "averageSpeed",
+      "comment": "Average speed in km/h"
+    },
+    {
+      "@type": "Property",
+      "name": "queueLength",
+      "schema": "double",
+      "displayName": "queueLength",
+      "comment": "Queue length in metres"
+    },
+    {
+      "@type": "Property",
+      "name": "occupancyRate",
+      "schema": "double",
+      "displayName": "occupancyRate",
+      "comment": "Occupancy percentage 0-100"
+    },
+    {
+      "@type": "Property",
+      "name": "trafficStatus",
+      "schema": "string",
+      "displayName": "trafficStatus",
+      "comment": "FREE_FLOW | LIGHT | MODERATE | HEAVY | CONGESTED"
+    },
+    {
+      "@type": "Property",
+      "name": "arrivalRatePcuPerSec",
+      "schema": "double",
+      "displayName": "arrivalRatePcuPerSec",
+      "comment": "Arrival rate in PCU per second"
+    }
+  ]
+}

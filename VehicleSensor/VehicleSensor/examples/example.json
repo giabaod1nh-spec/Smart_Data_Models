@@ -1,0 +1,43 @@
+{
+  "id": "urn:ngsi-ld:VehicleSensor:Intersection001:NORTHBOUND",
+  "type": "VehicleSensor",
+  "name": "Nguyen Hue - Le Loi North approach",
+  "description": "Virtual vehicle sensor for NORTHBOUND approach at Intersection 001",
+  "location": {
+    "type": "Point",
+    "coordinates": [106.7009, 10.7769]
+  },
+  "sensorType": "VIRTUAL",
+  "sensorStatus": "ok",
+  "trafficDirection": "NORTHBOUND",
+  "refIntersection": "urn:ngsi-ld:Intersection:Intersection001",
+  "refCamera": "urn:ngsi-ld:Camera:Intersection001:01",
+  "refTrafficLight": "urn:ngsi-ld:TrafficLight:Intersection001:NORTHBOUND",
+  "dateObserved": "2026-07-18T05:00:00.000Z",
+  "vehicleCount": 42,
+  "pcuEquivalent": 18.56,
+  "vehicleClassComposition": {
+    "motorcycle": 0.85,
+    "car": 0.12,
+    "bus": 0.02,
+    "truck": 0.01
+  },
+  "leftTurnCount": 8,
+  "straightCount": 26,
+  "rightTurnCount": 8,
+  "averageSpeed": 22.5,
+  "waitingVehicleCount": 15,
+  "queueLength": 28.4,
+  "queueStraight": 22.0,
+  "queueLeft": 28.4,
+  "queueRight": 12.5,
+  "occupancyRate": 35.2,
+  "trafficStatus": "MODERATE",
+  "arrivalRatePcuPerSec": 0.42,
+  "waitingReasonCounts": {
+    "RED_PHASE": 12,
+    "CONGESTION": 3
+  },
+  "dominantWaitingReason": "RED_PHASE",
+  "theoreticalSpeed": 38.0
+}

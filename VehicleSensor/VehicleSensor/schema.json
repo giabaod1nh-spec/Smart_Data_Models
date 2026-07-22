@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schemaVersion": "1.0.0",
+  "modelTags": "SmartTraffic,NGSI-LD,Simulation",
+  "$id": "https://smart-data-models.github.io/dataModel.Transportation/VehicleSensor/schema.json",
+  "title": "Smart Data Models - VehicleSensor",
+  "description": "Per-approach vehicle sensor for a Smart Traffic Simulation System (NGSI-LD).",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "refIntersection",
+    "trafficDirection",
+    "dateObserved",
+    "vehicleCount",
+    "pcuEquivalent",
+    "sensorStatus"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Property. Unique identifier. Pattern: urn:ngsi-ld:VehicleSensor:{intersectionId}:{direction}"
+    },
+    "type": {
+      "type": "string",
+      "description": "Property. NGSI entity type. It has to be VehicleSensor",
+      "enum": ["VehicleSensor"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Property. Display name of the sensor"
+    },
+    "description": {
+      "type": "string",
+      "description": "Property. Free-text description of the sensor"
+    },
+    "dateCreated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Property. Entity creation timestamp"
+    },
+    "dateModified": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Property. Last modification timestamp"
+    },
+    "location": {
+      "type": "object",
+      "description": "GeoProperty. GeoJSON Point — sensor physical location",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Point"]
+        },
+        "coordinates": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "number" }
+        }
+      }
+    },
+    "sensorType": {
+      "type": "string",
+      "description": "Property. Sensor type. Enum: VIRTUAL, INDUCTIVE_LOOP, CAMERA_DERIVED, RADAR, MAGNETOMETER",
+      "enum": ["VIRTUAL", "INDUCTIVE_LOOP", "CAMERA_DERIVED", "RADAR", "MAGNETOMETER"]
+    },
+    "sensorStatus": {
+      "type": "string",
+      "description": "Property. Device health. Enum: ok, error, maintenance, offline",
+      "enum": ["ok", "error", "maintenance", "offline"]
+    },
+    "trafficDirection": {
+      "type": "string",
+      "description": "Property. Approach direction. Enum: NORTHBOUND, SOUTHBOUND, EASTBOUND, WESTBOUND",
+      "enum": ["NORTHBOUND", "SOUTHBOUND", "EASTBOUND", "WESTBOUND"]
+    },
+    "refIntersection": {
+      "type": "string",
+      "format": "uri",
+      "description": "Relationship. The Intersection this sensor belongs to"
+    },
+    "refCamera": {
+      "type": "string",
+      "format": "uri",
+      "description": "Relationship. Camera covering the same approach"
+    },
+    "refTrafficLight": {
+      "type": "string",
+      "format": "uri",
+      "description": "Relationship. TrafficLight governing this approach"
+    },
+    "dateObserved": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Property. Timestamp of the most recent observation"
+    },
+    "vehicleCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Property. Headcount of vehicles on this approach"
+    },
+    "pcuEquivalent": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. PCU equivalent — primary CBR+GA input"
+    },
+    "vehicleClassComposition": {
+      "type": "object",
+      "description": "Property. Share of each vehicle class (0.0-1.0)",
+      "properties": {
+        "motorcycle": { "type": "number", "minimum": 0, "maximum": 1 },
+        "car": { "type": "number", "minimum": 0, "maximum": 1 },
+        "bus": { "type": "number", "minimum": 0, "maximum": 1 },
+        "truck": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "leftTurnCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Property. Vehicles for left turn"
+    },
+    "straightCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Property. Vehicles going straight"
+    },
+    "rightTurnCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Property. Vehicles for right turn"
+    },
+    "averageSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Average speed (km/h)"
+    },
+    "waitingVehicleCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Property. Vehicles currently waiting"
+    },
+    "queueLength": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Queue length in metres"
+    },
+    "queueStraight": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Queue length (m) on straight lane"
+    },
+    "queueLeft": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Queue length (m) on left-turn lane"
+    },
+    "queueRight": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Queue length (m) on right-turn lane"
+    },
+    "occupancyRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Property. Occupancy percentage (0-100)"
+    },
+    "trafficStatus": {
+      "type": "string",
+      "description": "Property. Congestion level. Enum: FREE_FLOW, LIGHT, MODERATE, HEAVY, CONGESTED",
+      "enum": ["FREE_FLOW", "LIGHT", "MODERATE", "HEAVY", "CONGESTED"]
+    },
+    "arrivalRatePcuPerSec": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Arrival rate in PCU per second"
+    },
+    "waitingReasonCounts": {
+      "type": "object",
+      "description": "Property. Counts of waiting vehicles by reason",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "dominantWaitingReason": {
+      "type": ["string", "null"],
+      "description": "Property. Dominant waiting reason",
+      "enum": ["RED_PHASE", "CONGESTION", "INCIDENT", null]
+    },
+    "theoreticalSpeed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Property. Theoretical / Greenshields speed (km/h)"
+    }
+  }
+}
