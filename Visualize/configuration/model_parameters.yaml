@@ -1,0 +1,654 @@
+# Model parameters storage (YAML only). True SSOT = ParameterRegistry after load/validate/freeze.
+# Schema version for model parameter file structure.
+model_schema_version: "1.0.0"
+schema_version: "1.8.1-provenance"
+
+unknown_vtype_mode: compat  # strict | compat
+unknown_vtype_fallback_pce:
+  value: 1.0
+  unit: passenger_car_equivalent
+  source_type: DESIGN_DECISION
+  calibrated: false
+  description: "Fallback PCE for unknown SUMO vType in compatibility mode; always logged."
+
+profiles:
+  hanoi_signalized_mixed_traffic_pce_024:
+    id: hanoi_signalized_mixed_traffic_pce_024
+    version: "1.0.0"
+    kind: runtime
+    runtime_default: true
+    description: >
+      Runtime PCE profile. Motorcycle PCE 0.24 selected from Chu & Sano (2003)
+      empirical study at signalized intersections under mixed traffic.
+      Not a national constant.
+    author: Smart Traffic Team
+    created_at: "2026-07-20"
+    source: ACADEMIC_SELECTION
+    source_reference_id: CHU_SANO_2003
+
+  tcvn_13592_2022_motorcycle_reference:
+    id: tcvn_13592_2022_motorcycle_reference
+    version: "1.0.0"
+    kind: reference
+    runtime_default: false
+    description: >
+      Reference/sensitivity profile for TCVN 13592:2022 motorcycle PCU 0.30.
+      Must not be co-active with the runtime 0.24 profile in the same run unless
+      explicitly selected and recorded in the run manifest.
+    author: Smart Traffic Team
+    created_at: "2026-07-20"
+    source: STANDARD
+    source_reference_id: TCVN_13592_2022
+
+# Canonical vehicle taxonomy (DESIGN_DECISION mappings for coarse SUMO vTypes)
+taxonomy:
+  motorcycle: { canonical: motorcycle }
+  passenger_car: { canonical: passenger_car }
+  pickup: { canonical: pickup }
+  van: { canonical: van }
+  truck_2_axle: { canonical: truck_2_axle }
+  truck_3plus_axle: { canonical: truck_3plus_axle }
+  articulated: { canonical: articulated }
+  city_bus: { canonical: city_bus }
+  coach: { canonical: coach }
+  ambulance: { canonical: ambulance }
+  police: { canonical: police }
+  firetruck: { canonical: firetruck }
+
+# SUMO vType -> canonical class
+vtype_mapping:
+  motorcycle: motorcycle
+  car: passenger_car
+  bus: city_bus
+  truck: truck_2_axle
+  container: articulated_proxy
+  ambulance: ambulance
+  police: police
+  firetruck: firetruck
+
+# Runtime PCE by SUMO vType (active when runtime profile selected)
+pcu_runtime:
+  motorcycle:
+    value: 0.24
+    unit: passenger_car_equivalent
+    source_type: ACADEMIC
+    source_reference_id: CHU_SANO_2003
+    calibrated: false
+    runtime_default: true
+    description: >
+      PCE selected from an empirical study of motorcycle effects at signalized
+      intersections under mixed traffic (Chu & Sano, EASTS 2003). Research-scope
+      choice, not a national constant.
+  car:
+    value: 1.0
+    unit: passenger_car_equivalent
+    source_type: STANDARD
+    source_reference_id: TCVN_13592_2022
+    calibrated: false
+    description: "Passenger car baseline (TCVN 13592:2022)."
+  bus:
+    value: 2.5
+    unit: passenger_car_equivalent
+    source_type: DESIGN_DECISION
+    source_reference_id: TCVN_13592_2022
+    calibrated: false
+    mapped_as: city_bus_small_medium_proxy
+    description: >
+      Proxy for city/small-medium bus (TCVN small/medium bus 2.50). Axle/size
+      split not available in current SUMO vTypes.
+  truck:
+    value: 2.5
+    unit: passenger_car_equivalent
+    source_type: DESIGN_DECISION
+    source_reference_id: TCVN_13592_2022
+    calibrated: false
+    mapped_as: truck_2_axle_proxy
+    description: "Proxy for truck 2-axle (TCVN 2.50). Not truck 3+ axle."
+  container:
+    value: 2.5
+    unit: passenger_car_equivalent
+    source_type: DESIGN_DECISION
+    calibrated: false
+    mapped_as: articulated_proxy
+    description: >
+      Current project proxy mapping retained for backward compatibility; not a
+      normative articulated-vehicle value. TCVN articulated reference 4.00 is
+      reference-only (see pcu_reference). Review in a later schema/profile version.
+  ambulance:
+    value: 1.0
+    unit: passenger_car_equivalent
+    source_type: DESIGN_DECISION
+    calibrated: false
+    mapped_to: passenger_car
+    description: "Geometric proxy mapped to passenger car."
+  police:
+    value: 1.0
+    unit: passenger_car_equivalent
+    source_type: DESIGN_DECISION
+    calibrated: false
+    mapped_to: passenger_car
+    description: "Geometric proxy mapped to passenger car."
+  firetruck:
+    value: 2.5
+    unit: passenger_car_equivalent
+    source_type: DESIGN_DECISION
+    calibrated: false
+    mapped_to: truck_2_axle
+    description: "Geometric proxy mapped to truck_2_axle class."
+
+# Reference-only PCE values (excluded from effective runtime config_hash)
+pcu_reference:
+  motorcycle_tcvn_13592_2022:
+    value: 0.30
+    unit: passenger_car_equivalent
+    source_type: STANDARD
+    source_reference_id: TCVN_13592_2022
+    calibrated: false
+    runtime_default: false
+    description: >
+      TCVN 13592:2022 motorcycle conversion for design speed 30–50 km/h.
+      Reference/sensitivity only; not used in default runtime pipeline.
+  articulated_tcvn_13592_2022:
+    value: 4.0
+    unit: passenger_car_equivalent
+    source_type: STANDARD
+    source_reference_id: TCVN_13592_2022
+    calibrated: false
+    runtime_default: false
+    description: "TCVN articulated / trailer reference; not applied to runtime container vType."
+
+thresholds:
+  yellow_commitment_position_ratio:
+    value: 0.85
+    unit: ratio
+    source_type: HEURISTIC
+    calibrated: false
+    description: "Lane position / length ratio for yellow-commitment heuristic (not dilemma-zone standard)."
+  downstream_occupancy_threshold:
+    value: 0.85
+    unit: ratio
+    source_type: HEURISTIC
+    calibrated: false
+    description: "E2OUT occupancy threshold for estimated box/spillback flags."
+  blocked_entry_position_ratio:
+    value: 0.90
+    unit: ratio
+    source_type: HEURISTIC
+    calibrated: false
+    description: "Near-stop-line ratio for estimated blocked-at-entry count."
+  moto_front_zone_start_ratio:
+    value: 0.80
+    unit: ratio
+    source_type: HEURISTIC
+    calibrated: false
+    description: "Start of approach zone used for moto_front_pct heuristic."
+  halting_speed_ms:
+    value: 0.1
+    unit: m/s
+    source_type: SUMO_NATIVE
+    source_reference_id: SUMO_TRIPINFO_WAITING_TIME
+    calibrated: false
+    description: "Halting speed threshold aligned with SUMO TripInfo waitingTime semantics."
+  k_jam_pcu_per_km:
+    value: 200.0
+    unit: PCU/km
+    source_type: EXPERIMENTAL
+    calibrated: false
+    description: "Jam density for Greenshields theoretical speed; not prescribed by Greenshields (1935)."
+  base_v_free_kmh:
+    value: 50.0
+    unit: km/h
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "Free-flow speed used in Greenshields theoretical comparison."
+  approach_length_m:
+    value: 470.0
+    unit: m
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: >
+      Fallback approach length when TraCI/net lane length unavailable.
+      Prefer actual lane length from net (Phase 3.8 internal ~472.8 m).
+  passenger_car_length_m:
+    value: 7.5
+    unit: m
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "Geometric PCE packing length for nominal storage upper bound (not operational capacity)."
+  traffic_load_bins_per_direction:
+    value: { LOW: [0, 15], MEDIUM: [15, 35], HIGH: [35, null] }
+    unit: approach_pcu_count
+    source_type: HEURISTIC
+    calibrated: false
+    description: >
+      Traffic Load Class bins from approach PCU count — NOT traffic density (PCU/km).
+  traffic_load_bins_intersection:
+    value: { LOW: [0, 50], MEDIUM: [50, 140], HIGH: [140, null] }
+    unit: approach_pcu_count_sum
+    source_type: HEURISTIC
+    calibrated: false
+    description: "Intersection Traffic Load Class from sum of approach PCU counts."
+
+detectors:
+  profile_id: approach_detector_v2_stopline
+  geometry_version: "2"
+  description: >
+    Phase 3.8: E2_STOPLINE (100 m near stop line) + E1 + E2OUT.
+    Full-link spillback is measured via TraCI lane metrics, not a single long E2.
+  created_at: "2026-07-22"
+  network_id: intersection_grid_j1_j4
+  network_version: "1.8.0-geom"
+  expected_network_hash: "BDC620D966302B1595C5688AD6013A0579639F662A865127D9E6CA3ADA381C5D"
+  e1_offset_from_end_m:
+    value: 20.0
+    unit: m
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "Configured detector geometry; not a mandatory SUMO or Vietnamese standard."
+  e2_cover_length_m:
+    value: 100.0
+    unit: m
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "E2_STOPLINE cover length (80–120 m registry default 100 m); stop-line jam only."
+  e2_out_pos_m:
+    value: 5.0
+    unit: m
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "Outbound E2 start position."
+  e2_out_length_m:
+    value: 30.0
+    unit: m
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "Outbound E2 length."
+
+sumo_config:
+  step_length:
+    value: 0.01
+    unit: s
+    source_type: SUMO_CONFIG
+    calibrated: false
+    description: "Default SUMO step-length (overridable by env SUMO_STEP_LENGTH)."
+  seed:
+    value: 42
+    unit: unitless
+    source_type: SUMO_CONFIG
+    calibrated: false
+    description: "Default random seed (overridable by env SUMO_SEED)."
+  time_to_teleport:
+    value: 300
+    unit: s
+    source_type: SUMO_CONFIG
+    calibrated: false
+    description: "SUMO time-to-teleport."
+  sim_begin_sec:
+    value: 0
+    unit: s
+    source_type: SUMO_CONFIG
+    calibrated: false
+    description: "Simulation begin."
+  sim_end_sec:
+    value: 3600
+    unit: s
+    source_type: SUMO_CONFIG
+    calibrated: false
+    description: "Simulation end horizon."
+  warmup_sec:
+    value: 300
+    unit: s
+    source_type: DESIGN_DECISION
+    calibrated: false
+    description: "Warm-up period declaration."
+  green_duration_fallback_sec:
+    value: 42
+    unit: s
+    source_type: EXPERIMENTAL
+    calibrated: false
+    description: "Python fallback if TraCI program logic unavailable; net.xml is authoritative."
+  yellow_duration_fallback_sec:
+    value: 3
+    unit: s
+    source_type: EXPERIMENTAL
+    calibrated: false
+    description: "Python fallback yellow duration."
+
+composition:
+  profile_id: synthetic_moto_dominant_profile
+  source_type: EXPERIMENTAL
+  calibrated: false
+  qualitative_basis: motorcycle-dominant mixed traffic
+  weights:
+    motorcycle: 0.85
+    car: 0.12
+    bus: 0.02
+    truck: 0.01
+  emergency_share:
+    ambulance: 0.002
+    police: 0.002
+    firetruck: 0.001
+    container: 0.005
+  # Legacy key kept for older tools; hybrid baseline uses demand_baselines below.
+  base_trunk_veh_per_hour: 200.0
+  diagonal_veh_per_hour: 40.0
+  description: "Synthetic demand composition; not a Vietnam standard vehicle mix."
+
+# Hybrid demand: static rou owns baseline; actuator owns profile_target - baseline.
+demand_baselines:
+  active_id: continuous_experimental_v2
+  continuous_experimental_v2:
+    id: continuous_experimental_v2
+    version: "1.0.0"
+    source_type: EXPERIMENTAL
+    calibrated: false
+    description: "Low continuous floor for hybrid demand (not calibrated)."
+    default_baseline_veh_per_hour: 200.0
+    diagonal_veh_per_hour: 40.0
+  demand_light_legacy_v1:
+    id: demand_light_legacy_v1
+    version: "1.0.0"
+    source_type: EXPERIMENTAL
+    calibrated: false
+    description: "Legacy light demand (~160 veh/h/trunk) for rollback."
+    default_baseline_veh_per_hour: 160.0
+    diagonal_veh_per_hour: 40.0
+
+boundary_sources:
+  ns_w:
+    source_edge: N1J3
+    to_edge: J1S1
+    baseline_veh_per_hour: 200
+    nodes_on_path: [C, A]
+    route_distribution: { ns_w: 1.0 }
+  sn_w:
+    source_edge: S1J1
+    to_edge: J3N1
+    baseline_veh_per_hour: 200
+    nodes_on_path: [A, C]
+    route_distribution: { sn_w: 1.0 }
+  ns_e:
+    source_edge: N2J4
+    to_edge: J2S2
+    baseline_veh_per_hour: 200
+    nodes_on_path: [D, B]
+    route_distribution: { ns_e: 1.0 }
+  sn_e:
+    source_edge: S2J2
+    to_edge: J4N2
+    baseline_veh_per_hour: 200
+    nodes_on_path: [B, D]
+    route_distribution: { sn_e: 1.0 }
+  we_s:
+    source_edge: W1J1
+    to_edge: J2E1
+    baseline_veh_per_hour: 200
+    nodes_on_path: [A, B]
+    route_distribution: { we_s: 1.0 }
+  ew_s:
+    source_edge: E1J2
+    to_edge: J1W1
+    baseline_veh_per_hour: 200
+    nodes_on_path: [B, A]
+    route_distribution: { ew_s: 1.0 }
+  we_n:
+    source_edge: W2J3
+    to_edge: J4E2
+    baseline_veh_per_hour: 200
+    nodes_on_path: [C, D]
+    route_distribution: { we_n: 1.0 }
+  ew_n:
+    source_edge: E2J4
+    to_edge: J3W2
+    baseline_veh_per_hour: 200
+    nodes_on_path: [D, C]
+    route_distribution: { ew_n: 1.0 }
+
+network_demand_profiles:
+  active_default: normal
+  normal:
+    id: normal
+    version: "1.0.0"
+    description: "Continuous free-flow baseline target (EXPERIMENTAL)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 700
+      sn_w: 700
+      ns_e: 700
+      sn_e: 700
+      we_s: 700
+      ew_s: 700
+      we_n: 700
+      ew_n: 700
+  morning_peak:
+    id: morning_peak
+    version: "1.0.0"
+    description: "North/West-dominant peak (EXPERIMENTAL)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 1800
+      sn_w: 1600
+      ns_e: 1800
+      sn_e: 1400
+      we_s: 1600
+      ew_s: 700
+      we_n: 1400
+      ew_n: 700
+  evening_peak:
+    id: evening_peak
+    version: "1.0.0"
+    description: "East/South-dominant peak (EXPERIMENTAL)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 700
+      sn_w: 1600
+      ns_e: 700
+      sn_e: 1800
+      we_s: 700
+      ew_s: 1800
+      we_n: 700
+      ew_n: 1600
+  oversaturated:
+    id: oversaturated
+    version: "1.0.0"
+    description: "All-source overload stress (EXPERIMENTAL)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 2400
+      sn_w: 2400
+      ns_e: 2400
+      sn_e: 2400
+      we_s: 2400
+      ew_s: 2400
+      we_n: 2400
+      ew_n: 2400
+
+insertion_policy:
+  source_type: DESIGN_DECISION
+  calibrated: false
+  scheduler: deterministic_bucket
+  max_retries: 3
+  retry_backoff_s: 0.5
+  max_pending_per_source: 40
+  demand_seed: 42
+
+context_derivation:
+  source_type: HEURISTIC
+  calibrated: false
+  aggregate_rule:
+    type: worst_state
+    # weighted:
+    #   weights_by_context:
+    #     FREE_FLOW: 0.0
+    #     STABLE: 1.0
+    #     BUSY: 2.0
+    #     CONGESTED: 3.0
+    #     OVERSATURATED: 4.0
+  hysteresis_s: 8.0
+  recovery_s: 12.0
+  # Traffic-load axis only (phenomena are separate booleans)
+  traffic_state_order:
+    - FREE_FLOW
+    - STABLE
+    - BUSY
+    - CONGESTED
+    - OVERSATURATED
+  severity_order:
+    - FREE_FLOW
+    - STABLE
+    - BUSY
+    - CONGESTED
+    - OVERSATURATED
+  direction_pcu_busy: 15
+  direction_pcu_congested: 35
+  direction_pcu_oversaturated: 55
+
+causal_inference:
+  source_type: HEURISTIC
+  calibrated: false
+  causal_observation_window_s: 45.0
+  propagation_min_delay_s: 5.0
+  propagation_max_delay_s: 120.0
+  default_cause_confidence: 1.0
+
+local_overlay_types:
+  accident:
+    priority: 100
+    default_segment_role: incoming_approach
+    lane0_disallow: true
+    other_lanes_speed_mps: 2.0
+  blocked_intersection:
+    priority: 100
+    default_segment_role: incoming_approach
+    lane0_disallow: true
+    other_lanes_speed_mps: 2.0
+  downstream_restriction:
+    priority: 50
+    default_segment_role: downstream_exit
+    speed_factor: 0.15
+    lane0_disallow: true
+  heavy_rain:
+    priority: 10
+    scope: corridor_edges
+    edge_speed_factor: 0.65
+  emergency:
+    priority: 90
+    insert_vtype: ambulance
+    interval_s: 90
+
+demo_profile:
+  id: demo_visual
+  source_type: EXPERIMENTAL
+  calibrated: false
+  auto_sequence:
+    - { action: demand_profile, profile: normal, dwell_s: 60 }
+    - { action: demand_profile, profile: morning_peak, dwell_s: 90 }
+    - { action: overlay, type: accident, intersection_id: B, direction: West, segment_role: incoming_approach, dwell_s: 90 }
+    - { action: overlay, type: downstream_restriction, intersection_id: B, direction: West, segment_role: downstream_exit, dwell_s: 90 }
+    - { action: overlay, type: emergency, intersection_id: C, dwell_s: 90 }
+  gui_delay_ms_hint: 100
+
+scenarios:
+  profile_id: experimental_scenario_scales_v1
+  source_type: EXPERIMENTAL
+  calibrated: false
+  # Legacy scales kept for compat facade docs only — demand must NOT use setScale.
+  traffic_scale:
+    normal: 1.0
+    morning_peak: 1.0
+    evening_peak: 1.0
+    rain: 1.0
+    heavy_rain: 1.0
+    accident: 1.0
+    emergency: 1.0
+    blocked_intersection: 1.0
+    spillback: 1.0
+    oversaturated: 1.0
+  speed_factor:
+    normal: 1.0
+    morning_peak: 1.0
+    evening_peak: 1.0
+    rain: 1.0
+    heavy_rain: 1.0
+    accident: 1.0
+    emergency: 1.0
+    blocked_intersection: 1.0
+    spillback: 1.0
+    oversaturated: 1.0
+  description: "Legacy scenario scale table deprecated for demand; hybrid actuators own effects."
+
+metrics_provenance:
+  pcu_equivalent:
+    source_type: PROJECT_DERIVED
+    derivation_kind: COMPUTED
+  traffic_status:
+    source_type: PROJECT_DERIVED
+    derivation_kind: CLASSIFIED
+  density:
+    source_type: PROJECT_DERIVED
+    derivation_kind: CLASSIFIED
+    semantic_name: Traffic_Load_Class
+    note: "Approach PCU count bins; NOT traffic density PCU/km."
+  average_speed_kmh:
+    source_type: PROJECT_DERIVED
+    derivation_kind: AGGREGATED
+  theoretical_speed_kmh:
+    source_type: PROJECT_DERIVED
+    derivation_kind: COMPUTED
+  intersection_box_blocked:
+    source_type: HEURISTIC
+    derivation_kind: ESTIMATED
+  yellow_commitment_count:
+    source_type: HEURISTIC
+    derivation_kind: ESTIMATED
+  vehicles_blocked_at_entry:
+    source_type: HEURISTIC
+    derivation_kind: ESTIMATED
+  moto_front_pct:
+    source_type: HEURISTIC
+    derivation_kind: ESTIMATED
+  occupancy_pct:
+    source_type: SUMO_NATIVE
+  queue_length_m:
+    source_type: SUMO_NATIVE
+    note: "Stop-line E2 jam (max across lanes); not full-link spillback."
+  queue_length_vehicles:
+    source_type: PROJECT_DERIVED
+    derivation_kind: COMPUTED
+  storage_utilization_lane:
+    source_type: PROJECT_DERIVED
+    derivation_kind: COMPUTED
+    note: "Primary: max over lanes of jam_length_lane_m / lane_length_m (0–1)."
+  storage_utilization_pcu:
+    source_type: PROJECT_DERIVED
+    derivation_kind: COMPUTED
+    note: "Secondary aggregate PCU / geometric nominal storage (lane_length/7.5)."
+  full_link_halting_count:
+    source_type: SUMO_NATIVE
+    derivation_kind: AGGREGATED
+  full_link_jam_length_m:
+    source_type: PROJECT_DERIVED
+    derivation_kind: ESTIMATED
+    note: "Full approach TraCI halting jam estimate; not capped at E2 cover."
+  camera_confidence:
+    source_type: PLACEHOLDER
+    derivation_kind: ESTIMATED
+    value: 1.0
+    description: "Virtual simulation placeholder; not a measured AI confidence."
+
+network:
+  network_id: intersection_grid_j1_j4
+  network_version: "1.8.0-geom"
+  center_spacing_m: 500
+  external_stub_m: 300
+  net_file: Visualize/intersection.net.xml
+  rou_file: Visualize/intersection.rou.xml
+  sumocfg_file: Visualize/intersection.sumocfg
