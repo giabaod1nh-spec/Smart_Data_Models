@@ -37,11 +37,7 @@ class SumoScenarioManager:
                 raise ValueError(f"Unknown scenario '{scenario}'")
         self.current_scenario = scenario
         self.blocked_direction = None
-        # NEVER setScale for demand — hybrid actuator owns rates
-        try:
-            traci_module.simulation.setScale(1.0)
-        except Exception:
-            pass
+        # No physical effects here; NetworkRuntimeController owns demand/overlays.
         if scenario in ("accident", "blocked_intersection"):
             direction = target_direction or "North"
             if direction not in cfg.DIRECTIONS:
