@@ -14,8 +14,20 @@ from pydantic import BaseModel, Field
 import configuration.config as cfg
 
 app = FastAPI(title="Visualize SUMO Control API", version=cfg.VERSION)
+# NOTE: Origins are intentionally restricted to local development frontends;
+# configure allow_origins appropriately before production deployment.
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 engine = None  # SumoBackend instance set by traci_runner

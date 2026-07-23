@@ -14,7 +14,11 @@ python "$PSScriptRoot\reapply_tls.py"
 if ($LASTEXITCODE -ne 0) { throw "TLS re-apply failed" }
 
 Write-Host "== TLS gate =="
-python "$PSScriptRoot\verify_tls_gate.py"
+$Freeze = Join-Path $Root "artifacts\phase3.8\phase38_pre_geometry_audit.json"
+if (-not (Test-Path $Freeze)) {
+    throw "Missing freeze snapshot: $Freeze (generate it before rebuilding the network)"
+}
+python "$PSScriptRoot\verify_tls_gate.py" --freeze "$Freeze"
 if ($LASTEXITCODE -ne 0) { throw "TLS gate failed - stop before detectors" }
 
 Write-Host "== Geometry / ID / FF gate =="

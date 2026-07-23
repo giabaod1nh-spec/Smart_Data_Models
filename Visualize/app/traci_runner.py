@@ -213,6 +213,7 @@ def run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="SUMO TraCI runner → NGSI-LD + Control API")
+    p.set_defaults(gui=None)
     g = p.add_mutually_exclusive_group()
     g.add_argument("--gui", dest="gui_flag", action="store_true")
     g.add_argument("--no-gui", action="store_true")
@@ -236,5 +237,4 @@ def build_parser() -> argparse.ArgumentParser:
 
 if __name__ == "__main__":
     args = build_parser().parse_args()
-    args.gui = None
     sys.exit(run(args))
