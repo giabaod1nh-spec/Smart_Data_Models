@@ -21,6 +21,10 @@ EXPECTED_DURATIONS = [42, 3, 42, 3]
 
 
 def verify(net_path: Path, freeze_path: Path) -> list[str]:
+    if not freeze_path.is_file():
+        return [
+            f"freeze snapshot not found: {freeze_path} (pass --freeze to point at a generated snapshot)"
+        ]
     freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
     tls_freeze = freeze["tls_freeze"]
     net = ET.parse(net_path)
