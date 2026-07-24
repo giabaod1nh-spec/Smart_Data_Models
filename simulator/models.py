@@ -4,11 +4,24 @@ models.py — Vehicle Object (tầng Simulation Layer)
 Vehicle KHÔNG bao giờ được gửi lên Orion. Chỉ tồn tại trong RAM
 của CityNetworkEngine. VehicleSensor entity (NGSI-LD) được tổng hợp
 từ danh sách Vehicle này mỗi giây (xem traffic_engine.get_snapshot()).
+
+PCU factors come from Visualize ParameterRegistry (SSOT). Do not duplicate
+the PCU table here.
 """
 from dataclasses import dataclass, field
 from enum import Enum
+import sys
 import uuid
 import time
+from pathlib import Path
+
+_VIS = Path(__file__).resolve().parent.parent / "Visualize"
+if str(_VIS) not in sys.path:
+    sys.path.insert(0, str(_VIS))
+from model_params import get_pcu as _registry_get_pcu
+from model_params import pcu_factors as _registry_pcu_factors
+
+PCU_FACTORS = dict(_registry_pcu_factors())
 
 
 class VehicleState(Enum):
@@ -20,14 +33,6 @@ class VehicleState(Enum):
     BLOCKED_AT_EXIT  = "BLOCKED_AT_EXIT"   # Phase3 U1: trong nút, chờ edge ra còn chỗ
     EXITED_NETWORK  = "EXITED_NETWORK"  # đã ra khỏi biên mạng lưới, sẽ bị dọn khỏi RAM
 
-
-# Bảng hệ số quy đổi Việt Nam (có nguồn, xem báo cáo kèm theo)
-PCU_FACTORS = {
-    "motorcycle": 0.24,
-    "car":        1.00,
-    "bus":        2.50,
-    "truck":      2.50,
-}
 
 VEHICLE_LENGTH_METERS = {
     "motorcycle": 2.0,
@@ -94,7 +99,7 @@ class Vehicle:
     startup_timer_sec: float = 0.0
 
     def __post_init__(self):
-        self.pcu_factor = PCU_FACTORS.get(self.vehicle_class, 1.0)
+        self.pcu_factor = _registry_get_pcu(self.vehicle_class)
         self.length_meters = VEHICLE_LENGTH_METERS.get(self.vehicle_class, self.length_meters)
 
     def record_tick(self, dt: float):

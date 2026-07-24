@@ -1,0 +1,32 @@
+services:
+  mongo-db:
+    image: mongo:4.4
+    container_name: db-mongos
+    restart: always
+    command: --nojournal
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  orion:
+    image: fiware/orion-ld:latest
+    container_name: fiware-orion
+    restart: always
+    depends_on:
+      - mongo-db
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo-db -logLevel DEBUG
+
+  context-server:
+    image: httpd:2.4
+    container_name: context-provider
+    restart: always
+    ports:
+      - "3004:80"
+    volumes:
+      - ./context:/usr/local/apache2/htdocs
+
+volumes:
+  mongo-data:
