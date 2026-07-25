@@ -1,0 +1,39 @@
+services:
+  mongo-db:
+    image: mongo:4.4
+    container_name: db-mongos
+    restart: always
+    command: --nojournal
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  orion:
+    # Pinned for RT-DE Contract freeze — do not use :latest
+    image: fiware/orion-ld:1.7.1
+    container_name: fiware-orion
+    restart: always
+    depends_on:
+      - mongo-db
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo-db -logLevel DEBUG
+
+  context-server:
+    image: httpd:2.4
+    container_name: context-provider
+    restart: always
+    ports:
+      - "3004:80"
+    volumes:
+      - ./context:/usr/local/apache2/htdocs
+
+  # Placeholder for Realtime when containerized: mount shared run packages for DE.
+  # Host-side Visualize writes to ./Visualize/artifacts/runs by default.
+  # DE services SHOULD mount the same volume at /app/artifacts/runs
+  # (see docs/implementation/deployment.md).
+
+volumes:
+  mongo-data:
+  shared-run-artifacts:

@@ -1,0 +1,433 @@
+{
+  "id": "urn:ngsi-ld:Notification:example-001",
+  "type": "Notification",
+  "subscriptionId": "urn:ngsi-ld:Subscription:rt-de-v1",
+  "notifiedAt": "2026-07-24T07:22:06Z",
+  "data": [
+    {
+      "id": "urn:ngsi-ld:Intersection:A",
+      "type": "Intersection",
+      "name": {
+        "type": "Property",
+        "value": "Nguyen Hue - Le Loi"
+      },
+      "location": {
+        "type": "GeoProperty",
+        "value": {
+          "type": "Point",
+          "coordinates": [
+            106.7009,
+            10.7769
+          ]
+        }
+      },
+      "intersectionStatus": {
+        "type": "Property",
+        "value": "ACTIVE"
+      },
+      "numberOfApproaches": {
+        "type": "Property",
+        "value": 4
+      },
+      "frequentCongestion": {
+        "type": "Property",
+        "value": false
+      },
+      "refTrafficLights": {
+        "type": "Relationship",
+        "object": [
+          "urn:ngsi-ld:TrafficLight:A-North",
+          "urn:ngsi-ld:TrafficLight:A-South",
+          "urn:ngsi-ld:TrafficLight:A-East",
+          "urn:ngsi-ld:TrafficLight:A-West"
+        ]
+      },
+      "refCameras": {
+        "type": "Relationship",
+        "object": [
+          "urn:ngsi-ld:Camera:A"
+        ]
+      },
+      "refVehicleSensors": {
+        "type": "Relationship",
+        "object": [
+          "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+          "urn:ngsi-ld:VehicleSensor:A:SOUTHBOUND",
+          "urn:ngsi-ld:VehicleSensor:A:EASTBOUND",
+          "urn:ngsi-ld:VehicleSensor:A:WESTBOUND"
+        ]
+      },
+      "dateObserved": {
+        "type": "Property",
+        "value": {
+          "@type": "DateTime",
+          "@value": "2026-07-24T07:56:09Z"
+        }
+      },
+      "overallTrafficStatus": {
+        "type": "Property",
+        "value": "LIGHT"
+      },
+      "totalVehicleCount": {
+        "type": "Property",
+        "value": 20
+      },
+      "hasActiveIncident": {
+        "type": "Property",
+        "value": false
+      },
+      "currentPhase": {
+        "type": "Property",
+        "value": "NS_GREEN"
+      },
+      "derivedTrafficState": {
+        "type": "Property",
+        "value": "STABLE"
+      },
+      "hasSpillback": {
+        "type": "Property",
+        "value": false
+      },
+      "isBoxBlocked": {
+        "type": "Property",
+        "value": false
+      },
+      "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+      "simulationTime": {
+        "type": "Property",
+        "value": 120.5
+      },
+      "simulationRunId": {
+        "type": "Property",
+        "value": "00000000-0000-4000-8000-000000000001"
+      },
+      "scenarioId": {
+        "type": "Property",
+        "value": "normal"
+      }
+    },
+    {
+      "id": "urn:ngsi-ld:TrafficLight:A-North",
+      "type": "TrafficLight",
+      "name": {
+        "type": "Property",
+        "value": "Nguyen Hue - Le Loi NORTHBOUND"
+      },
+      "location": {
+        "type": "GeoProperty",
+        "value": {
+          "type": "Point",
+          "coordinates": [
+            106.7009,
+            10.7769
+          ]
+        }
+      },
+      "currentStatus": {
+        "type": "Property",
+        "value": "GREEN"
+      },
+      "currentPhase": {
+        "type": "Property",
+        "value": "NS_GREEN"
+      },
+      "timingMode": {
+        "type": "Property",
+        "value": "FIXED_TIME"
+      },
+      "workingState": {
+        "type": "Property",
+        "value": "OK"
+      },
+      "trafficDirection": {
+        "type": "Property",
+        "value": "NORTHBOUND"
+      },
+      "greenDurationCurrent": {
+        "type": "Property",
+        "value": 42
+      },
+      "redDurationCurrent": {
+        "type": "Property",
+        "value": 42
+      },
+      "yellowDuration": {
+        "type": "Property",
+        "value": 3
+      },
+      "refIntersection": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Intersection:A"
+      },
+      "refCamera": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Camera:A"
+      },
+      "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+      "simulationTime": {
+        "type": "Property",
+        "value": 120.5
+      },
+      "simulationRunId": {
+        "type": "Property",
+        "value": "00000000-0000-4000-8000-000000000001"
+      },
+      "scenarioId": {
+        "type": "Property",
+        "value": "normal"
+      }
+    },
+    {
+      "id": "urn:ngsi-ld:Camera:A",
+      "type": "Camera",
+      "name": {
+        "type": "Property",
+        "value": "Nguyen Hue - Le Loi overview camera"
+      },
+      "location": {
+        "type": "GeoProperty",
+        "value": {
+          "type": "Point",
+          "coordinates": [
+            106.7009,
+            10.7769
+          ]
+        }
+      },
+      "cameraNum": {
+        "type": "Property",
+        "value": 1
+      },
+      "cameraType": {
+        "type": "Property",
+        "value": "FIXED"
+      },
+      "cameraUsage": {
+        "type": "Property",
+        "value": "TRAFFIC"
+      },
+      "cameraStatus": {
+        "type": "Property",
+        "value": "ok"
+      },
+      "refIntersection": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Intersection:A"
+      },
+      "dateObserved": {
+        "type": "Property",
+        "value": {
+          "@type": "DateTime",
+          "@value": "2026-07-24T07:56:09Z"
+        }
+      },
+      "trafficDirection": {
+        "type": "Property",
+        "value": "ALL_DIRECTIONS"
+      },
+      "vehicleCount": {
+        "type": "Property",
+        "value": 20
+      },
+      "averageSpeed": {
+        "type": "Property",
+        "value": 18.5
+      },
+      "occupancyRate": {
+        "type": "Property",
+        "value": 22.0
+      },
+      "trafficStatus": {
+        "type": "Property",
+        "value": "LIGHT"
+      },
+      "incidentDetected": {
+        "type": "Property",
+        "value": false
+      },
+      "confidence": {
+        "type": "Property",
+        "value": 1.0
+      },
+      "recommendedSignalAction": {
+        "type": "Property",
+        "value": "KEEP"
+      },
+      "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+      "simulationTime": {
+        "type": "Property",
+        "value": 120.5
+      },
+      "simulationRunId": {
+        "type": "Property",
+        "value": "00000000-0000-4000-8000-000000000001"
+      },
+      "scenarioId": {
+        "type": "Property",
+        "value": "normal"
+      },
+      "incidentType": {
+        "type": "Property",
+        "value": "NONE"
+      },
+      "incidentSeverity": {
+        "type": "Property",
+        "value": "NONE"
+      }
+    },
+    {
+      "id": "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+      "type": "VehicleSensor",
+      "name": {
+        "type": "Property",
+        "value": "Nguyen Hue - Le Loi NORTHBOUND approach"
+      },
+      "location": {
+        "type": "GeoProperty",
+        "value": {
+          "type": "Point",
+          "coordinates": [
+            106.7009,
+            10.7769
+          ]
+        }
+      },
+      "sensorType": {
+        "type": "Property",
+        "value": "VIRTUAL"
+      },
+      "sensorStatus": {
+        "type": "Property",
+        "value": "OK"
+      },
+      "trafficDirection": {
+        "type": "Property",
+        "value": "NORTHBOUND"
+      },
+      "refIntersection": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Intersection:A"
+      },
+      "refCamera": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Camera:A"
+      },
+      "refTrafficLight": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:TrafficLight:A-North"
+      },
+      "dateObserved": {
+        "type": "Property",
+        "value": {
+          "@type": "DateTime",
+          "@value": "2026-07-24T07:56:09Z"
+        }
+      },
+      "vehicleCount": {
+        "type": "Property",
+        "value": 5
+      },
+      "pcuEquivalent": {
+        "type": "Property",
+        "value": 3.2
+      },
+      "leftTurnCount": {
+        "type": "Property",
+        "value": 1
+      },
+      "straightCount": {
+        "type": "Property",
+        "value": 3
+      },
+      "rightTurnCount": {
+        "type": "Property",
+        "value": 1
+      },
+      "averageSpeed": {
+        "type": "Property",
+        "value": 18.5
+      },
+      "waitingVehicleCount": {
+        "type": "Property",
+        "value": 2
+      },
+      "queueLength": {
+        "type": "Property",
+        "value": 12.0
+      },
+      "queueStraight": {
+        "type": "Property",
+        "value": 10.0
+      },
+      "queueLeft": {
+        "type": "Property",
+        "value": 2.0
+      },
+      "queueRight": {
+        "type": "Property",
+        "value": 0.0
+      },
+      "occupancyRate": {
+        "type": "Property",
+        "value": 22.0
+      },
+      "trafficStatus": {
+        "type": "Property",
+        "value": "MODERATE"
+      },
+      "arrivalRatePcuPerSec": {
+        "type": "Property",
+        "value": 0.15
+      },
+      "waitingReasonCounts": {
+        "type": "Property",
+        "value": {
+          "RED_PHASE": 2,
+          "CONGESTION": 0
+        }
+      },
+      "theoreticalSpeed": {
+        "type": "Property",
+        "value": 35.0
+      },
+      "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+      "simulationTime": {
+        "type": "Property",
+        "value": 120.5
+      },
+      "simulationRunId": {
+        "type": "Property",
+        "value": "00000000-0000-4000-8000-000000000001"
+      },
+      "scenarioId": {
+        "type": "Property",
+        "value": "normal"
+      },
+      "dominantWaitingReason": {
+        "type": "Property",
+        "value": "RED_PHASE"
+      },
+      "vehicleClassComposition": {
+        "type": "Property",
+        "value": {
+          "motorcycle": 0.6,
+          "car": 0.3,
+          "bus": 0.05,
+          "truck": 0.05
+        }
+      },
+      "spillbackRisk": {
+        "type": "Property",
+        "value": false
+      },
+      "operationalState": {
+        "type": "Property",
+        "value": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        }
+      }
+    }
+  ]
+}

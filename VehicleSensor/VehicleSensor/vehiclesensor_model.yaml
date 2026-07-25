@@ -3,7 +3,8 @@ VehicleSensor:
     Data Model for a per-approach vehicle sensor in a Smart Traffic
     Simulation System (NGSI-LD / FIWARE Orion). One entity represents traffic
     metrics for a single approach direction at an Intersection, including
-    PCU-based metrics for Vietnam mixed traffic and queue-by-movement for
+    PCU-based metrics for mixed traffic research (motorcycle-dominant synthetic
+    demand) and queue-by-movement for
     adaptive signal control (CBR+GA).
   properties:
     # ---------------- CORE NGSI-LD FIELDS ----------------
@@ -158,9 +159,11 @@ VehicleSensor:
 
     pcuEquivalent:
       description: >
-        Passenger Car Unit equivalent of vehicles on this approach.
-        Primary input for CBR+GA similarity/fitness. Vietnam factors:
-        motorcycle=0.24, car=1.0, bus=2.5, truck=2.5.
+      Passenger Car Unit / PCE equivalent of vehicles on this approach.
+        Primary input for CBR+GA similarity/fitness. Runtime PCE profile
+        (ParameterRegistry): motorcycle=0.24 (Chu & Sano 2003 academic
+        selection, not a national constant), car=1.0, bus=2.5, truck=2.5.
+        TCVN 13592:2022 motorcycle 0.30 is reference-only.
       minimum: 0
       type: number
       x-ngsi:

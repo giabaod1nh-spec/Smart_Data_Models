@@ -1,0 +1,71 @@
+{
+  "id": "urn:ngsi-ld:TrafficLight:A-North",
+  "type": "TrafficLight",
+  "name": {
+    "type": "Property",
+    "value": "Nguyen Hue - Le Loi NORTHBOUND"
+  },
+  "location": {
+    "type": "GeoProperty",
+    "value": {
+      "type": "Point",
+      "coordinates": [
+        106.7009,
+        10.7769
+      ]
+    }
+  },
+  "currentStatus": {
+    "type": "Property",
+    "value": "GREEN"
+  },
+  "currentPhase": {
+    "type": "Property",
+    "value": "NS_GREEN"
+  },
+  "timingMode": {
+    "type": "Property",
+    "value": "FIXED_TIME"
+  },
+  "workingState": {
+    "type": "Property",
+    "value": "OK"
+  },
+  "trafficDirection": {
+    "type": "Property",
+    "value": "NORTHBOUND"
+  },
+  "greenDurationCurrent": {
+    "type": "Property",
+    "value": 42
+  },
+  "redDurationCurrent": {
+    "type": "Property",
+    "value": 42
+  },
+  "yellowDuration": {
+    "type": "Property",
+    "value": 3
+  },
+  "refIntersection": {
+    "type": "Relationship",
+    "object": "urn:ngsi-ld:Intersection:A"
+  },
+  "refCamera": {
+    "type": "Relationship",
+    "object": "urn:ngsi-ld:Camera:A"
+  },
+  "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+  "simulationTime": {
+    "type": "Property",
+    "value": 120.5
+  },
+  "simulationRunId": {
+    "type": "Property",
+    "value": "00000000-0000-4000-8000-000000000001"
+  },
+  "scenarioId": {
+    "type": "Property",
+    "value": "normal"
+  }
+}

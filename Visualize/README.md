@@ -1,112 +1,83 @@
-# SUMO TraCI Backend (Visualize) — v1
+# SUMO TraCI Backend (Visualize)
 
-Một chiều: **SUMO → TraCI → Snapshot → entity_generator → Orion**.
+Pipeline: **SUMO → TraCI → SumoBackend → Snapshot → entity_generator → Orion** (+ Control API).
 
-Simulator 1D trong `simulator/` **không bị thay thế/xóa**; chạy độc lập như cũ.
+Governance: see [`docs/adr.md`](docs/adr.md), [`docs/data_dictionary.md`](docs/data_dictionary.md), [`docs/parameter_catalog.md`](docs/parameter_catalog.md), [`docs/out_of_scope.md`](docs/out_of_scope.md).
 
-## Yêu cầu
+Parameters SSOT: immutable `ParameterRegistry` (`configuration/model_parameters.yaml` → validate → freeze). Runtime motorcycle PCE **0.24** (Chu & Sano 2003); TCVN 0.30 is reference-only. Each run writes `artifacts/runs/<id>/run_manifest.json`.
 
-1. [Eclipse SUMO](https://eclipse.dev/sumo/) (đã thử với 1.27.x)
+Package layout (Phase 2.6 / 2.6C): implementations live under `observation/`, `actuators/`, `runtime/`, `context_engine/`, `simulation/`, `api/`, `integration/orion/`, `configuration/`, `topology/`, `app/`. Root keeps only justified facades (`traci_runner.py`, `config.py`, `control_api.py`, `model_params.py`) — see [`docs/migration_2_6c_shim_cleanup.md`](docs/migration_2_6c_shim_cleanup.md).
+
+## Requirements
+
+1. Eclipse SUMO (`SUMO_HOME`, `bin` on PATH)
 2. Python 3.10+
-3. Orion-LD (tùy chọn — có thể chạy `--no-orion`)
-
-## Cài đặt (Windows PowerShell)
+3. Optional: Orion-LD at `ORION_URL`
 
 ```powershell
-# 1) SUMO
 $env:SUMO_HOME = "D:\SUMO"
 $env:PATH = "$env:SUMO_HOME\bin;$env:PATH"
-
-# 2) Python deps
-cd D:\Giao_trinh_dai_hoc\K2_N4\TTTN\Smart_Traffic\Smart_Data_Models\Visualize
+cd Visualize
 pip install -r requirements.txt
-
-# 3) (tuỳ chọn) Orion
-$env:ORION_URL = "http://localhost:1026"
 ```
 
-Sao chép `.env.example` nếu muốn tham khảo biến môi trường.
-
-## Chạy
+## Run
 
 ```powershell
-# GUI realtime — xem mo phong, chi tat khi ban dong cua so / Ctrl+C
+# GUI, no Orion
 python traci_runner.py --gui --no-orion
 
-# GUI + publish Orion (node A = TLS J1)
+# Headless smoke 30s
+python traci_runner.py --no-gui --no-orion --no-api --max-sim-time 30
+
+# All nodes A–D + Control API :9090
+$env:PUBLISH_NODES = "A,B,C,D"
+python traci_runner.py --gui --no-orion
+
+# With Orion
+$env:ORION_URL = "http://localhost:1026"
 python traci_runner.py --gui
-
-# Headless smoke (chay nhanh, tu dung sau 30s sim)
-python traci_runner.py --no-gui --no-orion --max-sim-time 30
-
-# GUI chay nhanh het toc do (kho xem)
-python traci_runner.py --gui --no-orion --fast
 ```
 
-Simulator 1D cũ:
+## Mapping
+
+| NGSI | SUMO TLS |
+|------|----------|
+| A | J1 |
+| B | J2 |
+| C | J3 |
+| D | J4 |
+
+Lane convention (ADR-002): `_0=right`, `_1=through`, `_2=left`.
+
+## Control API
+
+| Method | Path |
+|--------|------|
+| GET | `/health`, `/stats`, `/scenario`, `/snapshot/{id}`, `/trip-records`, `/network-state`, `/overlays`, `/intersections/{id}/state` |
+| POST | `/scenario` (compat), `/demand-profile`, `/overlays`, `/control-mode`, `/phase`, `/green-duration` |
+| DELETE | `/overlays/{id}` |
+
+Port: `CONTROL_API_PORT` (default 9090). Mutations use CommandQueue (ADR-005).  
+Hybrid demand docs: `docs/scenario_catalog.md`, `docs/demo_guide.md`.
+
+## Tests
 
 ```powershell
-cd ..\simulator
-python main.py
+pytest tests/ -v
 ```
 
-## Mapping v1
+## Tools
 
-| NGSI | SUMO |
-|------|------|
-| Intersection `A` | TLS / junction `J1` |
-| North | edge `J3J1` (lanes `J3J1_0`, `J3J1_1`) |
-| East | `J2J1` |
-| South | `S1J1` |
-| West | `W1J1` |
+- `tools/regen_net.ps1` — netconvert from nod/edg
+- `tools/generate_rou.py` — weighted demand baseline (ADR-007 experimental)
+- `tools/generate_topology_catalog.py` — `generated/network_topology_catalog.json`
+- `tools/generate_detectors.py` — E1/E2 XML
+- `tools/generate_catalogs.py` — parameter/metric/entity catalogs + `parameter_catalog.json`
+- `tools/check_magic_numbers.py` — AST magic-number gate
+- `tools/generate_health_report.py` — `docs/health_report.md`
+- `tools/demo_scenarios.ps1` — demand/overlay Control API demo
 
-Phase: `0=NS_GREEN`, `1=NS_YELLOW`, `2=EW_GREEN`, `3=EW_YELLOW`.
+## Version
 
-URN ví dụ: `urn:ngsi-ld:Intersection:A`, `urn:ngsi-ld:VehicleSensor:A:NORTHBOUND`.
-
-## Kiểm tra Orion
-
-```powershell
-curl "$env:ORION_URL/ngsi-ld/v1/entities/urn:ngsi-ld:Intersection:A"
-curl "$env:ORION_URL/ngsi-ld/v1/entities?type=VehicleSensor"
-```
-
-## Test (không cần SUMO binary)
-
-```powershell
-cd Visualize
-pytest tests/test_v1.py -v
-```
-
-## Cấu trúc
-
-| File | Vai trò |
-|------|---------|
-| `config.py` | Mapping, PCU, env |
-| `traci_runner.py` | Entry: step loop + publish |
-| `sumo_backend.py` | Facade start/step/snapshot/control |
-| `sumo_snapshot_provider.py` | TraCI → snapshot contract |
-| `sumo_signal_controller.py` | TLS phase map + force/green |
-| `sumo_scenario_manager.py` | normal/peak/rain/accident |
-| `Visualize/intersection.*` | SUMO network / routes |
-
-## TODO / hạn chế v1
-
-- Chỉ **publish J1→A** (mạng J1–J4 vẫn chạy trong GUI).
-- Chưa có E1/E2 detectors — queue/arrival dùng lane + vehicle API.
-- `queue_by_movement` ước lượng theo route turn (net 2 làn, không 3 lane movement).
-- `intersection_box_blocked`, `vehicles_blocked_at_entry`, `yellow_commitment_count`, `preemption_active` = default (TODO trong snapshot).
-- `count_exited_network` chưa tích lũy toàn bộ arrived.
-- Occupancy lấy từ SUMO lane occupancy (khác công thức lateral moto của simulator 1D).
-- Unknown `vType` → `PCU_FALLBACK=1.0` + warning log.
-
-## PCU (`config.PCU_FACTORS`)
-
-| vType | PCU | Ghi chú |
-|-------|-----|---------|
-| motorcycle | 0.24 | = `simulator/models.py` |
-| car | 1.00 | = models.py |
-| bus / truck | 2.50 | = models.py |
-| container | 2.50 | SUMO-only |
-| ambulance / police | 1.00 | SUMO-only |
-| firetruck | 2.50 | SUMO-only |
+See `VERSION` file. Phase 2 layer docs: `docs/tick_lifecycle.md`, `docs/layer_field_ownership.md`.

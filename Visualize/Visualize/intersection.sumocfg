@@ -2,6 +2,7 @@
     <input>
         <net-file value="intersection.net.xml"/>
         <route-files value="intersection.rou.xml"/>
+        <additional-files value="detectors.add.xml"/>
         <gui-settings-file value="viewsettings.xml"/>
     </input>
     <time>
@@ -9,4 +10,11 @@
         <end value="3600"/>
         <step-length value="0.01"/>
     </time>
+    <processing>
+        <time-to-teleport value="300"/>
+        <collision.action value="warn"/>
+    </processing>
+    <random_number>
+        <seed value="42"/>
+    </random_number>
 </configuration>
