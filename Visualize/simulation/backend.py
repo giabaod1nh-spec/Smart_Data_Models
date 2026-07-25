@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 import json
 import os
+import shutil
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -128,6 +129,25 @@ class SumoBackend:
             topology_hash=topo_hash,
         )
         run_dir = cfg.ARTIFACTS_DIR / "runs" / self.simulation_run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        if cat_path.is_file():
+            dest_cat = run_dir / "network_topology_catalog.json"
+            shutil.copy2(cat_path, dest_cat)
+            try:
+                copied = json.loads(dest_cat.read_text(encoding="utf-8"))
+                copied_hash = copied.get("topology_hash")
+                manifest_hash = (self.run_manifest or {}).get("topology_hash")
+                if manifest_hash and copied_hash and manifest_hash != copied_hash:
+                    raise RuntimeError(
+                        f"topology_hash mismatch: manifest={manifest_hash} "
+                        f"catalog={copied_hash}"
+                    )
+            except RuntimeError:
+                raise
+            except Exception as e:
+                log.warning("Could not verify topology_hash after copy: %s", e)
+        else:
+            log.warning("Topology catalog missing at %s — run package incomplete", cat_path)
         self.runtime.attach_run_dir(run_dir)
         log.info(
             "Run provenance: run_id=%s demand_profile=%s config_hash=%s schema=%s",
@@ -267,6 +287,13 @@ class SumoBackend:
                 self._traci = None
                 self._started = False
 
+    def _attach_publish_identity(self, node_id: str, snap: dict) -> dict:
+        """Ensure Orion mapper always sees run/scenario identity (RT-DE Contract v1)."""
+        out = dict(snap)
+        out["simulation_run_id"] = self.simulation_run_id
+        out["scenario"] = self.per_node_scenario.get(node_id) or self.current_scenario
+        return out
+
     def get_snapshot(self, node_id: str = "A", *, fresh: bool = False) -> dict:
         """
         Return snapshot for node.
@@ -280,8 +307,8 @@ class SumoBackend:
         if not fresh:
             cached = self._snapshot_cache.get(node_id)
             if cached is not None:
-                return dict(cached)
-        return self._build_snapshot_now(node_id)
+                return self._attach_publish_identity(node_id, cached)
+        return self._attach_publish_identity(node_id, self._build_snapshot_now(node_id))
 
     def get_snapshot_fresh(self, node_id: str = "A") -> dict:
         """Force rebuild from TraCI — call only from the simulation thread."""

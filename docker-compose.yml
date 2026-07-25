@@ -10,7 +10,8 @@ services:
       - mongo-data:/data/db
 
   orion:
-    image: fiware/orion-ld:latest
+    # Pinned for RT-DE Contract freeze — do not use :latest
+    image: fiware/orion-ld:1.7.1
     container_name: fiware-orion
     restart: always
     depends_on:
@@ -28,5 +29,11 @@ services:
     volumes:
       - ./context:/usr/local/apache2/htdocs
 
+  # Placeholder for Realtime when containerized: mount shared run packages for DE.
+  # Host-side Visualize writes to ./Visualize/artifacts/runs by default.
+  # DE services SHOULD mount the same volume at /app/artifacts/runs
+  # (see docs/implementation/deployment.md).
+
 volumes:
   mongo-data:
+  shared-run-artifacts:

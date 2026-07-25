@@ -1,0 +1,98 @@
+{
+  "id": "urn:ngsi-ld:Camera:A",
+  "type": "Camera",
+  "name": {
+    "type": "Property",
+    "value": "Nguyen Hue - Le Loi overview camera"
+  },
+  "location": {
+    "type": "GeoProperty",
+    "value": {
+      "type": "Point",
+      "coordinates": [
+        106.7009,
+        10.7769
+      ]
+    }
+  },
+  "cameraNum": {
+    "type": "Property",
+    "value": 1
+  },
+  "cameraType": {
+    "type": "Property",
+    "value": "FIXED"
+  },
+  "cameraUsage": {
+    "type": "Property",
+    "value": "TRAFFIC"
+  },
+  "cameraStatus": {
+    "type": "Property",
+    "value": "ok"
+  },
+  "refIntersection": {
+    "type": "Relationship",
+    "object": "urn:ngsi-ld:Intersection:A"
+  },
+  "dateObserved": {
+    "type": "Property",
+    "value": {
+      "@type": "DateTime",
+      "@value": "2026-07-24T07:56:09Z"
+    }
+  },
+  "trafficDirection": {
+    "type": "Property",
+    "value": "ALL_DIRECTIONS"
+  },
+  "vehicleCount": {
+    "type": "Property",
+    "value": 20
+  },
+  "averageSpeed": {
+    "type": "Property",
+    "value": 18.5
+  },
+  "occupancyRate": {
+    "type": "Property",
+    "value": 22.0
+  },
+  "trafficStatus": {
+    "type": "Property",
+    "value": "LIGHT"
+  },
+  "incidentDetected": {
+    "type": "Property",
+    "value": false
+  },
+  "confidence": {
+    "type": "Property",
+    "value": 1.0
+  },
+  "recommendedSignalAction": {
+    "type": "Property",
+    "value": "KEEP"
+  },
+  "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+  "simulationTime": {
+    "type": "Property",
+    "value": 120.5
+  },
+  "simulationRunId": {
+    "type": "Property",
+    "value": "00000000-0000-4000-8000-000000000001"
+  },
+  "scenarioId": {
+    "type": "Property",
+    "value": "normal"
+  },
+  "incidentType": {
+    "type": "Property",
+    "value": "NONE"
+  },
+  "incidentSeverity": {
+    "type": "Property",
+    "value": "NONE"
+  }
+}

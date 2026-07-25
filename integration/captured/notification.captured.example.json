@@ -1,0 +1,165 @@
+{
+  "id": "urn:ngsi-ld:Notification:048c5232-8784-11f1-b930-727ea2df5960",
+  "type": "Notification",
+  "subscriptionId": "urn:ngsi-ld:Subscription:verify-ed324069-104f-48bc-b6ba-da8f2a2512a7",
+  "notifiedAt": "2026-07-24T17:20:50.686Z",
+  "data": [
+    {
+      "id": "urn:ngsi-ld:VehicleSensor:A:EASTBOUND",
+      "type": "VehicleSensor",
+      "arrivalRatePcuPerSec": {
+        "type": "Property",
+        "value": 0
+      },
+      "averageSpeed": {
+        "type": "Property",
+        "value": 0
+      },
+      "dateObserved": {
+        "type": "Property",
+        "value": {
+          "@type": "DateTime",
+          "@value": "2026-07-24T17:20:50Z"
+        }
+      },
+      "derivedTrafficState": {
+        "type": "Property",
+        "value": "CONGESTED"
+      },
+      "dominantWaitingReason": {
+        "type": "Property",
+        "value": "RED_PHASE"
+      },
+      "leftTurnCount": {
+        "type": "Property",
+        "value": 0
+      },
+      "occupancyRate": {
+        "type": "Property",
+        "value": 50.5
+      },
+      "operationalState": {
+        "type": "Property",
+        "value": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        }
+      },
+      "pcuEquivalent": {
+        "type": "Property",
+        "value": 23.2
+      },
+      "queueLeft": {
+        "type": "Property",
+        "value": 62
+      },
+      "queueLength": {
+        "type": "Property",
+        "value": 68.6
+      },
+      "queueRight": {
+        "type": "Property",
+        "value": 68.6
+      },
+      "queueStraight": {
+        "type": "Property",
+        "value": 63.5
+      },
+      "refCamera": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Camera:A"
+      },
+      "refIntersection": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:Intersection:A"
+      },
+      "refTrafficLight": {
+        "type": "Relationship",
+        "object": "urn:ngsi-ld:TrafficLight:A-East"
+      },
+      "rightTurnCount": {
+        "type": "Property",
+        "value": 0
+      },
+      "scenarioId": {
+        "type": "Property",
+        "value": "normal"
+      },
+      "sensorStatus": {
+        "type": "Property",
+        "value": "OK"
+      },
+      "sensorType": {
+        "type": "Property",
+        "value": "VIRTUAL"
+      },
+      "simulationRunId": {
+        "type": "Property",
+        "value": "e45d99ee-f6f2-4f69-ba37-c3dbee102899"
+      },
+      "simulationTime": {
+        "type": "Property",
+        "value": 224.05
+      },
+      "spillbackRisk": {
+        "type": "Property",
+        "value": false
+      },
+      "straightCount": {
+        "type": "Property",
+        "value": 62
+      },
+      "theoreticalSpeed": {
+        "type": "Property",
+        "value": 37.7
+      },
+      "trafficDirection": {
+        "type": "Property",
+        "value": "EASTBOUND"
+      },
+      "trafficStatus": {
+        "type": "Property",
+        "value": "MODERATE"
+      },
+      "vehicleClassComposition": {
+        "type": "Property",
+        "value": {
+          "bus": 0.0161,
+          "car": 0.0806,
+          "motorcycle": 0.8871,
+          "truck": 0.0161
+        }
+      },
+      "vehicleCount": {
+        "type": "Property",
+        "value": 62
+      },
+      "waitingReasonCounts": {
+        "type": "Property",
+        "value": {
+          "RED_PHASE": 62,
+          "CONGESTION": 0
+        }
+      },
+      "waitingVehicleCount": {
+        "type": "Property",
+        "value": 62
+      },
+      "name": {
+        "type": "Property",
+        "value": "Nguyen Hue - Le Loi EASTBOUND approach"
+      },
+      "location": {
+        "type": "GeoProperty",
+        "value": {
+          "type": "Point",
+          "coordinates": [
+            106.7009,
+            10.7769
+          ]
+        }
+      }
+    }
+  ]
+}

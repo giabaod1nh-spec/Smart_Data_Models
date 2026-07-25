@@ -75,11 +75,43 @@ def _patch(entity: dict) -> None:
         if r.status_code in (200, 204, 207):
             if r.status_code == 207:
                 try:
-                    not_updated = (r.json() or {}).get("notUpdated") or []
-                    if not_updated:
-                        log.warning("PATCH %s partial notUpdated=%s", eid, not_updated)
-                except Exception:
-                    pass
+                    body = r.json() or {}
+                    not_updated = body.get("notUpdated") or []
+                    missing = []
+                    for item in not_updated:
+                        reason = str(item.get("reason") or "").lower()
+                        name = item.get("attributeName")
+                        if name and "doesn't exist" in reason:
+                            missing.append(name)
+                    if missing:
+                        append_payload = {
+                            k: attrs[k] for k in missing if k in attrs
+                        }
+                        # Keep @context for ld+json
+                        if "@context" in attrs:
+                            append_payload["@context"] = attrs["@context"]
+                        ar = requests.post(
+                            url, json=append_payload, headers=HEADERS, timeout=5
+                        )
+                        if ar.status_code not in (201, 204, 207, 200):
+                            log.warning(
+                                "POST append attrs %s missing=%s -> %s: %s",
+                                eid,
+                                missing,
+                                ar.status_code,
+                                ar.text[:150],
+                            )
+                        else:
+                            # Re-PATCH so values are current after append
+                            requests.patch(
+                                url, json=attrs, headers=HEADERS, timeout=5
+                            )
+                    elif not_updated:
+                        log.warning(
+                            "PATCH %s partial notUpdated=%s", eid, not_updated
+                        )
+                except Exception as e:
+                    log.warning("PATCH %s follow-up failed: %s", eid, e)
             return
         log.warning("PATCH %s -> %s: %s", eid, r.status_code, r.text[:150])
     except requests.exceptions.RequestException as e:

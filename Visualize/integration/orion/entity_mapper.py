@@ -70,6 +70,23 @@ def _meta(node_id: str) -> Dict[str, Any]:
     )
 
 
+def _sim_meta_props(snapshot: dict) -> Dict[str, Any]:
+    """RT-DE Contract v1: simulation identity/time on every published entity."""
+    run_id = snapshot.get("simulation_run_id") or ""
+    scenario = snapshot.get("scenario") or "normal"
+    sim_t = float(snapshot.get("simulation_time_sec") or 0.0)
+    return {
+        "simulationTime": _prop(sim_t),
+        "simulationRunId": _prop(str(run_id)),
+        "scenarioId": _prop(str(scenario)),
+    }
+
+
+def _current_phase_prop(snapshot: dict) -> dict:
+    phase = snapshot.get("phase") or "NS_GREEN"
+    return _prop(str(phase))
+
+
 def build_intersection(node_id: str, snapshot: dict) -> dict:
     """Intersection — fields from Intersection/doc/spec.md + Phase 2 additive context."""
     meta = _meta(node_id)
@@ -104,12 +121,12 @@ def build_intersection(node_id: str, snapshot: dict) -> dict:
         "refCameras": _rel_list([_camera_id(node_id)]),
         "refVehicleSensors": _rel_list(vs_ids),
         "dateObserved": _datetime_prop(now),
-        "simulationTime": _prop(float(snapshot.get("simulation_time_sec") or 0.0)),
         "overallTrafficStatus": _prop(overall),
         "totalVehicleCount": _prop(total_vehicles),
         "hasActiveIncident": _prop(
             len(incidents) > 0 or bool(op.get("incident_active"))
         ),
+        "currentPhase": _current_phase_prop(snapshot),
         # Phase 2 additive (Strategy C) — current context only, no evidence dump
         "derivedTrafficState": _prop(
             snapshot.get("derived_traffic_state")
@@ -121,6 +138,7 @@ def build_intersection(node_id: str, snapshot: dict) -> dict:
         "isBoxBlocked": _prop(bool(phenomena.get("box_blocked"))),
         "@context": CONTEXT,
     }
+    entity.update(_sim_meta_props(snapshot))
     if primary:
         entity["probableCauseType"] = _prop(primary.get("type"))
         src = primary.get("source_node")
@@ -141,15 +159,17 @@ def build_traffic_light(node_id: str, direction: str, snapshot: dict) -> dict:
     yellow_dur = int(snapshot.get("yellow_duration") or 3)
     red_dur = int(snapshot.get("red_duration") or green_dur)
 
-    return {
+    entity = {
         "id": _traffic_light_id(node_id, direction),
         "type": "TrafficLight",
         "name": _prop(f"{meta['name']} {traffic_dir}"),
         "location": _geoprop(float(meta["lng"]), float(meta["lat"])),
         "currentStatus": _prop(status),
+        "currentPhase": _current_phase_prop(snapshot),
         "timingMode": _prop("FIXED_TIME"),
         "workingState": _prop("OK"),
         "trafficDirection": _prop(traffic_dir),
+        # Configured cycle lengths (seconds), NOT remaining time — RT-DE Contract v1.
         "greenDurationCurrent": _prop(green_dur),
         "redDurationCurrent": _prop(red_dur),
         "yellowDuration": _prop(yellow_dur),
@@ -157,6 +177,8 @@ def build_traffic_light(node_id: str, direction: str, snapshot: dict) -> dict:
         "refCamera": _rel(_camera_id(node_id)),
         "@context": CONTEXT,
     }
+    entity.update(_sim_meta_props(snapshot))
+    return entity
 
 
 def build_camera(node_id: str, snapshot: dict) -> dict:
@@ -198,6 +220,7 @@ def build_camera(node_id: str, snapshot: dict) -> dict:
         "recommendedSignalAction": _prop("KEEP"),
         "@context": CONTEXT,
     }
+    entity.update(_sim_meta_props(snapshot))
     if has_incident:
         entity["incidentType"] = _prop("ACCIDENT")
         entity["incidentSeverity"] = _prop("MEDIUM")
@@ -228,7 +251,6 @@ def build_vehicle_sensor(node_id: str, direction: str, snapshot: dict) -> dict:
         "refCamera": _rel(_camera_id(node_id)),
         "refTrafficLight": _rel(_traffic_light_id(node_id, direction)),
         "dateObserved": _datetime_prop(now),
-        "simulationTime": _prop(float(snapshot.get("simulation_time_sec") or 0.0)),
         "vehicleCount": _prop(d["vehicle_count"]),
         "pcuEquivalent": _prop(d["pcu_equivalent"]),
         "leftTurnCount": _prop(d["left_count"]),
@@ -249,6 +271,7 @@ def build_vehicle_sensor(node_id: str, direction: str, snapshot: dict) -> dict:
         "theoreticalSpeed": _prop(d.get("theoretical_speed_kmh", 0.0)),
         "@context": CONTEXT,
     }
+    entity.update(_sim_meta_props(snapshot))
     dominant: Optional[str] = d.get("dominant_waiting_reason")
     if dominant is not None:
         entity["dominantWaitingReason"] = _prop(dominant)
