@@ -1,0 +1,145 @@
+{
+  "Intersection": {
+    "required": [
+      "simulationTime",
+      "simulationRunId",
+      "scenarioId",
+      "currentPhase",
+      "name",
+      "location",
+      "intersectionStatus",
+      "numberOfApproaches",
+      "frequentCongestion",
+      "refTrafficLights",
+      "refCameras",
+      "refVehicleSensors",
+      "dateObserved",
+      "overallTrafficStatus",
+      "totalVehicleCount",
+      "hasActiveIncident",
+      "derivedTrafficState",
+      "hasSpillback",
+      "isBoxBlocked"
+    ],
+    "optional": [
+      "probableCauseType",
+      "affectedBy",
+      "causeDetectedAt",
+      "description"
+    ],
+    "relationships": [
+      "refTrafficLights",
+      "refCameras",
+      "refVehicleSensors",
+      "affectedBy"
+    ]
+  },
+  "TrafficLight": {
+    "required": [
+      "simulationTime",
+      "simulationRunId",
+      "scenarioId",
+      "currentPhase",
+      "name",
+      "location",
+      "currentStatus",
+      "timingMode",
+      "workingState",
+      "trafficDirection",
+      "greenDurationCurrent",
+      "redDurationCurrent",
+      "yellowDuration",
+      "refIntersection",
+      "refCamera"
+    ],
+    "optional": [
+      "phaseStartedAt",
+      "description"
+    ],
+    "relationships": [
+      "refIntersection",
+      "refCamera"
+    ]
+  },
+  "VehicleSensor": {
+    "required": [
+      "simulationTime",
+      "simulationRunId",
+      "scenarioId",
+      "name",
+      "location",
+      "sensorType",
+      "sensorStatus",
+      "trafficDirection",
+      "refIntersection",
+      "refCamera",
+      "refTrafficLight",
+      "dateObserved",
+      "vehicleCount",
+      "pcuEquivalent",
+      "leftTurnCount",
+      "straightCount",
+      "rightTurnCount",
+      "averageSpeed",
+      "waitingVehicleCount",
+      "queueLength",
+      "queueStraight",
+      "queueLeft",
+      "queueRight",
+      "occupancyRate",
+      "trafficStatus",
+      "arrivalRatePcuPerSec",
+      "waitingReasonCounts",
+      "theoreticalSpeed",
+      "derivedTrafficState",
+      "spillbackRisk",
+      "operationalState"
+    ],
+    "optional": [
+      "dominantWaitingReason",
+      "vehicleClassComposition",
+      "description"
+    ],
+    "relationships": [
+      "refIntersection",
+      "refCamera",
+      "refTrafficLight"
+    ]
+  },
+  "Camera": {
+    "required": [
+      "simulationTime",
+      "simulationRunId",
+      "scenarioId",
+      "name",
+      "location",
+      "cameraNum",
+      "cameraType",
+      "cameraUsage",
+      "cameraStatus",
+      "refIntersection",
+      "dateObserved",
+      "trafficDirection",
+      "vehicleCount",
+      "averageSpeed",
+      "occupancyRate",
+      "trafficStatus",
+      "incidentDetected",
+      "confidence",
+      "recommendedSignalAction",
+      "incidentType",
+      "incidentSeverity"
+    ],
+    "optional": [
+      "description",
+      "streamURL",
+      "orientationAngle",
+      "refTrafficLight",
+      "refVehicleSensor",
+      "monitoredLane"
+    ],
+    "relationships": [
+      "refIntersection"
+    ]
+  }
+}
