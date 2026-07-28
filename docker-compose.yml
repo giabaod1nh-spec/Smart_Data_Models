@@ -34,6 +34,39 @@ services:
   # DE services SHOULD mount the same volume at /app/artifacts/runs
   # (see docs/implementation/deployment.md).
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: de-clickhouse
+    restart: always
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./de/clickhouse/users.d/allow-docker-network.xml:/etc/clickhouse-server/users.d/allow-docker-network.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  de-webhook:
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    container_name: de-webhook
+    restart: always
+    depends_on:
+      clickhouse:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      DE_CLICKHOUSE_HOST: clickhouse
+      DE_CLICKHOUSE_PORT: "8123"
+      DE_CLICKHOUSE_DATABASE: smart_traffic
+      DE_LOG_LEVEL: INFO
+
 volumes:
   mongo-data:
   shared-run-artifacts:
+  clickhouse-data:
