@@ -31,6 +31,7 @@ class SumoBackend:
         use_gui: Optional[bool] = None,
         publish_node: Optional[str] = None,
         publish_nodes: Optional[List[str]] = None,
+        simulation_run_id: Optional[str] = None,
     ):
         self.sumo_config = cfg.SUMO_CONFIG if sumo_config is None else sumo_config
         self.use_gui = cfg.SUMO_GUI if use_gui is None else use_gui
@@ -77,6 +78,7 @@ class SumoBackend:
         self._last_obs_sim_t: float = -1e9
         self._observation_seq: int = 0
         self.simulation_run_id: Optional[str] = None
+        self.requested_simulation_run_id = simulation_run_id
         self.run_manifest: Optional[dict] = None
         self.runtime = NetworkRuntimeController(self.publish_nodes)
         self.control_mode = "FIXED"
@@ -100,7 +102,7 @@ class SumoBackend:
         if not os.path.isfile(config_path):
             raise FileNotFoundError(f"SUMO config not found: {config_path}")
 
-        self.simulation_run_id = str(uuid.uuid4())
+        self.simulation_run_id = self.requested_simulation_run_id or str(uuid.uuid4())
         for snap in self.snapshots.values():
             snap.simulation_run_id = self.simulation_run_id
 

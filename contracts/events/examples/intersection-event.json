@@ -1,0 +1,123 @@
+{
+  "eventId": "e2614db91200de502ecb762080e83143d410a09bd243b4411377c712c3f55973",
+  "eventVersion": "2.0.0",
+  "contractVersion": "2.0.0",
+  "eventType": "TrafficEntityObserved",
+  "source": "sumo",
+  "simulationRunId": "00000000-0000-4000-8000-000000000001",
+  "simulationTime": 120.5,
+  "scenarioId": "normal",
+  "nodeId": "A",
+  "cycleSequence": 0,
+  "entitySequence": 0,
+  "cycleEntityCount": 4,
+  "nodeEntityCount": 4,
+  "capturedAt": "2026-07-24T07:56:09Z",
+  "producerId": "visualize-traci",
+  "producerSessionId": "session-example-001",
+  "traceId": "trace-example-001",
+  "correlationId": "00000000-0000-4000-8000-000000000001:0",
+  "entityPayloadHash": "a64076f15b85393acb875527b9c5fa703e7dbb2766bbb63f2c487ec0545e1e31",
+  "entity": {
+    "id": "urn:ngsi-ld:Intersection:A",
+    "type": "Intersection",
+    "name": {
+      "type": "Property",
+      "value": "Nguyen Hue - Le Loi"
+    },
+    "location": {
+      "type": "GeoProperty",
+      "value": {
+        "type": "Point",
+        "coordinates": [
+          106.7009,
+          10.7769
+        ]
+      }
+    },
+    "intersectionStatus": {
+      "type": "Property",
+      "value": "ACTIVE"
+    },
+    "numberOfApproaches": {
+      "type": "Property",
+      "value": 4
+    },
+    "frequentCongestion": {
+      "type": "Property",
+      "value": false
+    },
+    "refTrafficLights": {
+      "type": "Relationship",
+      "object": [
+        "urn:ngsi-ld:TrafficLight:A-North",
+        "urn:ngsi-ld:TrafficLight:A-South",
+        "urn:ngsi-ld:TrafficLight:A-East",
+        "urn:ngsi-ld:TrafficLight:A-West"
+      ]
+    },
+    "refCameras": {
+      "type": "Relationship",
+      "object": [
+        "urn:ngsi-ld:Camera:A"
+      ]
+    },
+    "refVehicleSensors": {
+      "type": "Relationship",
+      "object": [
+        "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+        "urn:ngsi-ld:VehicleSensor:A:SOUTHBOUND",
+        "urn:ngsi-ld:VehicleSensor:A:EASTBOUND",
+        "urn:ngsi-ld:VehicleSensor:A:WESTBOUND"
+      ]
+    },
+    "dateObserved": {
+      "type": "Property",
+      "value": {
+        "@type": "DateTime",
+        "@value": "2026-07-24T07:56:09Z"
+      }
+    },
+    "overallTrafficStatus": {
+      "type": "Property",
+      "value": "LIGHT"
+    },
+    "totalVehicleCount": {
+      "type": "Property",
+      "value": 20
+    },
+    "hasActiveIncident": {
+      "type": "Property",
+      "value": false
+    },
+    "currentPhase": {
+      "type": "Property",
+      "value": "NS_GREEN"
+    },
+    "derivedTrafficState": {
+      "type": "Property",
+      "value": "STABLE"
+    },
+    "hasSpillback": {
+      "type": "Property",
+      "value": false
+    },
+    "isBoxBlocked": {
+      "type": "Property",
+      "value": false
+    },
+    "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+    "simulationTime": {
+      "type": "Property",
+      "value": 120.5
+    },
+    "simulationRunId": {
+      "type": "Property",
+      "value": "00000000-0000-4000-8000-000000000001"
+    },
+    "scenarioId": {
+      "type": "Property",
+      "value": "normal"
+    }
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "eventId": "708b0dc3dbf4cd5216395ab9793fb3289380d2e8e26fe0c41fd7dc4369d3608f",
+  "eventVersion": "2.0.0",
+  "contractVersion": "2.0.0",
+  "eventType": "TrafficEntityObserved",
+  "source": "sumo",
+  "simulationRunId": "00000000-0000-4000-8000-000000000001",
+  "simulationTime": 120.5,
+  "scenarioId": "normal",
+  "nodeId": "A",
+  "cycleSequence": 0,
+  "entitySequence": 2,
+  "cycleEntityCount": 4,
+  "nodeEntityCount": 4,
+  "capturedAt": "2026-07-24T07:56:09Z",
+  "producerId": "visualize-traci",
+  "producerSessionId": "session-example-001",
+  "traceId": "trace-example-001",
+  "correlationId": "00000000-0000-4000-8000-000000000001:0",
+  "entityPayloadHash": "629cb9130f9f80f8ae8d79c043c7b6c8949244c6f360b9e5e276b9fb4fd3f431",
+  "entity": {
+    "id": "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+    "type": "VehicleSensor",
+    "name": {
+      "type": "Property",
+      "value": "Nguyen Hue - Le Loi NORTHBOUND approach"
+    },
+    "location": {
+      "type": "GeoProperty",
+      "value": {
+        "type": "Point",
+        "coordinates": [
+          106.7009,
+          10.7769
+        ]
+      }
+    },
+    "sensorType": {
+      "type": "Property",
+      "value": "VIRTUAL"
+    },
+    "sensorStatus": {
+      "type": "Property",
+      "value": "OK"
+    },
+    "trafficDirection": {
+      "type": "Property",
+      "value": "NORTHBOUND"
+    },
+    "refIntersection": {
+      "type": "Relationship",
+      "object": "urn:ngsi-ld:Intersection:A"
+    },
+    "refCamera": {
+      "type": "Relationship",
+      "object": "urn:ngsi-ld:Camera:A"
+    },
+    "refTrafficLight": {
+      "type": "Relationship",
+      "object": "urn:ngsi-ld:TrafficLight:A-North"
+    },
+    "dateObserved": {
+      "type": "Property",
+      "value": {
+        "@type": "DateTime",
+        "@value": "2026-07-24T07:56:09Z"
+      }
+    },
+    "vehicleCount": {
+      "type": "Property",
+      "value": 5
+    },
+    "pcuEquivalent": {
+      "type": "Property",
+      "value": 3.2
+    },
+    "leftTurnCount": {
+      "type": "Property",
+      "value": 1
+    },
+    "straightCount": {
+      "type": "Property",
+      "value": 3
+    },
+    "rightTurnCount": {
+      "type": "Property",
+      "value": 1
+    },
+    "averageSpeed": {
+      "type": "Property",
+      "value": 18.5
+    },
+    "waitingVehicleCount": {
+      "type": "Property",
+      "value": 2
+    },
+    "queueLength": {
+      "type": "Property",
+      "value": 12.0
+    },
+    "queueStraight": {
+      "type": "Property",
+      "value": 10.0
+    },
+    "queueLeft": {
+      "type": "Property",
+      "value": 2.0
+    },
+    "queueRight": {
+      "type": "Property",
+      "value": 0.0
+    },
+    "occupancyRate": {
+      "type": "Property",
+      "value": 22.0
+    },
+    "trafficStatus": {
+      "type": "Property",
+      "value": "MODERATE"
+    },
+    "arrivalRatePcuPerSec": {
+      "type": "Property",
+      "value": 0.15
+    },
+    "waitingReasonCounts": {
+      "type": "Property",
+      "value": {
+        "RED_PHASE": 2,
+        "CONGESTION": 0
+      }
+    },
+    "theoreticalSpeed": {
+      "type": "Property",
+      "value": 35.0
+    },
+    "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+    "simulationTime": {
+      "type": "Property",
+      "value": 120.5
+    },
+    "simulationRunId": {
+      "type": "Property",
+      "value": "00000000-0000-4000-8000-000000000001"
+    },
+    "scenarioId": {
+      "type": "Property",
+      "value": "normal"
+    },
+    "dominantWaitingReason": {
+      "type": "Property",
+      "value": "RED_PHASE"
+    },
+    "vehicleClassComposition": {
+      "type": "Property",
+      "value": {
+        "motorcycle": 0.6,
+        "car": 0.3,
+        "bus": 0.05,
+        "truck": 0.05
+      }
+    },
+    "spillbackRisk": {
+      "type": "Property",
+      "value": false
+    },
+    "operationalState": {
+      "type": "Property",
+      "value": {
+        "incident_active": false,
+        "emergency_preemption_active": false,
+        "downstream_restriction_active": false
+      }
+    }
+  }
+}

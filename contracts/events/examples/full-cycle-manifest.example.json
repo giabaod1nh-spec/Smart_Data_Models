@@ -1,0 +1,38 @@
+{
+  "description": "Oracle only — not a Kafka topic payload. Lists Entity Events that form one logical publish cycle.",
+  "contractVersion": "2.0.0",
+  "simulationRunId": "00000000-0000-4000-8000-000000000001",
+  "cycleSequence": 0,
+  "cycleEntityCount": 4,
+  "events": [
+    {
+      "file": "intersection-event.json",
+      "eventId": "e2614db91200de502ecb762080e83143d410a09bd243b4411377c712c3f55973",
+      "entityId": "urn:ngsi-ld:Intersection:A",
+      "entitySequence": 0,
+      "entityPayloadHash": "a64076f15b85393acb875527b9c5fa703e7dbb2766bbb63f2c487ec0545e1e31"
+    },
+    {
+      "file": "trafficlight-event.json",
+      "eventId": "d6b9393470caa8f033ff7a3f9a2ec934f174c809d389fe80404fbac152941afa",
+      "entityId": "urn:ngsi-ld:TrafficLight:A-North",
+      "entitySequence": 1,
+      "entityPayloadHash": "16f4d3baab44fb0eb9f5a74e7e56b0ea3386ff0ce478b94fe412ab491923f3fb"
+    },
+    {
+      "file": "vehiclesensor-event.json",
+      "eventId": "708b0dc3dbf4cd5216395ab9793fb3289380d2e8e26fe0c41fd7dc4369d3608f",
+      "entityId": "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+      "entitySequence": 2,
+      "entityPayloadHash": "629cb9130f9f80f8ae8d79c043c7b6c8949244c6f360b9e5e276b9fb4fd3f431"
+    },
+    {
+      "file": "camera-event.json",
+      "eventId": "0749b152b2d2fe0658fa3656f35c4974d0c6f8f137d1230dab10ceb71a271ebc",
+      "entityId": "urn:ngsi-ld:Camera:A",
+      "entitySequence": 3,
+      "entityPayloadHash": "d7802bd4f66f3bb8584f12c1954585e7de089486d754207dfce52359fefb12d8"
+    }
+  ],
+  "simulationTime": 120.5
+}

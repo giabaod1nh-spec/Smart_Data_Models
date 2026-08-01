@@ -1,0 +1,41 @@
+# Final production-shape profile (Architecture Lock — config/compose proof)
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.final.yml --env-file deploy/profiles/final.env config --services
+#   docker compose -f docker-compose.yml -f docker-compose.final.yml --env-file deploy/profiles/final.env up -d
+#
+# CRITICAL: de-webhook is removed from the deployment via Compose profiles
+# (DE_WEBHOOK_ENABLED=false alone is NOT sufficient).
+
+services:
+  de-webhook:
+    # Without activating this profile, `docker compose ... up` will NOT create/run webhook
+    profiles: ["legacy-webhook-migration-only"]
+
+  orion-projector:
+    build:
+      context: .
+      dockerfile: Visualize/Dockerfile.projector
+    container_name: orion-projector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      orion:
+        condition: service_started
+    ports:
+      - "8093:8092"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: traffic.entity-events.v2
+      ORION_URL: http://orion:1026
+      # Lock smoke: keep isolation rewrite; namespace=test (NOT production)
+      PROJECTOR_SHADOW_MODE: "true"
+      PROJECTOR_TARGET_NAMESPACE: test
+      PROJECTOR_GROUP_ID: projector-final-lock
+      PROJECTOR_HEALTH_HOST: 0.0.0.0
+      PROJECTOR_HEALTH_PORT: "8092"
+      PROJECTOR_DB: /app/Visualize/artifacts/projector/live.sqlite3
+      ARCHITECTURE_PROFILE: final
+      ARCHITECTURE_LOCK_SMOKE: "true"
+    volumes:
+      - ./Visualize/artifacts:/app/Visualize/artifacts

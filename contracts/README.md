@@ -1,26 +1,23 @@
-# RT-DE Contract v1.0.0
+# Contracts — Smart Traffic RT / DE / Kafka
 
-**Source of Truth** for the interface between **Realtime (Producer)** and **Data Engineering (Consumer)**.
+This tree holds **named** interface contracts. Do not refer to them generically as “Contract v2”.
 
-## Contract Version
+## Named contracts
 
-```text
-Contract Version: 1.0.0
-Applies to entity types:
-  - Intersection
-  - TrafficLight
-  - VehicleSensor
-  - Camera
-```
+| Official name | Version | Path / notes |
+|---------------|---------|--------------|
+| **NGSI-LD Entity Contract** | **1.0.0** | `entity/`, `simulation/`, `trafficlight/`, `topology/` — Orion → Spring Server → Dashboard |
+| **Kafka Event Delivery Contract** | **2.0.0** | `events/`, `kafka/` — Producer → Kafka → Projector / Raw Consumer |
+| **Legacy Orion Notification Delivery Contract** | **1.0.0** | `delivery/` — Orion Subscription → de-webhook (until historical cutover) |
 
-DE parsers SHALL bind to this version. Bump major on breaking field/semantics/relationship changes; additive fields → minor/patch.
+`contracts/VERSION` remains **1.0.0** for the Entity + Notification delivery lineage. Kafka Event Delivery uses `contractVersion: "2.0.0"` inside each event envelope (see `events/`).
 
-**Do not** require a `contractVersion` Property on Orion entities in v1.0.0.
-
-## Compatibility policy
+## Compatibility (Entity / Notification 1.0.0)
 
 - **Allowed after freeze:** additive Properties; new optional entities with a new contract version note.
 - **Breaking (forbidden without VERSION bump + DE migration):** rename fields, change units/semantics, change Relationship targets.
+
+Kafka Event Delivery compatibility: [`kafka/COMPATIBILITY.md`](kafka/COMPATIBILITY.md).
 
 ## Ownership legend
 
@@ -31,7 +28,7 @@ Each `*_contract_v1.md` starts with Producer / Consumer / Owner / Delivery (or A
 | Producer | Realtime Simulation |
 | Consumer | Data Engineering |
 | Owner | Realtime Team |
-| Delivery | Orion Subscription → DE Webhook |
+| Delivery | Orion Subscription → DE Webhook (legacy) or Kafka topics (v2) |
 
 ## Layout
 
@@ -41,29 +38,32 @@ Each `*_contract_v1.md` starts with Producer / Consumer / Owner / Delivery (or A
 | `simulation/` | simulationTime / simulationRunId / scenarioId semantics |
 | `trafficlight/` | currentPhase SoT; duration = configured |
 | `topology/` | Per-run package contents; resolve by simulationRunId |
-| `delivery/` | Notification schema + **golden** `notification.example.json` |
+| `delivery/` | Notification schema + golden `notification.example.json` |
+| `events/` | Kafka Event Delivery Contract 2.0.0 schema + examples |
+| `kafka/` | Topics, delivery semantics, compatibility |
+| `canonical_json.py` | Shared canonical hash (Producer / DE / DVT / Projector) |
 | `tests/` | Offline contract tests only |
 
-## How DE starts
+## How DE starts (legacy Notification path)
 
 1. Read `delivery/notification.example.json` (golden) — code webhook parser **now**.
 2. Read `entity/payloads/*.jsonld` for entity shapes inside `data[]`.
-3. Resolve topology package by `simulationRunId` (see `topology/`); access mechanism in `docs/implementation/`.
+3. Resolve topology package by `simulationRunId` (see `topology/`).
+
+## How Kafka path starts (Event Delivery 2.0.0)
+
+1. Read `events/README.md` + `events/traffic-entity-event-v2.schema.json`.
+2. Use `events/examples/*-event.json` as golden Entity Events.
+3. Read `kafka/DELIVERY_SEMANTICS.md` and `docs/architecture/KAFKA_FAILURE_SEMANTICS.md`.
 
 ## Related (not Contract)
 
 | Location | Role |
 |----------|------|
-| [`docs/implementation/`](../docs/implementation/) | How RT implements SHALL (file map, volume, Orion pin) |
-| [`integration/`](../integration/) | Live E2E proof; `captured/` is evidence only — **not** golden SoT |
-| [`Visualize/`](../Visualize/) | Runtime source (mapper, backend) — never under `contracts/` |
-
-## Boundary (what does NOT belong here)
-
-- `IMPLEMENTATION_PLAN.md`, deployment/volume narratives as normative text
-- Live E2E / `thin_webhook.py` / Orion harness
-- `notification.captured.example.json` (lives in `integration/captured/`)
-- Runtime Python modules (`entity_mapper.py`, `backend.py`, …)
+| [`docs/implementation/`](../docs/implementation/) | How RT implements SHALL |
+| [`docs/architecture/`](../docs/architecture/) | Kafka failure semantics / pipeline ADRs |
+| [`integration/`](../integration/) | Live E2E proof |
+| [`Visualize/`](../Visualize/) | Runtime source — never under `contracts/` normative text |
 
 ## Tests
 

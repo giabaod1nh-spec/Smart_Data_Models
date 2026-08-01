@@ -5,6 +5,7 @@ Mutating endpoints enqueue commands; TraCI thread drains via SumoBackend.step().
 """
 from __future__ import annotations
 
+import os
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -31,6 +32,8 @@ app.add_middleware(
 )
 
 engine = None  # SumoBackend instance set by traci_runner
+publish_stats_provider = None  # optional callable → dict (async publisher metrics)
+kafka_stats_provider = None  # optional callable → dict (Kafka ACK / outbox)
 
 
 class ScenarioRequest(BaseModel):
@@ -69,6 +72,10 @@ class ControlModeRequest(BaseModel):
     mode: str = Field(..., pattern="^(FIXED|PREEMPTION_ENABLED)$")
 
 
+class OrionPublishRequest(BaseModel):
+    enabled: bool
+
+
 def _require_engine():
     if engine is None:
         raise HTTPException(503, "engine not started")
@@ -87,7 +94,55 @@ def health():
         "control_mode": eng.control_mode if eng else None,
         "version": cfg.VERSION,
         "publish_nodes": eng.publish_nodes if eng else cfg.PUBLISH_NODES,
+        "simulation_run_id": getattr(eng, "simulation_run_id", None) if eng else None,
+        "architecture_profile": str(os.getenv("ARCHITECTURE_PROFILE", "none")),
     }
+
+
+@app.get("/publish-stats")
+def publish_stats():
+    """Read-only async publisher metrics snapshot (empty when sync or unavailable)."""
+    from integration.orion.publish_gate import is_orion_publish_enabled
+
+    base = {
+        "orion_publish_enabled": is_orion_publish_enabled(),
+    }
+    if publish_stats_provider is None:
+        out = {"async_publish": False, "available": False, **base}
+    else:
+        try:
+            out = {**publish_stats_provider(), **base}
+        except Exception as e:
+            raise HTTPException(500, f"publish stats unavailable: {e}") from e
+    if kafka_stats_provider is not None:
+        try:
+            out["kafka"] = kafka_stats_provider()
+        except Exception as e:
+            out["kafka"] = {"available": False, "error": str(e)}
+    return out
+
+
+@app.get("/control/orion-publish")
+def get_orion_publish():
+    """Current runtime direct-Orion publish gate (K-4.5 rehearsal)."""
+    from integration.orion.publish_gate import is_orion_publish_enabled
+
+    return {"enabled": is_orion_publish_enabled()}
+
+
+@app.post("/control/orion-publish")
+def set_orion_publish(req: OrionPublishRequest):
+    """Toggle direct Orion publish without restarting SUMO/TraCI."""
+    profile = str(os.getenv("ARCHITECTURE_PROFILE", "none") or "none").strip().lower()
+    if profile == "k5-cutover":
+        raise HTTPException(
+            status_code=403,
+            detail="profile=k5-cutover: ORION_PUBLISH_ENABLED must be false",
+        )
+    from integration.orion.publish_gate import set_orion_publish_enabled
+
+    enabled = set_orion_publish_enabled(req.enabled)
+    return {"enabled": enabled, "queued": False}
 
 
 @app.get("/scenario")

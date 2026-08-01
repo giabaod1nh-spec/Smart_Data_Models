@@ -48,8 +48,16 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
 
   de-webhook:
+    # K-6b rollback asset only. Plain `docker compose up` never creates it.
+    profiles: ["rollback"]
     build:
       context: .
       dockerfile: de/Dockerfile
@@ -57,14 +65,205 @@ services:
     restart: always
     depends_on:
       clickhouse:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       DE_CLICKHOUSE_HOST: clickhouse
       DE_CLICKHOUSE_PORT: "8123"
       DE_CLICKHOUSE_DATABASE: smart_traffic
+      DE_CLICKHOUSE_USER: ${ROLLBACK_RAW_V1_CLICKHOUSE_USER:-default}
+      DE_CLICKHOUSE_PASSWORD: ${ROLLBACK_RAW_V1_CLICKHOUSE_PASSWORD:-}
       DE_LOG_LEVEL: INFO
+      DE_WEBHOOK_ENABLED: "true"
+      DE_WEBHOOK_MODE: ROLLBACK_ONLY
+    command: ["uvicorn", "de.webhook.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+  de-migrate:
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    container_name: de-migrate
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      K4_CLICKHOUSE_HOST: clickhouse
+      K4_CLICKHOUSE_PORT: "8123"
+      K4_CLICKHOUSE_DATABASE: smart_traffic
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--historical-v2"]
+    restart: "no"
+
+  de-kafka-raw-consumer:
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    container_name: de-kafka-raw-consumer
+    restart: unless-stopped
+    depends_on:
+      de-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8091:8091"
+    environment:
+      K4_BOOTSTRAP_SERVERS: kafka:9092
+      K4_CLICKHOUSE_HOST: clickhouse
+      K4_CLICKHOUSE_PORT: "8123"
+      K4_CLICKHOUSE_DATABASE: smart_traffic
+      K4_CLIENT_ID: raw-consumer-node1
+      K4_GROUP_ID: de-kafka-raw-v2
+      K4_HEALTH_HOST: 0.0.0.0
+      K4_HEALTH_PORT: "8091"
+      K4_LEDGER_PATH: /app/de/artifacts/kafka_raw/ledger.sqlite3
+    command: ["python", "-m", "de.kafka_raw.main"]
+    volumes:
+      - ./de/artifacts:/app/de/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  de-bronze-processor:
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    container_name: de-bronze-processor
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+    depends_on:
+      de-migrate:
+        condition: service_completed_successfully
+      de-kafka-raw-consumer:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8092:8092"
+    environment:
+      K7_CLICKHOUSE_HOST: clickhouse
+      K7_CLICKHOUSE_PORT: "8123"
+      K7_CLICKHOUSE_DATABASE: smart_traffic
+      K7_HEALTH_HOST: 0.0.0.0
+      K7_HEALTH_PORT: "8092"
+      K7_CHECKPOINT_PATH: /app/de/artifacts/bronze/checkpoint.sqlite3
+      K7_CHECKPOINT_NAMESPACE: live
+      K7_SINGLE_INSTANCE: "true"
+      K7_WORKER_COUNT: "1"
+    command: ["python", "-m", "de.bronze.main"]
+    volumes:
+      - ./de/artifacts:/app/de/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8092/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ── Kafka (KRaft, local thesis RF=1 — not HA) ───────────────────
+  kafka:
+    image: apache/kafka:3.8.1
+    container_name: smart-traffic-kafka
+    hostname: kafka
+    restart: unless-stopped
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      # Prefer project path (D:) over Docker Desktop default on C:
+      - ./data/kafka:/var/lib/kafka/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  kafka-init:
+    image: apache/kafka:3.8.1
+    container_name: smart-traffic-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./docker/kafka-init.sh:/kafka-init.sh:ro
+    entrypoint: ["/bin/bash", "/kafka-init.sh"]
+    restart: "no"
+
+  # K-5 production Projector folded into the K-6b canonical Kafka runtime.
+  orion-projector:
+    build:
+      context: .
+      dockerfile: Visualize/Dockerfile.projector
+    container_name: orion-projector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      orion:
+        condition: service_started
+    ports:
+      - "8093:8092"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: traffic.entity-events.v2
+      ORION_URL: http://orion:1026
+      PROJECTOR_SHADOW_MODE: "false"
+      PROJECTOR_TARGET_NAMESPACE: production
+      PROJECTOR_WRITE_MODE: active
+      PROJECTOR_GROUP_ID: projector-k5-production
+      PROJECTOR_FENCE_MANIFEST: ${PROJECTOR_FENCE_MANIFEST:-}
+      PROJECTOR_HEALTH_HOST: 0.0.0.0
+      PROJECTOR_HEALTH_PORT: "8092"
+      PROJECTOR_DB: /app/Visualize/artifacts/projector/k5-production.sqlite3
+      PROJECTOR_SINGLE_INSTANCE: "true"
+      ARCHITECTURE_PROFILE: k6-final
+      ARCHITECTURE_LOCK_SMOKE: "false"
+      DE_WEBHOOK_ENABLED: "false"
+    volumes:
+      - ./Visualize/artifacts:/app/Visualize/artifacts
+      - ./docs/architecture/k5_evidence:/app/docs/architecture/k5_evidence:ro
+    command:
+      [
+        "python",
+        "-m",
+        "Visualize.tools.projector_live_consumer",
+        "--no-shadow",
+        "--namespace",
+        "production",
+        "--write-mode",
+        "active",
+      ]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8092/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
 volumes:
   mongo-data:

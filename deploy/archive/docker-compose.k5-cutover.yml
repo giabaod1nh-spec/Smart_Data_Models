@@ -1,0 +1,52 @@
+# K-5 production realtime cutover — keeps de-webhook (K-6b retires webhook)
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.migration.yml \
+#     -f docker-compose.k5-cutover.yml --env-file deploy/profiles/k5-cutover.env up -d
+
+services:
+  de-webhook:
+    profiles: []
+
+  orion-projector:
+    build:
+      context: .
+      dockerfile: Visualize/Dockerfile.projector
+    container_name: orion-projector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      orion:
+        condition: service_started
+    ports:
+      - "8093:8092"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: traffic.entity-events.v2
+      ORION_URL: http://orion:1026
+      PROJECTOR_SHADOW_MODE: "false"
+      PROJECTOR_TARGET_NAMESPACE: production
+      PROJECTOR_WRITE_MODE: disabled
+      PROJECTOR_GROUP_ID: projector-k5-production
+      PROJECTOR_FENCE_MANIFEST: ${PROJECTOR_FENCE_MANIFEST:-}
+      PROJECTOR_HEALTH_HOST: 0.0.0.0
+      PROJECTOR_HEALTH_PORT: "8092"
+      PROJECTOR_DB: /app/Visualize/artifacts/projector/k5-production.sqlite3
+      PROJECTOR_SINGLE_INSTANCE: "true"
+      ARCHITECTURE_PROFILE: k5-cutover
+      ARCHITECTURE_LOCK_SMOKE: "false"
+      DE_WEBHOOK_ENABLED: "true"
+    volumes:
+      - ./Visualize/artifacts:/app/Visualize/artifacts
+      - ./docs/architecture/k5_evidence:/app/docs/architecture/k5_evidence
+    command:
+      [
+        "python",
+        "-m",
+        "Visualize.tools.projector_live_consumer",
+        "--no-shadow",
+        "--namespace",
+        "production",
+        "--write-mode",
+        "disabled",
+      ]

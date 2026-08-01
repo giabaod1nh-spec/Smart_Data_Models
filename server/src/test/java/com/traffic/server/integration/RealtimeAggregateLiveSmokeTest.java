@@ -1,7 +1,8 @@
 package com.traffic.server.integration;
 
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -13,6 +14,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,13 +38,16 @@ class RealtimeAggregateLiveSmokeTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Test
-    void aggregateIntersectionWhenPresentInOrion() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"A", "B", "C", "D"})
+    void aggregateIntersectionWhenPresentInOrion(String intersectionId) throws Exception {
         MockHttpSession session = login();
 
-        mockMvc.perform(get("/api/realtime/intersections/A").session(session))
+        mockMvc.perform(get("/api/realtime/intersections/" + intersectionId).session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.intersection").exists())
+                .andExpect(jsonPath("$.data.intersection").value(not(containsString(":shadow:"))))
+                .andExpect(jsonPath("$.data.intersection").value(not(containsString(":test:"))))
                 .andExpect(jsonPath("$.data.metadata.simulationRunId").exists())
                 .andExpect(jsonPath("$.data.cameras").isArray());
     }

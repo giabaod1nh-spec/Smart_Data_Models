@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-traffic.local/contracts/events/traffic-simulation-run-started-v2.schema.json",
+  "title": "Kafka Event Delivery Contract 2.0.0 — TrafficSimulationRunStarted",
+  "description": "Control event: sole activator of projector_active_runs. Entity Events must never flip active run.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "eventType",
+    "contractVersion",
+    "eventVersion",
+    "source",
+    "producerId",
+    "producerSessionId",
+    "simulationRunId",
+    "startedAt"
+  ],
+  "properties": {
+    "eventType": { "type": "string", "const": "TrafficSimulationRunStarted" },
+    "contractVersion": { "type": "string", "const": "2.0.0" },
+    "eventVersion": { "type": "string", "const": "2.0.0" },
+    "source": { "type": "string", "const": "sumo" },
+    "producerId": { "type": "string", "minLength": 1 },
+    "producerSessionId": { "type": "string", "minLength": 1 },
+    "simulationRunId": { "type": "string", "minLength": 1 },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC RFC 3339 when the producer session started"
+    },
+    "scenarioId": { "type": "string", "minLength": 1 },
+    "traceId": { "type": "string", "minLength": 1 }
+  }
+}

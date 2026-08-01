@@ -102,6 +102,118 @@ PUBLISH_NODES = [
 ]
 PUBLISH_NODE = PUBLISH_NODES[0]
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# ── Async Orion publisher (ADR-015) ────────────────────────────────
+ORION_ASYNC_PUBLISH = os.getenv("ORION_ASYNC_PUBLISH", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+ORION_PUBLISH_QUEUE_SIZE = int(os.getenv("ORION_PUBLISH_QUEUE_SIZE", "5"))
+ORION_PUBLISH_BACKPRESSURE_WARN_DEPTH = int(
+    os.getenv("ORION_PUBLISH_BACKPRESSURE_WARN_DEPTH", "3")
+)
+ORION_PUBLISH_MAX_LAG_SEC = float(os.getenv("ORION_PUBLISH_MAX_LAG_SEC", "5"))
+ORION_PUBLISH_RESUME_LAG_SEC = float(os.getenv("ORION_PUBLISH_RESUME_LAG_SEC", "2"))
+ORION_PUBLISH_RESUME_MAX_DEPTH = int(os.getenv("ORION_PUBLISH_RESUME_MAX_DEPTH", "1"))
+ORION_PUBLISH_WORKER_COUNT = int(os.getenv("ORION_PUBLISH_WORKER_COUNT", "1"))
+ORION_PUBLISH_SHUTDOWN_TIMEOUT_SEC = float(
+    os.getenv("ORION_PUBLISH_SHUTDOWN_TIMEOUT_SEC", "15")
+)
+ORION_PUBLISH_RETRY_MAX = int(os.getenv("ORION_PUBLISH_RETRY_MAX", "10"))
+ORION_PUBLISH_RETRY_BASE_SEC = float(os.getenv("ORION_PUBLISH_RETRY_BASE_SEC", "0.5"))
+ORION_PUBLISH_RETRY_SLOW_SEC = float(os.getenv("ORION_PUBLISH_RETRY_SLOW_SEC", "5"))
+ORION_PUBLISH_HTTP_TIMEOUT_SEC = float(os.getenv("ORION_PUBLISH_HTTP_TIMEOUT_SEC", "5"))
+# Publish mode: sequential (default) | batch. Bound at AsyncOrionPublisher construct time.
+_ORION_PUBLISH_MODE_RAW = os.getenv("ORION_PUBLISH_MODE", "sequential").strip().lower()
+ORION_PUBLISH_MODE = (
+    _ORION_PUBLISH_MODE_RAW if _ORION_PUBLISH_MODE_RAW in ("sequential", "batch") else "sequential"
+)
+ORION_BATCH_OPTIONS = os.getenv("ORION_BATCH_OPTIONS", "update").strip().lower() or "update"
+ORION_PUBLISH_BATCH_TIMEOUT_SEC = float(
+    os.getenv("ORION_PUBLISH_BATCH_TIMEOUT_SEC", "10")
+)
+# Runtime gate initial value only (K-4.5). Mid-run: POST /control/orion-publish.
+ORION_PUBLISH_ENABLED = os.getenv("ORION_PUBLISH_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+
+# Architecture deployment profile (none|migration|final) — validation only when set
+ARCHITECTURE_PROFILE = os.getenv("ARCHITECTURE_PROFILE", "none").strip().lower() or "none"
+ARCHITECTURE_LOCK_SMOKE = os.getenv("ARCHITECTURE_LOCK_SMOKE", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+
+# Projector (K-3) — defaults keep migration/K-4.5 safe (shadow ON)
+PROJECTOR_SHADOW_MODE = os.getenv("PROJECTOR_SHADOW_MODE", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+PROJECTOR_TARGET_NAMESPACE = (
+    os.getenv("PROJECTOR_TARGET_NAMESPACE", "shadow").strip().lower() or "shadow"
+)
+PROJECTOR_HEALTH_HOST = os.getenv("PROJECTOR_HEALTH_HOST", "0.0.0.0")
+PROJECTOR_HEALTH_PORT = int(os.getenv("PROJECTOR_HEALTH_PORT", "8092"))
+
+# Sync publish is debug-only; migration/final profiles forbid it
+ORION_SYNC_PUBLISH = os.getenv("ORION_SYNC_PUBLISH", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+
+# ── Kafka dual-publish (K-2a) — default OFF until soak ─────────────
+KAFKA_PUBLISH_ENABLED = os.getenv("KAFKA_PUBLISH_ENABLED", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "traffic.entity-events.v2")
+KAFKA_CLIENT_ID = os.getenv("KAFKA_CLIENT_ID", "visualize-kafka-producer")
+KAFKA_PRODUCER_ID = os.getenv("KAFKA_PRODUCER_ID", "visualize-traci")
+KAFKA_LINGER_MS = int(os.getenv("KAFKA_LINGER_MS", "10"))
+KAFKA_DELIVERY_TIMEOUT_MS = int(os.getenv("KAFKA_DELIVERY_TIMEOUT_MS", "30000"))
+KAFKA_REQUEST_TIMEOUT_MS = int(os.getenv("KAFKA_REQUEST_TIMEOUT_MS", "10000"))
+KAFKA_EVIDENCE_ROOT = Path(
+    os.getenv(
+        "KAFKA_EVIDENCE_ROOT",
+        str(ARTIFACT_ROOT / "kafka_producer_ledger"),
+    )
+)
+
+# ── Kafka durable outbox (K-2b) — default OFF; supersedes K-2a produce when on ─
+KAFKA_OUTBOX_ENABLED = os.getenv("KAFKA_OUTBOX_ENABLED", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+KAFKA_OUTBOX_DB = Path(
+    os.getenv(
+        "KAFKA_OUTBOX_DB",
+        str(ARTIFACT_ROOT / "kafka_outbox" / "outbox.sqlite3"),
+    )
+)
+KAFKA_OUTBOX_MAX_IN_FLIGHT = int(os.getenv("KAFKA_OUTBOX_MAX_IN_FLIGHT", "32"))
+KAFKA_OUTBOX_ACKED_RETENTION_DAYS = int(
+    os.getenv("KAFKA_OUTBOX_ACKED_RETENTION_DAYS", "7")
+)
+KAFKA_OUTBOX_DISK_WARN_BYTES = int(
+    os.getenv("KAFKA_OUTBOX_DISK_WARN_BYTES", str(512 * 1024 * 1024))
+)
+KAFKA_OUTBOX_DISK_FAULT_BYTES = int(
+    os.getenv("KAFKA_OUTBOX_DISK_FAULT_BYTES", str(64 * 1024 * 1024))
+)
+
 PCU_FALLBACK = float(
     os.getenv("PCU_FALLBACK", str(_REG.export_effective_config().get("unknown_vtype_fallback_pce", 1.0)))
 )

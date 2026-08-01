@@ -6,3 +6,7 @@ fastapi>=0.103.0
 uvicorn>=0.22.0
 pydantic>=2.0.0
 psutil>=5.9.0
+# ParameterRegistry YAML source of truth (configuration/model_parameters.yaml)
+PyYAML>=6.0
+# Kafka producer (K-2a dual-publish; optional until KAFKA_PUBLISH_ENABLED)
+confluent-kafka>=2.3.0

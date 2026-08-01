@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-traffic.local/contracts/events/traffic-entity-event-v2.schema.json",
+  "title": "Kafka Event Delivery Contract 2.0.0 — TrafficEntityObserved",
+  "description": "One Kafka record = one Entity Event. Inner entity follows NGSI-LD Entity Contract 1.0.0.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "eventId",
+    "eventVersion",
+    "contractVersion",
+    "eventType",
+    "source",
+    "simulationRunId",
+    "simulationTime",
+    "cycleSequence",
+    "entitySequence",
+    "cycleEntityCount",
+    "capturedAt",
+    "entityPayloadHash",
+    "entity"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256(contractVersion|simulationRunId|cycleSequence|entityId)"
+    },
+    "eventVersion": { "type": "string", "const": "2.0.0" },
+    "contractVersion": {
+      "type": "string",
+      "const": "2.0.0",
+      "description": "Kafka Event Delivery Contract version"
+    },
+    "eventType": { "type": "string", "const": "TrafficEntityObserved" },
+    "source": { "type": "string", "const": "sumo" },
+    "simulationRunId": { "type": "string", "minLength": 1 },
+    "simulationTime": { "type": "number", "minimum": 0 },
+    "cycleSequence": { "type": "integer", "minimum": 0 },
+    "entitySequence": { "type": "integer", "minimum": 0 },
+    "cycleEntityCount": { "type": "integer", "minimum": 1 },
+    "nodeEntityCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Entities expected for this node within the cycle (K-3 micro-batch gate). Optional for backward compat; required for Projector apply path."
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC RFC 3339 timestamp"
+    },
+    "entityPayloadHash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "canonical_hash(entity) only"
+    },
+    "entity": {
+      "type": "object",
+      "required": ["id", "type"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": ["Intersection", "TrafficLight", "VehicleSensor", "Camera"]
+        }
+      }
+    },
+    "scenarioId": { "type": "string", "minLength": 1 },
+    "nodeId": { "type": "string", "minLength": 1 },
+    "producerId": { "type": "string", "minLength": 1 },
+    "producerSessionId": { "type": "string", "minLength": 1 },
+    "traceId": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 }
+  }
+}

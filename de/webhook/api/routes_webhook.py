@@ -32,6 +32,19 @@ def _error_response(status_code: int, detail: str) -> JSONResponse:
 @router.post("/webhook/ngsi")
 async def receive_ngsi_notification(request: Request) -> Response:
     settings = request.app.state.settings
+
+    # Fail before parsing or touching persistence. DISABLED is a transition
+    # state only; canonical K-6b runtime does not create this service at all.
+    if not settings.accepts_writes:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "Webhook is disabled",
+                "mode": settings.webhook_mode.value,
+                "enabled": settings.webhook_enabled,
+            },
+        )
+
     idempotency: IdempotencyService = request.app.state.idempotency
 
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())

@@ -1,4 +1,7 @@
-"""Replay raw notifications from ClickHouse (read-only CLI)."""
+"""LEGACY_INTERNAL_ONLY: replay Raw-v1 notifications for rollback diagnostics.
+
+This module is not an operator-facing Historical replay entrypoint after K-6.
+"""
 
 from __future__ import annotations
 
@@ -109,7 +112,9 @@ async def run_replay(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Replay raw NGSI notifications from ClickHouse")
+    parser = argparse.ArgumentParser(
+        description="LEGACY_INTERNAL_ONLY: replay Raw-v1 NGSI notifications"
+    )
     parser.add_argument("--from", dest="from_ts", required=True, help="ISO8601 start timestamp")
     parser.add_argument("--to", dest="to_ts", required=True, help="ISO8601 end timestamp")
     parser.add_argument("--dry-run", action="store_true", help="Print summary without side effects")
