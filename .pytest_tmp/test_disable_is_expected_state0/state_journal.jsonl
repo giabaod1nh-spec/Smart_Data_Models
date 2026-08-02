@@ -1,2 +1,0 @@
-{"action": "disable", "contract_sha256": "df71a4685474ef9c325c92b28cbacc60ae235b0e82e66f59447cc2cfd2782f3d", "phase": "before", "run_id": "k6b-unit", "state": "ACTIVE", "ts": "2026-08-02T16:24:34.208911Z"}
-{"action": "disable", "contract_sha256": "df71a4685474ef9c325c92b28cbacc60ae235b0e82e66f59447cc2cfd2782f3d", "phase": "after", "run_id": "k6b-unit", "state": "DISABLED", "ts": "2026-08-02T16:24:34.210512Z"}
