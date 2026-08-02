@@ -407,9 +407,13 @@ class OrionProjector:
         event_type = value.get("eventType")
         if event_type == "TrafficSimulationRunStarted":
             if self.write_mode == WriteMode.ARMED:
-                return self._handle_run_started(value)
+                return self._handle_run_started(
+                    value, topic=topic, partition=partition, offset=offset
+                )
             if self.write_mode == WriteMode.ACTIVE:
-                return self._handle_run_started(value)
+                return self._handle_run_started(
+                    value, topic=topic, partition=partition, offset=offset
+                )
             return "disabled_skip"
 
         if event_type != "TrafficEntityObserved":
@@ -567,7 +571,9 @@ class OrionProjector:
 
     # ── internals ───────────────────────────────────────────────────
 
-    def _handle_run_started(self, value: dict) -> str:
+    def _handle_run_started(
+        self, value: dict, *, topic: str, partition: int, offset: int
+    ) -> str:
         run_id = str(value.get("simulationRunId") or "")
         if self.target_simulation_run_id and run_id != self.target_simulation_run_id:
             self.metrics["fence_skipped_count"] += 1
@@ -590,10 +596,39 @@ class OrionProjector:
                 "status": "ACTIVE",
             },
         )
+        # Persist the control record in the same ledger used by recovery. The
+        # source event has no entity id, but it still occupies a Kafka offset;
+        # omitting it would make recover() recreate the old contiguous gap.
+        run_started_event_id = str(
+            value.get("eventId")
+            or f"run-started:{value['producerSessionId']}:{value['simulationRunId']}"
+        )
+        self.store.apply_batch_tx(
+            ledger_rows=[
+                {
+                    "event_id": run_started_event_id,
+                    "topic": topic,
+                    "partition": partition,
+                    "offset": offset,
+                    "simulation_run_id": run_id,
+                    "cycle_sequence": 0,
+                    "entity_id": "",
+                    "status": STATUS_APPLIED,
+                    "payload_hash": run_started_event_id,
+                }
+            ],
+            entity_updates=[],
+        )
         self.metrics["run_started_count"] += 1
         self._drain_awaiting_run()
         if self.write_mode == WriteMode.ARMED:
             self.drain_armed_buffer()
+        # RunStarted is a durable control record. Mark it completed only after
+        # activation and any cross-partition drain succeed; otherwise it leaves
+        # a permanent gap in the contiguous offset prefix and forces replay.
+        if self._can_commit_offsets():
+            self.offsets.mark_completed(topic, partition, offset)
+            self._maybe_commit(topic, partition)
         return "run_started"
 
     def _drain_awaiting_run(self) -> None:

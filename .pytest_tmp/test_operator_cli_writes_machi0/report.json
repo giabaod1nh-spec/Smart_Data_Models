@@ -1,0 +1,62 @@
+{
+  "kafka_input": "D:\\Giao_trinh_dai_hoc\\K2_N4\\TTTN\\Smart_Traffic\\Smart_Data_Models\\.pytest_tmp\\test_operator_cli_writes_machi0\\kafka.json",
+  "kafka_observations": 1,
+  "legacy_input": "D:\\Giao_trinh_dai_hoc\\K2_N4\\TTTN\\Smart_Traffic\\Smart_Data_Models\\.pytest_tmp\\test_operator_cli_writes_machi0\\legacy.json",
+  "legacy_observations": 1,
+  "missing_in_kafka": [
+    {
+      "count": 1,
+      "entity_id": "urn:ngsi-ld:Intersection:A",
+      "payload_hash": "0a0af651d8f4dd3b4f2e2fb77a88d5c306ddabdbacf5552e7948f01f70ca8da5",
+      "simulation_run_id": "00000000-0000-4000-8000-000000000001",
+      "simulation_time": 120.5
+    }
+  ],
+  "missing_in_legacy": [
+    {
+      "count": 1,
+      "entity_id": "urn:ngsi-ld:Intersection:A",
+      "payload_hash": "a64076f15b85393acb875527b9c5fa703e7dbb2766bbb63f2c487ec0545e1e31",
+      "simulation_run_id": "00000000-0000-4000-8000-000000000001",
+      "simulation_time": 120.5
+    }
+  ],
+  "normalized_kafka": [
+    {
+      "cycle_sequence": 0,
+      "entity_id": "urn:ngsi-ld:Intersection:A",
+      "payload_hash": "a64076f15b85393acb875527b9c5fa703e7dbb2766bbb63f2c487ec0545e1e31",
+      "simulation_run_id": "00000000-0000-4000-8000-000000000001",
+      "simulation_time": 120.5,
+      "source": "raw_v2",
+      "source_location": "e2614db91200de502ecb762080e83143d410a09bd243b4411377c712c3f55973"
+    }
+  ],
+  "normalized_legacy": [
+    {
+      "cycle_sequence": null,
+      "entity_id": "urn:ngsi-ld:Intersection:A",
+      "payload_hash": "0a0af651d8f4dd3b4f2e2fb77a88d5c306ddabdbacf5552e7948f01f70ca8da5",
+      "simulation_run_id": "00000000-0000-4000-8000-000000000001",
+      "simulation_time": 120.5,
+      "source": "raw_v1",
+      "source_location": "notification-1:data[0]"
+    }
+  ],
+  "oracle": "dual_ingest_entity_multiset",
+  "pass": false,
+  "payload_hash_mismatches": [
+    {
+      "entity_id": "urn:ngsi-ld:Intersection:A",
+      "kafka_hashes": {
+        "a64076f15b85393acb875527b9c5fa703e7dbb2766bbb63f2c487ec0545e1e31": 1
+      },
+      "legacy_hashes": {
+        "0a0af651d8f4dd3b4f2e2fb77a88d5c306ddabdbacf5552e7948f01f70ca8da5": 1
+      },
+      "simulation_run_id": "00000000-0000-4000-8000-000000000001",
+      "simulation_time": 120.5
+    }
+  ],
+  "unexpected_duplicate_delta": 0
+}

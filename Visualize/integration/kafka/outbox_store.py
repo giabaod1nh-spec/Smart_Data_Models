@@ -17,7 +17,6 @@ from typing import Any, Dict, List, Optional, Sequence
 from integration.kafka.outbox_schema import (
     EVENT_KIND_ENTITY,
     EVENT_KIND_RUN_STARTED,
-    MIGRATION_SQL,
     PENDING_STATUSES,
     REDRIVE_STATUSES,
     SCHEMA_SQL,
@@ -219,17 +218,21 @@ class KafkaOutboxStore:
 
     @staticmethod
     def _migrate(conn: sqlite3.Connection) -> None:
+        # SCHEMA_SQL may run against a pre-RunStarted database. It must not
+        # reference additive columns in an index until those columns have been
+        # added below; otherwise SQLite aborts before the migration can run.
         conn.executescript(SCHEMA_SQL)
         cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(kafka_outbox)")}
-        if "event_kind" not in cols or "outbox_sequence" not in cols:
-            for stmt in MIGRATION_SQL.strip().split(";"):
-                stmt = stmt.strip()
-                if not stmt:
-                    continue
-                try:
-                    conn.execute(stmt)
-                except sqlite3.OperationalError:
-                    pass
+        if "event_kind" not in cols:
+            conn.execute(
+                "ALTER TABLE kafka_outbox "
+                "ADD COLUMN event_kind TEXT NOT NULL DEFAULT 'entity'"
+            )
+        if "outbox_sequence" not in cols:
+            conn.execute(
+                "ALTER TABLE kafka_outbox "
+                "ADD COLUMN outbox_sequence INTEGER NOT NULL DEFAULT 0"
+            )
         conn.execute(
             """
             UPDATE kafka_outbox

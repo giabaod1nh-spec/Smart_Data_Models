@@ -236,7 +236,7 @@ services:
       PROJECTOR_TARGET_NAMESPACE: production
       PROJECTOR_WRITE_MODE: active
       PROJECTOR_GROUP_ID: projector-k5-production
-      PROJECTOR_FENCE_MANIFEST: ${PROJECTOR_FENCE_MANIFEST:-}
+      PROJECTOR_FENCE_MANIFEST: /app/Visualize/artifacts/projector/fence/realtime_fence.json
       PROJECTOR_HEALTH_HOST: 0.0.0.0
       PROJECTOR_HEALTH_PORT: "8092"
       PROJECTOR_DB: /app/Visualize/artifacts/projector/k5-production.sqlite3

@@ -30,14 +30,6 @@ CREATE TABLE IF NOT EXISTS kafka_outbox (
 
 CREATE INDEX IF NOT EXISTS idx_outbox_delivery
 ON kafka_outbox(status, next_retry_at, created_at);
-
-CREATE INDEX IF NOT EXISTS idx_outbox_sequence
-ON kafka_outbox(outbox_sequence);
-"""
-
-MIGRATION_SQL = """
-ALTER TABLE kafka_outbox ADD COLUMN event_kind TEXT NOT NULL DEFAULT 'entity';
-ALTER TABLE kafka_outbox ADD COLUMN outbox_sequence INTEGER NOT NULL DEFAULT 0;
 """
 
 STATUS_OUTBOXED = "OUTBOXED"
