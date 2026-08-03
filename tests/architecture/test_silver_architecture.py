@@ -162,11 +162,14 @@ def test_migration_004_and_contract_present():
     assert (REPO / "docs" / "shared" / "BRONZE_TO_SILVER_CONTRACT.md").is_file()
 
 
-def test_no_docker_files_modified_marker():
-    # Plan 3 must not require compose service presence
+def test_compose_wires_de_silver_processor_for_plan4():
     compose = (REPO / "docker-compose.yml").read_text(encoding="utf-8")
-    # absence of de-silver-processor is OK for Plan 3
-    assert "de-bronze-processor" in compose or "clickhouse" in compose.lower()
+    assert "de-silver-processor" in compose
+    assert "8095:8095" in compose
+    assert "python -m de.silver.main" in compose or '"de.silver.main"' in compose
+    assert "SILVER_NAMESPACE: live" in compose or "SILVER_NAMESPACE=live" in compose
+    dockerfile = (REPO / "de" / "Dockerfile").read_text(encoding="utf-8")
+    assert "8095" in dockerfile
 
 
 def test_plan3_modules_importable():

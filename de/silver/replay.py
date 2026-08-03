@@ -88,19 +88,49 @@ def run_replay(manifest_path: Path, run_id: str, *, resume: bool = False) -> dic
     lock.acquire()
     processor = SilverProcessor(settings, lock_held=True)
     try:
-        processor.start()
-        # bounded: process until stop requested externally / one sweep in tests
+        # Bounded catch-up for CLI: process discovered streams until idle or timeout.
+        # Do not leave a daemon running after the command returns.
+        import time
+
+        processor.reader.connect()
+        processor.repo.connect()
+        processor.checkpoint.open()
+        processor._schema_ok = True
+        processor._clickhouse_ok = True
+        processor._sqlite_ok = True
+        processor.state = processor.state  # noqa: B018 — keep attribute access stable
+        from de.silver.config import ProcessorState
+
+        processor.state = ProcessorState.READY
+        processor._streams = processor.reader.discover_streams(settings.topic_list())
+        idle_rounds = 0
+        deadline = time.time() + 180.0
+        while time.time() < deadline and idle_rounds < 3:
+            progressed = 0
+            for stream in processor._streams:
+                progressed += processor.process_stream_once(stream)
+            if progressed == 0:
+                idle_rounds += 1
+            else:
+                idle_rounds = 0
         report = {
             "replay_run_id": run_id,
             "namespace": settings.namespace,
             "manifest_hash": mhash,
             "suppressed_dimension_candidates": processor.metrics.suppressed_dimension_candidates,
+            "records_processed_total": processor.metrics.records_processed_total,
             "approach_scenario": "NOT_APPLICABLE_NO_REPLAY_TABLE",
             "physical_replay_targets": 8,
         }
         return report
     finally:
-        processor.stop()
+        try:
+            processor.request_shutdown()
+        except Exception:
+            pass
+        processor.reader.close()
+        processor.repo.close()
+        processor.checkpoint.close()
         lock.release()
 
 

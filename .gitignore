@@ -58,6 +58,7 @@ de/artifacts/
 .pytest_tmp/
 .pytest-tmp*/
 .pytest-tmp-codex-realtime-final/
+.pytest_gold*/
 
 .pytest_plan3*/
 .pytest_followup*/

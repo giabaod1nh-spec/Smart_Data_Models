@@ -166,6 +166,51 @@ services:
       retries: 12
       start_period: 30s
 
+  de-silver-processor:
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    container_name: de-silver-processor
+    restart: unless-stopped
+    depends_on:
+      de-migrate:
+        condition: service_completed_successfully
+      de-bronze-processor:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8095:8095"
+    environment:
+      SILVER_CLICKHOUSE_HOST: clickhouse
+      SILVER_CLICKHOUSE_PORT: "8123"
+      SILVER_CLICKHOUSE_DATABASE: smart_traffic
+      SILVER_CLICKHOUSE_USER: default
+      SILVER_CLICKHOUSE_PASSWORD: ""
+      SILVER_CHECKPOINT_PATH: /app/de/artifacts/silver/checkpoint.sqlite3
+      SILVER_NAMESPACE: live
+      SILVER_DESTINATION_MODE: main
+      SILVER_REPLAY_RUN_ID: ""
+      SILVER_TOPIC_ALLOWLIST: traffic.entity-events.v2,traffic.simulation-events.v2
+      SILVER_HEALTH_HOST: 0.0.0.0
+      SILVER_HEALTH_PORT: "8095"
+      SILVER_BATCH_SIZE: "500"
+      SILVER_POLL_INTERVAL_SEC: "2.0"
+      SILVER_DISCOVERY_INTERVAL_SEC: "30.0"
+      SILVER_READINESS_STALE_SEC: "120.0"
+      SILVER_HEALTH_SNAPSHOT_MAX_AGE_SEC: "60.0"
+      SILVER_SINGLE_INSTANCE: "true"
+      SILVER_WORKER_COUNT: "1"
+    command: ["python", "-m", "de.silver.main"]
+    volumes:
+      - ./de/artifacts:/app/de/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   # ── Kafka (KRaft, local thesis RF=1 — not HA) ───────────────────
   kafka:
     image: apache/kafka:3.8.1
