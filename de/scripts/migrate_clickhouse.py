@@ -59,7 +59,10 @@ def main() -> int:
     mode.add_argument(
         "--historical-v2",
         action="store_true",
-        help="Apply only Kafka Raw v2 and Bronze migrations (002+); never migration 001",
+        help=(
+            "Apply Kafka Raw v2, Bronze, and Silver migrations "
+            "(002+, includes 004_create_silver.sql when present); never migration 001"
+        ),
     )
     args = p.parse_args()
     settings = get_settings()

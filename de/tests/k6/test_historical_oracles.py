@@ -128,4 +128,5 @@ def test_historical_v2_migration_mode_excludes_legacy_001():
     assert [path.name for path in files] == [
         "002_create_kafka_raw_events.sql",
         "003_create_bronze_v2.sql",
+        "004_create_silver.sql",
     ]
