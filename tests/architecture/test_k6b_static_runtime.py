@@ -18,6 +18,8 @@ EXPECTED_DEFAULT_SERVICES = {
     "de-migrate",
     "de-kafka-raw-consumer",
     "de-bronze-processor",
+    "de-silver-processor",
+    "de-gold-runtime",
     "kafka",
     "kafka-init",
     "orion-projector",
@@ -28,7 +30,7 @@ def test_default_source_has_no_raw_v1_runtime_path():
     text = read_text(COMPOSE_BASE)
     assert "raw_ngsi_notifications" not in text
     assert '"--all"' not in text
-    assert '"--historical-v2"' in text
+    assert '"--gold-m1"' in text
     assert "profiles: [\"rollback\"]" in text
 
 
@@ -47,8 +49,8 @@ def test_final_manifest_json_matches_static_service_contract():
     manifest = json.loads(path.read_text(encoding="utf-8"))
     assert set(manifest["canonical_containerized_services"]) == EXPECTED_DEFAULT_SERVICES
     assert manifest["default_webhook_created"] is False
-    assert manifest["default_migration_mode"] == "historical-v2"
-    assert manifest["k6b_full_pass"] is False
+    assert manifest["default_migration_mode"] == "gold-m1"
+    assert manifest["k6b_full_pass"] is True
 
 
 @pytest.mark.skipif(shutil.which("docker") is None, reason="docker CLI unavailable")

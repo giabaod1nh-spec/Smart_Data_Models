@@ -22,6 +22,7 @@ def select_migrations(
     *,
     apply_all: bool = False,
     historical_v2: bool = False,
+    gold_m1: bool = False,
     migration: str | None = None,
 ) -> list[Path]:
     """Resolve the migration set without connecting to ClickHouse."""
@@ -31,8 +32,15 @@ def select_migrations(
         return sorted(
             f
             for f in migrations_dir.glob("*.sql")
-            if f.name[:3].isdigit() and int(f.name[:3]) >= 2
+            if f.name[:3].isdigit() and 2 <= int(f.name[:3]) <= 4
         )
+    if gold_m1:
+        return [
+            f
+            for prefix in ("002_", "003_", "004_", "005_")
+            if (f := next(iter(sorted(migrations_dir.glob(f"{prefix}*.sql"))), None))
+            is not None
+        ]
     if migration:
         return [Path(migration)]
     files: list[Path] = []
@@ -61,8 +69,13 @@ def main() -> int:
         action="store_true",
         help=(
             "Apply Kafka Raw v2, Bronze, and Silver migrations "
-            "(002+, includes 004_create_silver.sql when present); never migration 001"
+            "(002 through 004 only); never migration 001 or Gold migrations"
         ),
+    )
+    mode.add_argument(
+        "--gold-m1",
+        action="store_true",
+        help="Apply the explicit Gold M1 chain: 002, 003, 004, and 005 when present",
     )
     args = p.parse_args()
     settings = get_settings()
@@ -71,6 +84,7 @@ def main() -> int:
         migrations_dir,
         apply_all=args.all,
         historical_v2=args.historical_v2,
+        gold_m1=args.gold_m1,
         migration=args.migration,
     )
     for f in files:

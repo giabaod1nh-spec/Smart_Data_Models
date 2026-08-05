@@ -91,7 +91,7 @@ services:
       K4_CLICKHOUSE_HOST: clickhouse
       K4_CLICKHOUSE_PORT: "8123"
       K4_CLICKHOUSE_DATABASE: smart_traffic
-    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--historical-v2"]
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--gold-m1"]
     restart: "no"
 
   de-kafka-raw-consumer:
@@ -210,6 +210,57 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  de-gold-runtime:
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    container_name: de-gold-runtime
+    restart: unless-stopped
+    depends_on:
+      de-migrate:
+        condition: service_completed_successfully
+      de-silver-processor:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8096:8096"
+    environment:
+      GOLD_CLICKHOUSE_HOST: clickhouse
+      GOLD_CLICKHOUSE_PORT: "8123"
+      GOLD_CLICKHOUSE_DATABASE: smart_traffic
+      GOLD_CLICKHOUSE_USER: default
+      GOLD_CLICKHOUSE_PASSWORD: ""
+      GOLD_NAMESPACE: live
+      GOLD_DESTINATION_MODE: main
+      GOLD_CHECKPOINT_PATH: /app/de/artifacts/gold/checkpoint.sqlite3
+      GOLD_INSTANCE_LOCK_PATH: /app/de/artifacts/gold/instance.lock
+      GOLD_DEFINITION_VERSION: v1.0
+      GOLD_GOLD_SCHEMA_VERSION: k10-gold-m1-v1
+      GOLD_ALLOWED_LATENESS_SEC: "0"
+      GOLD_WATERMARK_DELAY_SEC: "0"
+      # Cadence binding evidenced by Gold3 live-smoke/fixtures (G3-P0-010 external producer evidence remains tracked).
+      GOLD_TRAFFIC_EXPECTED_CADENCE_SEC: "10"
+      GOLD_INTERSECTION_EXPECTED_CADENCE_SEC: "10"
+      GOLD_SIGNAL_EXPECTED_CADENCE_SEC: "10"
+      GOLD_HEALTH_HOST: 0.0.0.0
+      GOLD_HEALTH_PORT: "8096"
+      GOLD_HEALTH_SNAPSHOT_MAX_AGE_SEC: "60"
+      GOLD_POLL_INTERVAL_SEC: "2.0"
+      GOLD_MAX_WINDOWS_PER_CYCLE: "1"
+      GOLD_SILVER_FETCH_BATCH_SIZE: "500"
+      GOLD_READINESS_LAG_THRESHOLD_SEC: "120"
+      GOLD_SHUTDOWN_TIMEOUT_SEC: "30"
+    command: ["python", "-m", "de.gold_runtime.main"]
+    volumes:
+      - ./de/artifacts:/app/de/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8096/ready', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
 
   # ── Kafka (KRaft, local thesis RF=1 — not HA) ───────────────────
   kafka:

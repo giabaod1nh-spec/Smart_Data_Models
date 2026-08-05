@@ -1,0 +1,7 @@
+{
+  "current_congestion": 62.5,
+  "current_priority": 67.13,
+  "current_rank": 1.0,
+  "max_queue_comparison": [50.0, 20.0, 30.0, 150.0],
+  "previous_congestion": 17.0
+}

@@ -22,12 +22,24 @@ clickhouse
 de-migrate
 de-kafka-raw-consumer
 de-bronze-processor
+de-silver-processor
+de-gold-runtime
 kafka
 kafka-init
 orion-projector
 ```
 
 It must not contain `de-webhook`.
+
+## Migration mode
+
+Default Compose migration command is:
+
+```text
+python -m de.scripts.migrate_clickhouse --gold-m1
+```
+
+This applies the explicit Gold M1 chain (002–005). Gold runtime never migrates; it only verifies migration 005.
 
 ## External processes
 
@@ -54,7 +66,7 @@ $env:SERVER_PORT="8081"
 
 ### Dashboard
 
-Dashboard source is not present in this repository. Its owner must provide the repository revision, startup command, port and health URL. Dashboard must read the Server API.
+Dashboard source is not present in this repository. Its owner must provide the repository revision, startup command, port and health URL. Dashboard must read the Server/Business Service API and must not query ClickHouse/Gold directly.
 
 ## Runtime identities
 
@@ -67,6 +79,11 @@ Dashboard source is not present in this repository. Its owner must provide the r
 | Projector target namespace | `production` |
 | Raw consumer group | `de-kafka-raw-v2` |
 | Bronze checkpoint namespace | `live` |
+| Silver namespace | `live` |
+| Gold namespace | `live` |
+| Gold entrypoint | `python -m de.gold_runtime.main` |
+| Gold checkpoint | `/app/de/artifacts/gold/checkpoint.sqlite3` |
+| Gold instance lock | `/app/de/artifacts/gold/instance.lock` |
 
 ## Health endpoints
 
@@ -78,6 +95,8 @@ Dashboard source is not present in this repository. Its owner must provide the r
 | Raw consumer | `GET http://localhost:8091/health`, `/ready` |
 | Bronze processor | `GET http://localhost:8092/health`, `/ready` |
 | Projector | `GET http://localhost:8093/health`, `/prepared`, `/ready`, `/metrics` |
+| Silver processor | `GET http://localhost:8095/health`, `/ready` |
+| Gold runtime | `GET http://localhost:8096/health`, `/ready` |
 | SUMO Control API | `GET http://localhost:9090/health` |
 | Server | `GET http://localhost:8081/api/system/health` |
 

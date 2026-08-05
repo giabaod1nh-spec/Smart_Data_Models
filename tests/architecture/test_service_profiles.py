@@ -32,10 +32,11 @@ def test_canonical_base_is_kafka_only_default_runtime():
     assert "ARCHITECTURE_PROFILE: k6-final" in text
 
 
-def test_default_migration_is_historical_v2_only():
+def test_default_migration_is_gold_m1_chain():
     text = read_text(COMPOSE_BASE)
-    assert '"--historical-v2"' in text
+    assert '"--gold-m1"' in text
     assert '"--all"' not in text
+
 
 
 def test_rollback_webhook_render_contract_is_complete_in_source():
