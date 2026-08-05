@@ -75,7 +75,10 @@ Dashboard source is not present in this repository. Its owner must provide the r
 | Main Kafka topic | `traffic.entity-events.v2` |
 | Kafka host bootstrap | `localhost:29092` |
 | Kafka container bootstrap | `kafka:9092` |
-| Projector consumer group | Value configured by the canonical Compose file |
+| Projector consumer group | `projector-k5-production` |
+| Projector consumer mode | `normal` (fixed group + SQLite authority; no mandatory fence) |
+| Projector current-run API | `GET http://localhost:8093/current-run` |
+| Projector readiness gate | `GET http://localhost:8093/ready` (Compose healthcheck) |
 | Projector target namespace | `production` |
 | Raw consumer group | `de-kafka-raw-v2` |
 | Bronze checkpoint namespace | `live` |
@@ -94,11 +97,20 @@ Dashboard source is not present in this repository. Its owner must provide the r
 | ClickHouse | `GET http://localhost:8123/ping` |
 | Raw consumer | `GET http://localhost:8091/health`, `/ready` |
 | Bronze processor | `GET http://localhost:8092/health`, `/ready` |
-| Projector | `GET http://localhost:8093/health`, `/prepared`, `/ready`, `/metrics` |
+| Projector | `GET http://localhost:8093/health`, `/prepared`, `/ready`, `/current-run`, `/metrics` |
 | Silver processor | `GET http://localhost:8095/health`, `/ready` |
 | Gold runtime | `GET http://localhost:8096/health`, `/ready` |
 | SUMO Control API | `GET http://localhost:9090/health` |
 | Server | `GET http://localhost:8081/api/system/health` |
+
+## Realtime startup order (normal mode)
+
+1. `docker compose up -d` — Kafka, Orion, projector (wait `/ready` idle OK).
+2. Start SUMO/TraCI (RunStarted must ACK before entity cycles).
+3. Start Spring Server (`projector.base-url=http://localhost:8093`).
+4. Dashboard reads Server only.
+
+Clean demo uses `Visualize/tools/realtime_demo_reset.py` with `--consumer-mode demo` and a separate SQLite DB; it never resets normal production offsets.
 
 ## Rollback Assets
 

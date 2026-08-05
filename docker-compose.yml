@@ -332,7 +332,7 @@ services:
       PROJECTOR_TARGET_NAMESPACE: production
       PROJECTOR_WRITE_MODE: active
       PROJECTOR_GROUP_ID: projector-k5-production
-      PROJECTOR_FENCE_MANIFEST: /app/Visualize/artifacts/projector/fence/realtime_fence.json
+      PROJECTOR_CONSUMER_MODE: normal
       PROJECTOR_HEALTH_HOST: 0.0.0.0
       PROJECTOR_HEALTH_PORT: "8092"
       PROJECTOR_DB: /app/Visualize/artifacts/projector/k5-production.sqlite3
@@ -355,7 +355,13 @@ services:
         "active",
       ]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8092/health', timeout=2)"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8092/ready', timeout=2)",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12

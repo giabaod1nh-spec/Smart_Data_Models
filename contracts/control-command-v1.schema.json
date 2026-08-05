@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-traffic.local/contracts/control-command-v1.schema.json",
+  "title": "Control Command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "commandId", "commandType", "target", "payload", "expectedRunId", "idempotencyKey", "requestedAt", "expiresAt", "source"],
+  "properties": {
+    "contractVersion": {"const": "1.0"},
+    "commandId": {"type": "string", "format": "uuid"},
+    "commandType": {"type": "string", "enum": ["FORCE_PHASE", "SET_GREEN_DURATION", "SET_SCENARIO", "SET_DEMAND_PROFILE", "ADD_OVERLAY", "REMOVE_OVERLAY", "SET_CONTROL_MODE", "EMERGENCY_PREEMPTION"]},
+    "target": {"$ref": "#/$defs/target"},
+    "payload": {"type": "object"},
+    "expectedRunId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "idempotencyKey": {"type": "string", "pattern": "^[A-Za-z0-9._:-]+$", "minLength": 1, "maxLength": 128},
+    "requestedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "source": {"const": "DASHBOARD"}
+  },
+  "allOf": [
+    {"if": {"properties": {"commandType": {"const": "FORCE_PHASE"}}}, "then": {"properties": {"target": {"required": ["intersectionId"]}, "payload": {"additionalProperties": false, "required": ["phase"], "properties": {"phase": {"type": "string", "minLength": 1, "maxLength": 64}}}}}},
+    {"if": {"properties": {"commandType": {"const": "SET_GREEN_DURATION"}}}, "then": {"properties": {"target": {"required": ["intersectionId"]}, "payload": {"additionalProperties": false, "required": ["seconds"], "properties": {"seconds": {"type": "integer", "minimum": 10, "maximum": 120}}}}}},
+    {"if": {"properties": {"commandType": {"const": "SET_SCENARIO"}}}, "then": {"properties": {"payload": {"additionalProperties": false, "required": ["scenario"], "properties": {"scenario": {"type": "string", "enum": ["normal", "morning_peak", "evening_peak", "oversaturated", "rain", "heavy_rain", "accident", "emergency", "blocked_intersection", "spillback"]}}}}}},
+    {"if": {"properties": {"commandType": {"const": "SET_DEMAND_PROFILE"}}}, "then": {"properties": {"payload": {"additionalProperties": false, "required": ["profile"], "properties": {"profile": {"type": "string", "minLength": 1, "maxLength": 64}}}}}},
+    {"if": {"properties": {"commandType": {"const": "ADD_OVERLAY"}}}, "then": {"properties": {"payload": {"additionalProperties": false, "required": ["overlayType"], "properties": {"overlayType": {"type": "string", "minLength": 1, "maxLength": 64}, "direction": {"type": ["string", "null"], "maxLength": 32}}}}}},
+    {"if": {"properties": {"commandType": {"const": "REMOVE_OVERLAY"}}}, "then": {"properties": {"payload": {"additionalProperties": false, "required": ["overlayId"], "properties": {"overlayId": {"type": "string", "minLength": 1, "maxLength": 128}}}}}},
+    {"if": {"properties": {"commandType": {"const": "SET_CONTROL_MODE"}}}, "then": {"properties": {"payload": {"additionalProperties": false, "required": ["mode"], "properties": {"mode": {"type": "string", "minLength": 1, "maxLength": 64}}}}}},
+    {"if": {"properties": {"commandType": {"const": "EMERGENCY_PREEMPTION"}}}, "then": {"properties": {"payload": {"additionalProperties": false, "required": ["action"], "properties": {"action": {"type": "string", "enum": ["START", "STOP"]}}}}}}
+  ],
+  "$defs": {
+    "target": {"type": "object", "additionalProperties": false, "required": ["intersectionId", "direction"], "properties": {"intersectionId": {"type": ["string", "null"], "maxLength": 64}, "direction": {"type": ["string", "null"], "maxLength": 32}, "overlayId": {"type": ["string", "null"], "maxLength": 128}}}
+  }
+}

@@ -50,6 +50,10 @@ public class ControlProxyController {
             return ResponseEntity.notFound().build();
         }
 
+        if (allowlist.isMutationBlockedForProxy(method, upstreamPath)) {
+            return ResponseEntity.status(404).body("mutation routed via command domain");
+        }
+
         if ((method == HttpMethod.POST || method == HttpMethod.DELETE) && body != null) {
             if (body.length > appProperties.controlApi().maxBodyBytes()) {
                 return ResponseEntity.status(413).body("Request body too large");

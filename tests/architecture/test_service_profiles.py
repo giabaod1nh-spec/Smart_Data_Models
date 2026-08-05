@@ -28,6 +28,8 @@ def test_canonical_base_is_kafka_only_default_runtime():
     assert "profiles: [\"rollback\"]" in text
     assert "PROJECTOR_TARGET_NAMESPACE: production" in text
     assert "PROJECTOR_GROUP_ID: projector-k5-production" in text
+    assert "PROJECTOR_CONSUMER_MODE: normal" in text
+    assert "PROJECTOR_FENCE_MANIFEST" not in text
     assert "PROJECTOR_WRITE_MODE: active" in text
     assert "ARCHITECTURE_PROFILE: k6-final" in text
 

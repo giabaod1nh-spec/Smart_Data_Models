@@ -1,0 +1,13 @@
+{
+  "commandId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "lifecycleStatus": "RECEIVED",
+  "dispatchStatus": "PENDING",
+  "executionStatus": "NOT_STARTED",
+  "observationStatus": "NOT_REQUESTED",
+  "expectedRunId": "run-test-001",
+  "acceptedRunId": null,
+  "createdAt": "2026-08-05T12:00:00Z",
+  "updatedAt": "2026-08-05T12:00:00Z",
+  "error": null,
+  "links": {"self": "/api/control/commands/a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
+}

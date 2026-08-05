@@ -8,13 +8,19 @@ from __future__ import annotations
 import os
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import configuration.config as cfg
+from control.auth import require_internal_token
+from control.command_intake import CommandIntakeError, accept_command
+from control.command_registry import CommandRegistry
+from control.models import ControlCommandEnvelope, ControlCommandStatus
+from uuid import UUID
 
 app = FastAPI(title="Visualize SUMO Control API", version=cfg.VERSION)
+command_registry = CommandRegistry()
 # NOTE: Origins are intentionally restricted to local development frontends;
 # configure allow_origins appropriately before production deployment.
 app.add_middleware(
@@ -80,6 +86,36 @@ def _require_engine():
     if engine is None:
         raise HTTPException(503, "engine not started")
     return engine
+
+
+@app.post("/commands", status_code=202, dependencies=[Depends(require_internal_token)])
+def post_command(envelope: ControlCommandEnvelope, response: Response) -> ControlCommandStatus:
+    eng = _require_engine()
+    try:
+        status = accept_command(
+            engine=eng,
+            registry=command_registry,
+            command_queue=eng.commands,
+            envelope=envelope,
+        )
+    except CommandIntakeError as e:
+        raise HTTPException(
+            status_code=e.http_status,
+            detail={"code": e.code, "message": e.message},
+        ) from e
+    response.headers["Location"] = f"/commands/{envelope.commandId}"
+    return status
+
+
+@app.get("/commands/{command_id}", dependencies=[Depends(require_internal_token)])
+def get_command(command_id: UUID) -> ControlCommandStatus:
+    status = command_registry.get(command_id)
+    if status is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "COMMAND_NOT_FOUND", "message": "command not found"},
+        )
+    return status
 
 
 @app.get("/health")

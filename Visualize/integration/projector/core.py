@@ -11,11 +11,17 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from integration.projector.node_buffer import BufferedEvent, NodeBuffer, NodeBufferManager
 from integration.projector.offset_tracker import OffsetTracker
+from integration.projector.runtime_cache import RuntimeCache, RuntimeStatus
+from integration.projector.retry import OrionRetryManager, classify_batch_result
 from integration.projector.schema import (
+    COMPLETED_STATUSES,
     STATUS_APPLIED,
+    STATUS_COALESCED_SUPERSEDED,
     STATUS_FAILED_PERMANENT,
+    STATUS_FENCE_SKIPPED,
     STATUS_NODE_PARTIAL_APPLIED,
     STATUS_QUARANTINED,
+    STATUS_SIM_TIME_REGRESSION,
     STATUS_STALE_SKIPPED,
 )
 from integration.projector.shadow_mapper import to_namespaced_entity, to_shadow_entity
@@ -23,10 +29,27 @@ from integration.projector.store import ProjectorStore
 
 log = logging.getLogger(__name__)
 
+# Realtime Runtime Contract v1 (§57)
+READY_LAG_EVENTS = 40
+READY_MAX_PARTITION_LAG = 40
+READY_FRESHNESS_SEC = 2.0
+CATCH_UP_ENTER_LAG = 200
+CATCH_UP_EXIT_LAG = 80
+CATCH_UP_ENTER_FRESHNESS_SEC = 5.0
+
 
 class ProjectorMode(str, Enum):
     NORMAL = "NORMAL"
     CATCH_UP = "CATCH_UP"
+
+
+class RuntimePhase(str, Enum):
+    READY_IDLE = "READY_IDLE"
+    ACTIVE = "ACTIVE"
+    CATCH_UP = "CATCH_UP"
+    DEGRADED = "DEGRADED"
+    FAULTED = "FAULTED"
+    RECOVERING = "RECOVERING"
 
 
 class WriteMode(str, Enum):
@@ -81,6 +104,12 @@ class OrionProjector:
         self._armed_buffer: List[BufferedEvent] = []
         self._partitions_paused = False
         self.defer_ready_until_idle = bool(defer_ready_until_idle)
+        self.runtime_cache = RuntimeCache()
+        self.retry_manager = OrionRetryManager()
+        self.runtime_phase = RuntimePhase.RECOVERING
+        self._last_lag_events = 0
+        self._last_max_partition_lag = 0
+        self._lag_samples: deque = deque(maxlen=3)
         self.buffers = NodeBufferManager(
             timeout_ms=node_timeout_ms,
             max_buffered_events=max_buffered_events,
@@ -145,6 +174,14 @@ class OrionProjector:
             "armed_buffer_count": 0,
             "armed_buffer_full": False,
             "fence_skipped_count": 0,
+            "projector_stale_total": 0,
+            "projector_fence_total": 0,
+            "projector_dlq_total": 0,
+            "projector_retry_total": 0,
+            "projector_apply_latency_ms": None,
+            "projector_batch_latency_ms": None,
+            "projector_lag_events": 0,
+            "projector_buffer_size": 0,
             "write_mode": write_mode.value,
             "target_simulation_run_id": target_simulation_run_id,
             "last_orion_batch_duration_ms": None,
@@ -379,12 +416,17 @@ class OrionProjector:
                 value=be.event,
             )
 
-    def recover(self, topic: str, partitions: Sequence[int]) -> None:
+    def recover(self, topic: str, partitions: Sequence[int], *, producer_id: str = "visualize-traci") -> None:
         for p in partitions:
             last = self.store.rebuild_completed_offsets(topic, p)
             if last is not None:
                 self.offsets.load_committed(topic, p, last)
                 self.store.set_committed_offset(topic, p, last)
+        self.runtime_cache.rebuild_from_store(
+            self.store, source=self.source, producer_id=producer_id
+        )
+        active = self.store.get_active_run(source=self.source, producer_id=producer_id)
+        self.runtime_phase = RuntimePhase.READY_IDLE if active is None else RuntimePhase.ACTIVE
 
     def process_record(
         self,
@@ -421,7 +463,7 @@ class OrionProjector:
 
         run_id = str(value.get("simulationRunId") or "")
         if not self._fence_allows(partition=partition, offset=offset, run_id=run_id):
-            self.metrics["fence_skipped_count"] += 1
+            self._mark_fence_skipped(topic, partition, offset, value, run_id=run_id)
             return "fence_skipped"
 
         if self.write_mode == WriteMode.ARMED:
@@ -473,7 +515,7 @@ class OrionProjector:
         st = self.store.get_entity_state(run_id, entity_id)
         if st and st.get("last_simulation_time") is not None:
             if sim_t < float(st["last_simulation_time"]) - 1e-9:
-                self._mark_stale(topic, partition, offset, value)
+                self._mark_sim_time_regression(topic, partition, offset, value)
                 return "time_regression_skipped"
 
         be = BufferedEvent(
@@ -496,6 +538,9 @@ class OrionProjector:
         self, *, allow_partial: bool = True, complete_cycles_only: bool = False
     ) -> List[str]:
         """Flush complete node buffers; optionally expire incomplete ones."""
+        if self.retry_manager.has_pending and self.retry_manager.circuit_allows_attempt():
+            self.buffers.paused = False
+            self._partitions_paused = False
         actions = []
         actions.extend(self._flush_awaiting_run_timeouts())
         complete = (
@@ -506,6 +551,18 @@ class OrionProjector:
         grouped: Dict[tuple[str, int], List[NodeBuffer]] = {}
         for buf in complete:
             grouped.setdefault((buf.simulation_run_id, buf.cycle_sequence), []).append(buf)
+
+        if self.mode == ProjectorMode.CATCH_UP and len(grouped) > 1:
+            by_run: Dict[str, int] = {}
+            for run_id, cycle_seq in grouped:
+                by_run[run_id] = max(by_run.get(run_id, 0), cycle_seq)
+            supersede_keys = {
+                k for k in grouped if k[1] < by_run.get(k[0], k[1])
+            }
+            for key in supersede_keys:
+                self._supersede_cycle(grouped.pop(key))
+                actions.append("cycle_superseded")
+
         for cycle_buffers in grouped.values():
             if len(cycle_buffers) == 1:
                 self._apply_node_buffer(cycle_buffers[0], partial=False)
@@ -530,11 +587,51 @@ class OrionProjector:
                 self.metrics["node_partial_count"] += 1
         return actions
 
+    def update_lag_probe(
+        self,
+        *,
+        lag_events: int,
+        max_partition_lag: int,
+        freshness_sec: Optional[float],
+    ) -> None:
+        """Runtime Contract v1 lag/freshness hysteresis."""
+        self._last_lag_events = int(lag_events)
+        self._last_max_partition_lag = int(max_partition_lag)
+        self.metrics["projector_lag_events"] = int(lag_events)
+        self._lag_samples.append(int(lag_events))
+
+        if self.mode == ProjectorMode.NORMAL:
+            enter = (
+                lag_events > CATCH_UP_ENTER_LAG
+                or (
+                    freshness_sec is not None
+                    and freshness_sec > CATCH_UP_ENTER_FRESHNESS_SEC
+                )
+            )
+            if enter:
+                self.mode = ProjectorMode.CATCH_UP
+                self.runtime_phase = RuntimePhase.CATCH_UP
+        elif self.mode == ProjectorMode.CATCH_UP:
+            exit_ok = lag_events <= CATCH_UP_EXIT_LAG and (
+                freshness_sec is None or freshness_sec <= READY_FRESHNESS_SEC
+            )
+            if exit_ok:
+                self.mode = ProjectorMode.NORMAL
+                if self.runtime_phase == RuntimePhase.CATCH_UP:
+                    self.runtime_phase = RuntimePhase.ACTIVE
+
+        if len(self._lag_samples) >= 3 and self.mode == ProjectorMode.CATCH_UP:
+            samples = list(self._lag_samples)
+            if samples[0] < samples[1] < samples[2]:
+                self.runtime_phase = RuntimePhase.DEGRADED
+
     def update_lag(self, lag_sec: float) -> None:
-        if self.mode == ProjectorMode.NORMAL and lag_sec >= self.catch_up_lag_high:
-            self.mode = ProjectorMode.CATCH_UP
-        elif self.mode == ProjectorMode.CATCH_UP and lag_sec <= self.catch_up_lag_low:
-            self.mode = ProjectorMode.NORMAL
+        """Backward-compatible seconds-based hook."""
+        self.update_lag_probe(
+            lag_events=self._last_lag_events,
+            max_partition_lag=self._last_max_partition_lag,
+            freshness_sec=lag_sec,
+        )
 
     def cleanup(self) -> dict:
         return self.store.cleanup(
@@ -557,10 +654,15 @@ class OrionProjector:
         metrics["pipeline_freshness_sec"] = (
             max(0.0, time.time() - float(last_cap)) if last_cap is not None else None
         )
+        metrics["projector_buffer_size"] = self.buffers.buffered_event_count
+        metrics["projector_retry_total"] = sum(
+            self.retry_manager.metrics_retry_total.values()
+        )
         return {
             **metrics,
             **self.store.metrics(),
             "mode": self.mode.value,
+            "runtime_phase": self.runtime_phase.value,
             "write_mode": self.write_mode.value,
             "paused": self.buffers.paused or self._partitions_paused,
             "buffered_events": self.buffers.buffered_event_count,
@@ -576,9 +678,19 @@ class OrionProjector:
     ) -> str:
         run_id = str(value.get("simulationRunId") or "")
         if self.target_simulation_run_id and run_id != self.target_simulation_run_id:
-            self.metrics["fence_skipped_count"] += 1
+            self._mark_fence_skipped(topic, partition, offset, value, run_id=run_id)
             return "fence_skipped"
         producer_id = str(value["producerId"])
+        run_started_event_id = str(
+            value.get("eventId")
+            or f"run-started:{value['producerSessionId']}:{value['simulationRunId']}"
+        )
+        existing = self.store.get_ledger(run_started_event_id)
+        if existing and existing.get("status") in COMPLETED_STATUSES:
+            if self._can_commit_offsets():
+                self.offsets.mark_completed(topic, partition, offset)
+                self._maybe_commit(topic, partition)
+            return "run_started_duplicate"
         self.store.activate_run(
             source=self.source,
             producer_id=producer_id,
@@ -595,13 +707,6 @@ class OrionProjector:
                 "simulation_run_id": str(value["simulationRunId"]),
                 "status": "ACTIVE",
             },
-        )
-        # Persist the control record in the same ledger used by recovery. The
-        # source event has no entity id, but it still occupies a Kafka offset;
-        # omitting it would make recover() recreate the old contiguous gap.
-        run_started_event_id = str(
-            value.get("eventId")
-            or f"run-started:{value['producerSessionId']}:{value['simulationRunId']}"
         )
         self.store.apply_batch_tx(
             ledger_rows=[
@@ -620,6 +725,7 @@ class OrionProjector:
             entity_updates=[],
         )
         self.metrics["run_started_count"] += 1
+        self.runtime_phase = RuntimePhase.ACTIVE
         self._drain_awaiting_run()
         if self.write_mode == WriteMode.ARMED:
             self.drain_armed_buffer()
@@ -661,6 +767,7 @@ class OrionProjector:
 
     def _mark_stale(self, topic, partition, offset, value) -> None:
         self.metrics["stale_event_count"] += 1
+        self.metrics["projector_stale_total"] += 1
         entity = value.get("entity") or {}
         self.store.apply_batch_tx(
             ledger_rows=[
@@ -681,6 +788,88 @@ class OrionProjector:
         if self._can_commit_offsets():
             self.offsets.mark_completed(topic, partition, offset)
             self._maybe_commit(topic, partition)
+
+    def _mark_fence_skipped(
+        self, topic, partition, offset, value, *, run_id: str = ""
+    ) -> None:
+        self.metrics["fence_skipped_count"] += 1
+        self.metrics["projector_fence_total"] += 1
+        event_id = str(
+            value.get("eventId") or f"fence:{partition}:{offset}"
+        )
+        self.store.apply_batch_tx(
+            ledger_rows=[
+                {
+                    "event_id": event_id,
+                    "topic": topic,
+                    "partition": partition,
+                    "offset": offset,
+                    "simulation_run_id": run_id or str(value.get("simulationRunId") or ""),
+                    "cycle_sequence": int(value.get("cycleSequence") or 0),
+                    "entity_id": (value.get("entity") or {}).get("id", "")
+                    if isinstance(value.get("entity"), dict)
+                    else "",
+                    "status": STATUS_FENCE_SKIPPED,
+                    "payload_hash": str(value.get("entityPayloadHash") or event_id),
+                }
+            ],
+            entity_updates=[],
+        )
+        if self._can_commit_offsets():
+            self.offsets.mark_completed(topic, partition, offset)
+            self._maybe_commit(topic, partition)
+
+    def _mark_sim_time_regression(self, topic, partition, offset, value) -> None:
+        self.metrics["stale_event_count"] += 1
+        self.metrics["projector_stale_total"] += 1
+        entity = value.get("entity") or {}
+        self.store.apply_batch_tx(
+            ledger_rows=[
+                {
+                    "event_id": value["eventId"],
+                    "topic": topic,
+                    "partition": partition,
+                    "offset": offset,
+                    "simulation_run_id": value["simulationRunId"],
+                    "cycle_sequence": value["cycleSequence"],
+                    "entity_id": entity.get("id") or "",
+                    "status": STATUS_SIM_TIME_REGRESSION,
+                    "payload_hash": value.get("entityPayloadHash") or "",
+                }
+            ],
+            entity_updates=[],
+        )
+        if self._can_commit_offsets():
+            self.offsets.mark_completed(topic, partition, offset)
+            self._maybe_commit(topic, partition)
+
+    def _supersede_cycle(self, cycle_buffers: List[NodeBuffer]) -> None:
+        ledger_rows = []
+        for buf in cycle_buffers:
+            for be in buf.events.values():
+                ledger_rows.append(
+                    {
+                        "event_id": be.event["eventId"],
+                        "topic": be.topic,
+                        "partition": be.partition,
+                        "offset": be.offset,
+                        "simulation_run_id": buf.simulation_run_id,
+                        "cycle_sequence": buf.cycle_sequence,
+                        "entity_id": be.event["entity"]["id"],
+                        "status": STATUS_COALESCED_SUPERSEDED,
+                        "payload_hash": be.event["entityPayloadHash"],
+                    }
+                )
+                if self._can_commit_offsets():
+                    self.offsets.mark_completed(be.topic, be.partition, be.offset)
+        if ledger_rows:
+            self.store.apply_batch_tx(ledger_rows=ledger_rows, entity_updates=[])
+            self.metrics["coalesced_event_count"] += len(ledger_rows)
+            parts = {(r["topic"], r["partition"]) for r in ledger_rows}
+            for topic, part in parts:
+                self._maybe_commit(topic, part)
+        for buf in cycle_buffers:
+            self.buffers.pop_ready(buf.key)
 
     def _mark_quarantine(self, topic, partition, offset, value) -> None:
         self.metrics["quarantine_count"] += 1
@@ -795,36 +984,44 @@ class OrionProjector:
                 )
 
         t0 = time.perf_counter()
-        # A completed simulation cycle is one Orion transaction boundary. Sending
-        # one request avoids four concurrent per-node requests contending inside
-        # Orion/Mongo while preserving the existing buffer, ledger and offsets.
+        if not self.retry_manager.circuit_allows_attempt():
+            self.runtime_phase = RuntimePhase.DEGRADED
+            self.buffers.pause()
+            return
         result = self.batch_upsert(entities_out)
         batch_ms = (time.perf_counter() - t0) * 1000.0
         self._record_stage("orion_http_ms", batch_ms)
         self.metrics["orion_apply_count"] += 1
         self.metrics["last_orion_batch_duration_ms"] = batch_ms
-        success_ids = set(getattr(result, "success_ids", ()) or ())
-        permanent = {
-            e.entity_id: e
-            for e in (getattr(result, "permanent_errors", ()) or ())
-        }
-        retryable = set(getattr(result, "retryable_error_ids", ()) or ())
-        ambiguous = set(getattr(result, "ambiguous_ids", ()) or ())
-        http_status = getattr(result, "http_status", None)
-        if not success_ids and http_status in (201, 204):
-            success_ids = {e["id"] for e in entities_out}
-        if retryable or ambiguous:
+        self.metrics["projector_batch_latency_ms"] = batch_ms
+        success_ids, retryable, permanent, transport_transient = classify_batch_result(
+            result
+        )
+        entity_ids = [str(e["id"]) for e in entities_out]
+        if retryable or transport_transient:
             self.metrics["orion_partial_count"] += 1
+            self.retry_manager.start_or_continue(entity_ids)
+            should_retry, _sleep = self.retry_manager.record_failure(
+                retryable=True,
+                error="orion transient",
+            )
+            if should_retry:
+                self.runtime_phase = RuntimePhase.DEGRADED
+                self.buffers.pause()
+                return
+            self.runtime_phase = RuntimePhase.DEGRADED
             self.buffers.pause()
             return
+        self.retry_manager.record_success()
 
         status = STATUS_NODE_PARTIAL_APPLIED if partial else STATUS_APPLIED
         ledger_rows = []
         entity_updates = []
+        permanent_map = permanent  # set of entity ids
         for ent, be in zip(entities_out, meta):
             eid_prod = be.event["entity"]["id"]
             ok = ent["id"] in success_ids or eid_prod in success_ids
-            if not ok and eid_prod in permanent:
+            if not ok and eid_prod in permanent_map:
                 st = STATUS_FAILED_PERMANENT
             elif not ok:
                 st = STATUS_FAILED_PERMANENT
@@ -877,11 +1074,87 @@ class OrionProjector:
             self._record_stage("offset_local_ms", (time.perf_counter() - offset_started) * 1000.0)
         self._record_stage("apply_total_ms", (time.perf_counter() - apply_started) * 1000.0)
         cycle_ms = (time.perf_counter() - apply_started) * 1000.0
+        self.metrics["projector_apply_latency_ms"] = cycle_ms
         self._flush_cycle_lookup_metrics(
             cycle_ms=cycle_ms,
             cycle_key=f"{buf.simulation_run_id}:{buf.cycle_sequence}:{buf.node_id}",
         )
         self._consume_sla_warmup()
+        if status == STATUS_APPLIED and not partial:
+            scenario_id = None
+            sim_time = 0.0
+            for be in meta:
+                ent = be.event.get("entity") or {}
+                props = ent if isinstance(ent, dict) else {}
+                sid = be.event.get("scenarioId")
+                if sid:
+                    scenario_id = str(sid)
+                sim_time = max(sim_time, float(be.event.get("simulationTime") or 0))
+            fresh = self.metrics.get("pipeline_freshness_sec")
+            rt_status = (
+                RuntimeStatus.CATCH_UP
+                if self.mode == ProjectorMode.CATCH_UP
+                else RuntimeStatus.ACTIVE
+            )
+            if self.runtime_phase == RuntimePhase.DEGRADED:
+                rt_status = RuntimeStatus.DEGRADED
+            self.store.set_runtime_state(
+                simulation_run_id=buf.simulation_run_id,
+                scenario_id=scenario_id,
+                simulation_time=sim_time,
+                status=rt_status.value,
+                last_applied_cycle=buf.cycle_sequence,
+                freshness_seconds=fresh,
+            )
+            self.runtime_cache.update_after_apply(
+                simulation_run_id=buf.simulation_run_id,
+                scenario_id=scenario_id,
+                simulation_time=sim_time,
+                last_applied_cycle=buf.cycle_sequence,
+                freshness_seconds=fresh,
+                status=rt_status,
+            )
+            self.runtime_phase = (
+                RuntimePhase.CATCH_UP
+                if self.mode == ProjectorMode.CATCH_UP
+                else RuntimePhase.ACTIVE
+            )
+            self.buffers.paused = False
+            self._partitions_paused = False
+
+    def readiness_ok(
+        self,
+        *,
+        lag_events: int,
+        max_partition_lag: int,
+        freshness_sec: Optional[float],
+        assigned: bool,
+        unresolved_dlq: bool = False,
+    ) -> tuple[bool, str]:
+        if self.faulted:
+            return False, "faulted"
+        if self.runtime_phase == RuntimePhase.FAULTED:
+            return False, "runtime_faulted"
+        if unresolved_dlq:
+            return False, "unresolved_dlq"
+        if self.retry_manager.has_pending or self.retry_manager.degraded:
+            return False, "retry_pending"
+        if self.buffers.paused or self._partitions_paused:
+            return False, "buffers_paused"
+        if not assigned:
+            return False, "no_assignment"
+        if self.write_mode != WriteMode.ACTIVE:
+            return False, "write_mode_not_active"
+        active = self.store.get_active_run(
+            source=self.source, producer_id="visualize-traci"
+        )
+        if active is None:
+            return True, "idle"
+        if lag_events > READY_LAG_EVENTS or max_partition_lag > READY_MAX_PARTITION_LAG:
+            return False, "lag_high"
+        if freshness_sec is not None and freshness_sec > READY_FRESHNESS_SEC:
+            return False, "freshness_high"
+        return True, "active"
 
     def _consume_sla_warmup(self) -> None:
         if self._sla_warmup_cycles_remaining > 0:

@@ -20,6 +20,13 @@ if str(VIS) not in sys.path:
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from integration.projector.bootstrap import (
+    ConsumerMode,
+    OffsetAuthorityConflict,
+    build_demo_assignments,
+    build_normal_on_assign_seek,
+    reconcile_broker_commit,
+)
 log = logging.getLogger("projector.live")
 
 _HEALTH: dict[str, Any] = {
@@ -94,9 +101,31 @@ def _start_health_server(host: str, port: int) -> ThreadingHTTPServer:
 
         def do_GET(self) -> None:  # noqa: N802
             path = self.path.split("?", 1)[0]
-            if path not in ("/health", "/ready", "/prepared", "/metrics"):
+            if path not in ("/health", "/ready", "/prepared", "/metrics", "/current-run"):
                 self.send_response(404)
                 self.end_headers()
+                return
+            if path == "/current-run":
+                proj = _HEALTH.get("_projector")
+                if proj is None:
+                    self.send_response(503)
+                    self.end_headers()
+                    return
+                status, payload = proj.runtime_cache.http_status()
+                if status == 204:
+                    self.send_response(204)
+                    self.end_headers()
+                    return
+                if status == 503:
+                    self.send_response(503)
+                    self.end_headers()
+                    return
+                body_bytes = json.dumps(payload, default=str).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body_bytes)))
+                self.end_headers()
+                self.wfile.write(body_bytes)
                 return
             body = dict(_HEALTH)
             if path == "/ready":
@@ -185,11 +214,30 @@ def _update_health(
     manifest_loaded: bool,
     orion_ok: bool,
     consumer_lag: Optional[Dict[int, int]] = None,
+    assigned: bool = True,
+    unresolved_dlq: bool = False,
 ) -> None:
     h = proj.health()
     wm = h.get("write_mode", "active")
     producer_id = str(os.getenv("KAFKA_PRODUCER_ID", "visualize-traci"))
     active_run = proj.store.get_active_run(source=proj.source, producer_id=producer_id)
+    lag_map = consumer_lag or {}
+    lag_sum = sum(int(v) for v in lag_map.values())
+    max_part_lag = max(lag_map.values()) if lag_map else 0
+    freshness = h.get("pipeline_freshness_sec")
+    proj.update_lag_probe(
+        lag_events=lag_sum,
+        max_partition_lag=max_part_lag,
+        freshness_sec=freshness,
+    )
+    ready_ok, ready_reason = proj.readiness_ok(
+        lag_events=lag_sum,
+        max_partition_lag=max_part_lag,
+        freshness_sec=freshness,
+        assigned=assigned,
+        unresolved_dlq=unresolved_dlq,
+    )
+    _HEALTH["_projector"] = proj
     _HEALTH.update(
         {
             "health": h,
@@ -206,12 +254,23 @@ def _update_health(
             "pipeline_e2e_latency_ms_max": h.get("pipeline_e2e_latency_ms_max"),
             "pipeline_e2e_latency_sample_count": h.get("pipeline_e2e_latency_sample_count"),
             "pipeline_e2e_latency_spikes_gt_500ms": h.get("pipeline_e2e_latency_spikes_gt_500ms"),
-            "pipeline_freshness_sec": h.get("pipeline_freshness_sec"),
+            "pipeline_freshness_sec": freshness,
             "orion_batch_duration_ms": h.get("last_orion_batch_duration_ms"),
+            "projector_apply_latency_ms": h.get("projector_apply_latency_ms"),
+            "projector_batch_latency_ms": h.get("projector_batch_latency_ms"),
+            "projector_lag_events": lag_sum,
+            "projector_lag_seconds": freshness,
+            "projector_buffer_size": h.get("projector_buffer_size"),
+            "projector_retry_total": h.get("projector_retry_total"),
+            "projector_stale_total": h.get("projector_stale_total"),
+            "projector_fence_total": h.get("projector_fence_total"),
+            "projector_dlq_total": h.get("projector_dlq_total"),
             "stage_latency": h.get("stage_latency"),
             "last_cycle_lookup": h.get("last_cycle_lookup"),
             "writer_role": h.get("writer_role", "projector"),
-            "consumer_lag_offsets": consumer_lag or {},
+            "consumer_lag_offsets": lag_map,
+            "runtime_phase": h.get("runtime_phase"),
+            "ready_reason": ready_reason,
             "stale_event_count": h.get("stale_event_count"),
             "quarantine_count": h.get("quarantine_count"),
             "orion_partial_count": h.get("orion_partial_count"),
@@ -219,10 +278,7 @@ def _update_health(
             "prepared": orion_ok
             and not proj.faulted
             and wm in ("disabled", "armed", "active"),
-            "ready": wm == "active"
-            and not proj.faulted
-            and manifest_loaded
-            and active_run is not None,
+            "ready": ready_ok,
         }
     )
 
@@ -250,8 +306,18 @@ def main() -> int:
     )
     p.add_argument("--max-records", type=int, default=0, help="0 = until idle timeout")
     p.add_argument("--idle-sec", type=float, default=8.0)
-    p.add_argument("--from-latest", action="store_true", help="Skip backlog; start at log end")
-    p.add_argument("--start-offsets-file", default=os.getenv("PROJECTOR_FENCE_MANIFEST"))
+    p.add_argument(
+        "--consumer-mode",
+        default=os.getenv("PROJECTOR_CONSUMER_MODE", "normal"),
+        choices=["normal", "demo"],
+        help="normal=fixed group subscribe; demo=manual fence assign",
+    )
+    p.add_argument("--from-latest", action="store_true", help="Deprecated; normal mode uses latest when SQLite empty")
+    p.add_argument(
+        "--start-offsets-file",
+        default=os.getenv("PROJECTOR_FENCE_MANIFEST"),
+        help="Demo mode only — fence manifest path",
+    )
     p.add_argument("--max-wall-sec", type=float, default=0.0, help="0 = run until stopped")
     p.add_argument("--shadow", action="store_true", default=None)
     p.add_argument("--no-shadow", action="store_true")
@@ -323,15 +389,23 @@ def main() -> int:
 
     from confluent_kafka import Consumer, TopicPartition
     from integration.orion.client import batch_upsert_entities, wait_orion_ready
-    from integration.projector.core import OrionProjector, WriteMode
+    from integration.projector.core import OrionProjector, RuntimePhase, WriteMode
     from integration.projector.store import ProjectorStore
 
+    from integration.projector.dlq import DlqPublisher
+    from integration.projector.poison import classify_raw_record, disposition_poison
+    from integration.projector.schema import STATUS_DLQ_FAILED
+
     write_mode = _parse_write_mode(args.write_mode)
+    consumer_mode = ConsumerMode(args.consumer_mode)
     manifest_loaded = False
     fence_manifest: Optional[dict] = None
     fence_offsets: Dict[int, int] = {}
     target_run: Optional[str] = None
-    if args.start_offsets_file:
+    if consumer_mode == ConsumerMode.DEMO:
+        if not args.start_offsets_file:
+            log.error("demo mode requires --start-offsets-file / PROJECTOR_FENCE_MANIFEST")
+            return 2
         fence_manifest = _load_fence_manifest(Path(args.start_offsets_file))
         target_run = str(fence_manifest["targetSimulationRunId"])
         fence_offsets = {
@@ -339,9 +413,16 @@ def main() -> int:
             for p in fence_manifest["partitions"]
         }
         manifest_loaded = True
+    elif args.start_offsets_file and os.getenv("PROJECTOR_FENCE_MANIFEST"):
+        log.warning(
+            "ignoring PROJECTOR_FENCE_MANIFEST in normal mode (use --consumer-mode demo)"
+        )
 
     orion_ok = wait_orion_ready(retries=10, delay=1.0)
     store = ProjectorStore(Path(args.db))
+    producer_id = str(os.getenv("KAFKA_PRODUCER_ID", "visualize-traci"))
+    dlq_publisher = DlqPublisher(bootstrap_servers=args.bootstrap)
+    unresolved_dlq = False
     proj = OrionProjector(
         store,
         batch_upsert=batch_upsert_entities,
@@ -349,16 +430,24 @@ def main() -> int:
         target_namespace=namespace,
         node_timeout_ms=args.node_timeout_ms,
         write_mode=write_mode,
-        target_simulation_run_id=target_run,
-        fence_offsets=fence_offsets,
+        target_simulation_run_id=target_run if consumer_mode == ConsumerMode.DEMO else None,
+        fence_offsets=fence_offsets if consumer_mode == ConsumerMode.DEMO else None,
         defer_ready_until_idle=True,
     )
+    proj.metrics["projector_dlq_total"] = 0
+
+    brand_new_sqlite = not store.has_any_commits(args.topic)
+    offset_reset = "latest" if consumer_mode == ConsumerMode.NORMAL else (
+        "latest" if args.from_latest else "earliest"
+    )
+    if consumer_mode == ConsumerMode.NORMAL:
+        offset_reset = "latest"
 
     consumer = Consumer(
         {
             "bootstrap.servers": args.bootstrap,
             "group.id": args.group,
-            "auto.offset.reset": "latest" if args.from_latest else "earliest",
+            "auto.offset.reset": offset_reset,
             "enable.auto.commit": False,
         }
     )
@@ -366,16 +455,47 @@ def main() -> int:
     assigned: List[Any] = []
 
     def _on_assign(cons, partitions):
-        if args.from_latest:
-            for tp in partitions:
+        from confluent_kafka import TopicPartition as TP
+
+        part_nums = [int(tp.partition) for tp in partitions]
+        seeks = build_normal_on_assign_seek(
+            store, args.topic, part_nums, brand_new_sqlite=brand_new_sqlite
+        )
+        for tp in partitions:
+            part = int(tp.partition)
+            seek = next((s for s in seeks if s.partition == part), None)
+            if seek is None:
+                continue
+            if seek.offset >= 0:
+                tp.offset = seek.offset
+                try:
+                    committed = cons.committed([TP(args.topic, part)], timeout=5.0)
+                    broker_off = (
+                        int(committed[0].offset)
+                        if committed and committed[0].offset >= 0
+                        else None
+                    )
+                    sqlite_off = store.get_committed_offset(args.topic, part)
+                    reconcile_broker_commit(
+                        sqlite_offset=sqlite_off,
+                        broker_committed=broker_off,
+                    )
+                except OffsetAuthorityConflict as e:
+                    log.error("offset authority conflict p=%s: %s", part, e)
+                    proj.faulted = True
+                    proj.fault_message = str(e)
+                    proj.runtime_phase = RuntimePhase.FAULTED
+            else:
                 lo, hi = cons.get_watermark_offsets(tp, timeout=10.0)
                 tp.offset = hi
         cons.assign(partitions)
         assigned[:] = partitions
+        log.info(
+            "normal assign offsets=%s",
+            [(tp.partition, tp.offset) for tp in partitions],
+        )
 
-    # A fence manifest pins exact per-partition offsets, so use manual assignment
-    # only: subscribe() would hand control to the group rebalance and discard the seek.
-    group_managed = fence_manifest is None
+    group_managed = consumer_mode == ConsumerMode.NORMAL
     if fence_manifest is not None:
         try:
             resume = {}
@@ -398,12 +518,15 @@ def main() -> int:
     partitions = sorted({tp.partition for tp in assigned}) if assigned else _discover_partitions(
         consumer, args.topic
     )
-    proj.recover(args.topic, partitions)
+    proj.recover(args.topic, partitions, producer_id=producer_id)
+    proj.runtime_phase = proj.runtime_phase.READY_IDLE
     _update_health(
         proj,
         manifest_loaded=manifest_loaded,
         orion_ok=orion_ok,
         consumer_lag={},
+        assigned=bool(assigned),
+        unresolved_dlq=unresolved_dlq,
     )
 
     processed = 0
@@ -422,7 +545,11 @@ def main() -> int:
             return lag_cache["value"]
         lag: Dict[int, int] = {}
         fence = (fence_manifest or {}).get("partitions") or []
-        fence_by_p = {int(p["partition"]): int(p["nextOffset"]) for p in fence}
+        fence_by_p = (
+            {int(p["partition"]): int(p["nextOffset"]) for p in fence}
+            if fence_manifest
+            else {}
+        )
         try:
             positions = {
                 int(tp.partition): int(tp.offset)
@@ -521,13 +648,32 @@ def main() -> int:
                 log.warning("consumer error: %s", msg.error())
                 continue
             raw = msg.value()
-            if not raw:
+            err_type, body, run_id_hint = classify_raw_record(raw)
+            if err_type:
+                action = disposition_poison(
+                    store=store,
+                    offsets=proj.offsets,
+                    dlq_publisher=dlq_publisher,
+                    topic=msg.topic(),
+                    partition=msg.partition(),
+                    offset=msg.offset(),
+                    raw=raw,
+                    error_type=err_type,
+                    error_message=err_type,
+                    simulation_run_id=run_id_hint,
+                    can_commit=proj._can_commit_offsets,
+                    maybe_commit=proj._maybe_commit,
+                    mark_completed=proj.offsets.mark_completed,
+                )
+                proj.metrics["projector_dlq_total"] = dlq_publisher.metrics_dlq_total
+                if action == "dlq_failed":
+                    unresolved_dlq = True
+                    proj.faulted = True
+                    proj.runtime_phase = RuntimePhase.FAULTED
+                processed += 1
+                last_msg = time.monotonic()
                 continue
-            try:
-                body = json.loads(raw.decode("utf-8"))
-            except Exception:
-                continue
-            if not isinstance(body, dict):
+            if body is None:
                 continue
             try:
                 received_epoch = time.time()
@@ -593,6 +739,7 @@ def main() -> int:
         _HEALTH["ready"] = False
         consumer.close()
         store.close()
+        dlq_publisher.close()
         if health_server is not None:
             health_server.shutdown()
 

@@ -1,0 +1,41 @@
+openapi: 3.1.0
+info:
+  title: Reverse Control API
+  version: 1.0.0
+paths:
+  /api/control/commands:
+    post:
+      operationId: createControlCommand
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9._:-]+$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './control-command-v1.schema.json' }
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Location: { schema: { type: string, format: uri } }
+          content: { application/json: { schema: { $ref: './control-command-status-v1.schema.json' } } }
+        '400': { description: Invalid command }
+        '401': { description: Unauthenticated }
+        '409': { description: Conflict }
+        '503': { description: Runtime unavailable or queue full }
+  /api/control/commands/{commandId}:
+    get:
+      operationId: getControlCommand
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: commandId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Status, content: { application/json: { schema: { $ref: './control-command-status-v1.schema.json' } } } }
+        '404': { description: Command not found }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }

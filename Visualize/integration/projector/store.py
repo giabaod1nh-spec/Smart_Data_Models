@@ -12,6 +12,7 @@ from integration.projector.schema import (
     ACTIVE,
     COMPLETED_STATUSES,
     INACTIVE,
+    RUNTIME_STATE_KEY,
     SCHEMA_SQL,
     STATUS_APPLIED,
     STATUS_PENDING,
@@ -22,6 +23,13 @@ log = logging.getLogger(__name__)
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _safe_rollback(conn: sqlite3.Connection) -> None:
+    try:
+        conn.execute("ROLLBACK")
+    except sqlite3.OperationalError:
+        pass
 
 
 class ProjectorStore:
@@ -99,7 +107,7 @@ class ProjectorStore:
                 )
                 self._conn.execute("COMMIT")
             except Exception:
-                self._conn.execute("ROLLBACK")
+                _safe_rollback(self._conn)
                 raise
 
     def get_active_run(self, *, source: str, producer_id: str) -> Optional[dict]:
@@ -202,7 +210,7 @@ class ProjectorStore:
                     )
                 self._conn.execute("COMMIT")
             except Exception:
-                self._conn.execute("ROLLBACK")
+                _safe_rollback(self._conn)
                 raise
 
     def get_ledger(self, event_id: str) -> Optional[dict]:
@@ -267,6 +275,61 @@ class ProjectorStore:
                 (topic, int(partition)),
             ).fetchone()
             return int(row["committed_offset"]) if row else None
+
+    def has_any_commits(self, topic: str) -> bool:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT 1 FROM projector_partition_commits WHERE topic = ? LIMIT 1",
+                (topic,),
+            ).fetchone()
+            return row is not None
+
+    def set_runtime_state(
+        self,
+        *,
+        simulation_run_id: Optional[str],
+        scenario_id: Optional[str],
+        simulation_time: float,
+        status: str,
+        last_applied_cycle: int,
+        freshness_seconds: Optional[float],
+    ) -> None:
+        now = _utc_now()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO projector_runtime_state (
+                    state_key, simulation_run_id, scenario_id, simulation_time,
+                    status, last_applied_cycle, freshness_seconds, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(state_key) DO UPDATE SET
+                    simulation_run_id=excluded.simulation_run_id,
+                    scenario_id=excluded.scenario_id,
+                    simulation_time=excluded.simulation_time,
+                    status=excluded.status,
+                    last_applied_cycle=excluded.last_applied_cycle,
+                    freshness_seconds=excluded.freshness_seconds,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    RUNTIME_STATE_KEY,
+                    simulation_run_id,
+                    scenario_id,
+                    float(simulation_time),
+                    status,
+                    int(last_applied_cycle),
+                    freshness_seconds,
+                    now,
+                ),
+            )
+
+    def get_runtime_state(self) -> Optional[dict]:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM projector_runtime_state WHERE state_key = ?",
+                (RUNTIME_STATE_KEY,),
+            ).fetchone()
+            return dict(row) if row else None
 
     def rebuild_completed_offsets(
         self, topic: str, partition: int

@@ -1,5 +1,6 @@
 package com.traffic.server.control;
 
+import com.traffic.server.config.AppProperties;
 import com.traffic.server.exception.ControlApiTimeoutException;
 import com.traffic.server.exception.ControlApiUnavailableException;
 import org.springframework.http.HttpHeaders;
@@ -14,15 +15,18 @@ import reactor.netty.http.client.PrematureCloseException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 @Service
 public class ControlApiClient {
 
     private final WebClient controlApiWebClient;
+    private final String internalToken;
 
-    public ControlApiClient(WebClient controlApiWebClient) {
+    public ControlApiClient(WebClient controlApiWebClient, AppProperties appProperties) {
         this.controlApiWebClient = controlApiWebClient;
+        this.internalToken = appProperties.controlApi().internalToken();
     }
 
     public ResponseEntity<String> forward(HttpMethod method,
@@ -31,6 +35,35 @@ public class ControlApiClient {
                                           String requestBody,
                                           HttpHeaders incomingHeaders,
                                           String requestId) {
+        return exchange(method, upstreamPath, queryParams, requestBody, incomingHeaders, requestId);
+    }
+
+    public ResponseEntity<String> submitCommand(String requestBody, String requestId) {
+        return exchange(
+                HttpMethod.POST,
+                "/commands",
+                null,
+                requestBody,
+                null,
+                requestId);
+    }
+
+    public ResponseEntity<String> getCommandStatus(UUID commandId, String requestId) {
+        return exchange(
+                HttpMethod.GET,
+                "/commands/" + commandId,
+                null,
+                null,
+                null,
+                requestId);
+    }
+
+    private ResponseEntity<String> exchange(HttpMethod method,
+                                            String upstreamPath,
+                                            Map<String, List<String>> queryParams,
+                                            String requestBody,
+                                            HttpHeaders incomingHeaders,
+                                            String requestId) {
         try {
             WebClient.RequestBodySpec spec = controlApiWebClient
                     .method(method)
@@ -45,7 +78,7 @@ public class ControlApiClient {
                         }
                         return b.build();
                     })
-                    .headers(h -> copyAllowedHeaders(incomingHeaders, h, requestId));
+                    .headers(h -> applyHeaders(incomingHeaders, h, requestId));
 
             WebClient.ResponseSpec responseSpec;
             if (method == HttpMethod.GET || method == HttpMethod.DELETE) {
@@ -86,7 +119,7 @@ public class ControlApiClient {
         return false;
     }
 
-    private static void copyAllowedHeaders(HttpHeaders incoming, HttpHeaders outgoing, String requestId) {
+    private void applyHeaders(HttpHeaders incoming, HttpHeaders outgoing, String requestId) {
         if (incoming != null) {
             copyHeader(incoming, outgoing, HttpHeaders.ACCEPT);
             copyHeader(incoming, outgoing, HttpHeaders.CONTENT_TYPE);
@@ -95,6 +128,9 @@ public class ControlApiClient {
         }
         if (outgoing.getFirst("X-Request-Id") == null && requestId != null) {
             outgoing.set("X-Request-Id", requestId);
+        }
+        if (internalToken != null && !internalToken.isBlank()) {
+            outgoing.setBearerAuth(internalToken);
         }
         if (outgoing.getAccept().isEmpty()) {
             outgoing.setAccept(List.of(MediaType.APPLICATION_JSON));

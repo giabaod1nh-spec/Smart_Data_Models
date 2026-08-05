@@ -12,12 +12,14 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import configuration.config as cfg
-from runtime.command_queue import CommandQueue
+from control.runtime_state import SimulationRuntimeState
+from control.command_executor import drain_with_tracking
 from configuration.model_params import get_registry
 from runtime.run_manifest import build_and_write_manifest
 from simulation.scenario_manager import SumoScenarioManager
 from simulation.signal_controller import SumoSignalController
 from observation.snapshot_provider import SumoSnapshotProvider
+from runtime.command_queue import CommandQueue
 from runtime.network_controller import NetworkRuntimeController
 from observation.trip_collector import TripCollector
 
@@ -44,6 +46,8 @@ class SumoBackend:
 
         self._traci = None
         self._started = False
+        self._runtime_state = SimulationRuntimeState.STOPPED
+        self.command_registry = None
         self.commands = CommandQueue()
         self.trips = TripCollector()
 
@@ -87,6 +91,7 @@ class SumoBackend:
             sig.preemption_enabled = False
 
     def start(self) -> None:
+        self._runtime_state = SimulationRuntimeState.STARTING
         cfg.ensure_sumo_tools_on_path()
         if not os.environ.get("SUMO_HOME", "").strip():
             log.warning("SUMO_HOME is not set. TraCI import may fail.")
@@ -169,6 +174,7 @@ class SumoBackend:
         traci.start(sumo_cmd)
         self._traci = traci
         self._started = True
+        self._runtime_state = SimulationRuntimeState.RUNNING
         self.simulation_time_sec = float(traci.simulation.getTime())
         self.runtime.on_start(traci)
         log.info(
@@ -188,7 +194,7 @@ class SumoBackend:
 
         # --- pre_step ---
         phases.append("pre_step")
-        self.commands.drain({
+        handlers = {
             "force_phase": lambda node_id, phase: self.force_phase(node_id, phase),
             "set_green_duration": lambda node_id, seconds: self.set_green_duration(node_id, seconds),
             "set_scenario": lambda scenario, target_intersection=None, target_direction=None: self.set_scenario(
@@ -198,7 +204,11 @@ class SumoBackend:
             "add_overlay": lambda **kw: self.add_overlay(**kw),
             "remove_overlay": lambda overlay_id: self.remove_overlay(overlay_id),
             "set_control_mode": lambda mode: self.set_control_mode(mode),
-        })
+        }
+        if self.command_registry is None:
+            self.commands.drain(handlers)
+        else:
+            drain_with_tracking(self.commands, handlers, self.command_registry, self)
         # Actuators that schedule insertions / expire overlays before SUMO advances
         try:
             self.runtime.pre_step_actuators(traci, self.simulation_time_sec)
@@ -211,6 +221,9 @@ class SumoBackend:
         for sig in self.signals.values():
             sig.tick_pending(traci)
             sig.update_preemption(traci)
+        tracker = getattr(self, "_command_tracker", None)
+        if tracker is not None:
+            tracker.tick(self)
         self.simulation_time_sec = float(traci.simulation.getTime())
 
         # --- post_step bookkeeping (every TraCI step) ---
@@ -437,7 +450,7 @@ class SumoBackend:
         scenario: str,
         target_intersection: Optional[str] = None,
         target_direction: Optional[str] = None,
-    ) -> None:
+    ) -> dict:
         """Compat facade: map legacy scenario id → demand profile and/or overlay."""
         self._require_started()
         node = target_intersection or self.publish_node
@@ -446,11 +459,24 @@ class SumoBackend:
         self.current_scenario = scenario
         self.per_node_scenario[node] = scenario
 
+        result = {
+            "scenarioId": scenario,
+            "affectedIntersections": [node],
+            "demandProfileChanged": False,
+            "overlayIds": [],
+            "resourcesPatched": [],
+            "preemptionModeChanged": False,
+            "emergencyInsertion": False,
+            "pendingOperations": [],
+            "failures": [],
+        }
+
         demand_ids = {"normal", "morning_peak", "evening_peak", "oversaturated"}
         if scenario in demand_ids:
             self.runtime.set_demand_profile(scenario)
+            result["demandProfileChanged"] = True
         elif scenario in ("accident", "blocked_intersection"):
-            self.runtime.add_overlay(
+            ov = self.runtime.add_overlay(
                 self._traci,
                 overlay_type=scenario,
                 intersection_id=node,
@@ -458,8 +484,9 @@ class SumoBackend:
                 segment_role="incoming_approach",
                 sim_t=self.simulation_time_sec,
             )
+            result["overlayIds"].append(ov.get("overlay_id"))
         elif scenario == "spillback":
-            self.runtime.add_overlay(
+            ov = self.runtime.add_overlay(
                 self._traci,
                 overlay_type="downstream_restriction",
                 intersection_id=node,
@@ -467,24 +494,32 @@ class SumoBackend:
                 segment_role="downstream_exit",
                 sim_t=self.simulation_time_sec,
             )
+            result["overlayIds"].append(ov.get("overlay_id"))
         elif scenario in ("rain", "heavy_rain"):
-            self.runtime.add_overlay(
+            ov = self.runtime.add_overlay(
                 self._traci,
                 overlay_type="heavy_rain",
                 intersection_id=node,
                 direction=target_direction,
                 sim_t=self.simulation_time_sec,
             )
+            result["overlayIds"].append(ov.get("overlay_id"))
         elif scenario == "emergency":
             self.set_control_mode("PREEMPTION_ENABLED")
-            self.runtime.add_overlay(
+            result["preemptionModeChanged"] = True
+            ov = self.runtime.add_overlay(
                 self._traci,
                 overlay_type="emergency",
                 intersection_id=node,
                 direction=target_direction,
                 sim_t=self.simulation_time_sec,
             )
+            result["overlayIds"].append(ov.get("overlay_id"))
+            result["emergencyInsertion"] = True
+        else:
+            result["failures"].append(f"NOT_SUPPORTED:{scenario}")
         self._invalidate_caches()
+        return result
 
     def set_demand_profile(self, profile: str) -> dict:
         self._require_started()
@@ -528,7 +563,7 @@ class SumoBackend:
         self._require_started()
         ok = self.runtime.remove_overlay(self._traci, overlay_id)
         self._invalidate_caches()
-        return ok
+        return ok if ok else True  # idempotent success when overlay missing
 
     def set_control_mode(self, mode: str) -> None:
         self.runtime.set_control_mode(mode)

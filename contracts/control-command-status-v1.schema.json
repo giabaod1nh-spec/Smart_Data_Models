@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-traffic.local/contracts/control-command-status-v1.schema.json",
+  "title": "Control Command Status v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["commandId", "lifecycleStatus", "dispatchStatus", "executionStatus", "observationStatus", "expectedRunId", "acceptedRunId", "createdAt", "updatedAt", "error", "links"],
+  "properties": {
+    "commandId": {"type": "string", "format": "uuid"},
+    "lifecycleStatus": {"type": "string", "enum": ["RECEIVED", "VALIDATED", "QUEUED", "APPLYING", "COMPLETED", "FAILED", "EXPIRED", "UNKNOWN_OUTCOME"]},
+    "dispatchStatus": {"type": "string", "enum": ["PENDING", "DISPATCHING", "ACCEPTED", "FAILED", "UNKNOWN"]},
+    "executionStatus": {"type": "string", "enum": ["NOT_STARTED", "QUEUED", "EXECUTING", "TRANSITIONING", "APPLIED_AT_SUMO", "FAILED_AT_RUNTIME"]},
+    "observationStatus": {"type": "string", "enum": ["NOT_REQUESTED", "PENDING", "CONFIRMED", "MISMATCH", "TIMED_OUT", "UNAVAILABLE", "NOT_OBSERVABLE"]},
+    "expectedRunId": {"type": "string", "minLength": 1},
+    "acceptedRunId": {"type": ["string", "null"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "error": {"type": ["object", "null"], "additionalProperties": false, "required": ["code", "message"], "properties": {"code": {"type": "string"}, "message": {"type": "string", "maxLength": 512}}},
+    "result": {"type": ["object", "null"]},
+    "links": {"type": "object", "additionalProperties": false, "required": ["self"], "properties": {"self": {"type": "string", "format": "uri"}}}
+  }
+}

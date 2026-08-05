@@ -14,7 +14,10 @@ def test_projector_tool_exposes_health_ready():
     text = read_text(REPO_ROOT / "Visualize" / "tools" / "projector_live_consumer.py")
     assert "/health" in text
     assert "/ready" in text
+    assert "/current-run" in text
     assert "PROJECTOR_TARGET_NAMESPACE" in text
+    compose = read_text(REPO_ROOT / "docker-compose.yml")
+    assert "/ready" in compose
 
 
 def test_traci_kafka_independent_of_publish_orion_block():

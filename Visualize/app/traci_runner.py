@@ -235,6 +235,7 @@ def start_control_api(
 
     init_orion_publish_enabled_from_env()
     control_api.engine = backend
+    backend.command_registry = control_api.command_registry
     if publisher is not None:
         control_api.publish_stats_provider = lambda: {
             "async_publish": True,

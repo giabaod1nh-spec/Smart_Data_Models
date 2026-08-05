@@ -16,14 +16,15 @@ public class RealtimeConsistencyChecker {
         this.tolerance = appProperties.realtime().simulationTimeTolerance();
     }
 
-    public RealtimeMetadata buildMetadata(IntersectionResponse intersection,
+    public RealtimeMetadata buildMetadata(ProjectorCurrentRunResponse currentRun,
+                                          IntersectionResponse intersection,
                                           List<TrafficLightResponse> trafficLights,
                                           List<VehicleSensorResponse> vehicleSensors,
                                           List<CameraResponse> cameras) {
         List<String> issues = new ArrayList<>();
-        String runId = intersection.getSimulationRunId();
-        Double simTime = intersection.getSimulationTime();
-        String scenarioId = intersection.getScenarioId();
+        String runId = currentRun.simulationRunId();
+        Double simTime = currentRun.simulationTime();
+        String scenarioId = currentRun.scenarioId();
 
         checkEntity("Intersection", intersection.getId(), runId, simTime, scenarioId,
                 intersection.getSimulationRunId(), intersection.getSimulationTime(), intersection.getScenarioId(),
@@ -49,6 +50,8 @@ public class RealtimeConsistencyChecker {
                 .scenarioId(scenarioId)
                 .consistent(consistent)
                 .consistencyIssues(consistent ? null : issues)
+                .projectorStatus(currentRun.status())
+                .freshnessSeconds(currentRun.freshnessSeconds())
                 .build();
     }
 
@@ -67,13 +70,13 @@ public class RealtimeConsistencyChecker {
             return;
         }
         if (expectedRunId != null && !expectedRunId.equals(actualRunId)) {
-            issues.add(label + " simulationRunId " + actualRunId + " != intersection " + expectedRunId);
+            issues.add(label + " simulationRunId " + actualRunId + " != current-run " + expectedRunId);
         }
         if (expectedScenario != null && !expectedScenario.equals(actualScenario)) {
-            issues.add(label + " scenarioId " + actualScenario + " != intersection " + expectedScenario);
+            issues.add(label + " scenarioId " + actualScenario + " != current-run " + expectedScenario);
         }
         if (expectedSimTime != null && !timesEqual(expectedSimTime, actualSimTime)) {
-            issues.add(label + " simulationTime " + actualSimTime + " != intersection " + expectedSimTime);
+            issues.add(label + " simulationTime " + actualSimTime + " != current-run " + expectedSimTime);
         }
     }
 
