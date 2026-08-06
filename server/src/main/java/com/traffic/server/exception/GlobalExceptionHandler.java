@@ -1,5 +1,9 @@
 package com.traffic.server.exception;
 
+import com.traffic.server.analytics.exception.AnalyticsNotReadyException;
+import com.traffic.server.analytics.exception.AnalyticsQueryTimeoutException;
+import com.traffic.server.analytics.exception.AnalyticsUnavailableException;
+import com.traffic.server.analytics.exception.InvalidAnalyticsQueryException;
 import com.traffic.server.control.command.IdempotencyConflictException;
 import com.traffic.server.control.command.ResourceBusyException;
 import com.traffic.server.payload.ApiResponse;
@@ -49,6 +53,33 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleIdempotencyConflict(IdempotencyConflictException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(HttpStatus.CONFLICT.value(), e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidAnalyticsQueryException.class)
+    public ResponseEntity<ApiResponse<Object>> handleInvalidAnalyticsQuery(InvalidAnalyticsQueryException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), e.errorCode() + ": " + e.getMessage()));
+    }
+
+    @ExceptionHandler(AnalyticsNotReadyException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAnalyticsNotReady(AnalyticsNotReadyException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        e.errorCode() + ": " + e.getMessage()));
+    }
+
+    @ExceptionHandler(AnalyticsUnavailableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAnalyticsUnavailable(AnalyticsUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        "ANALYTICS_UNAVAILABLE: " + e.getMessage()));
+    }
+
+    @ExceptionHandler(AnalyticsQueryTimeoutException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAnalyticsQueryTimeout(AnalyticsQueryTimeoutException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        "QUERY_TIMEOUT: " + e.getMessage()));
     }
 
     @ExceptionHandler(ResourceBusyException.class)

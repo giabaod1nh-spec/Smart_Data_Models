@@ -1,0 +1,140 @@
+openapi: 3.0.3
+info:
+  title: Smart Traffic Analytics API
+  version: v1
+  description: Read-only Gold analytics endpoints (Business Service V1).
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/analytics/intersections/{intersectionId}/windows:
+    get:
+      summary: Intersection window summary
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: intersectionId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: simulationRunId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: scenarioId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: windowSizeSec
+          required: true
+          schema: { type: integer, enum: [60, 300] }
+        - in: query
+          name: fromSimulationSec
+          schema: { type: number }
+        - in: query
+          name: toSimulationSec
+          schema: { type: number }
+        - in: query
+          name: page
+          schema: { type: integer, default: 0 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 50, maximum: 200 }
+      responses:
+        '200':
+          description: Success page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntersectionWindowPageResponse' }
+              examples:
+                success:
+                  value:
+                    status: 200
+                    message: Success
+                    data:
+                      items:
+                        - simulationRunId: run-1
+                          scenarioId: normal
+                          windowSizeSec: 60
+                          qualityStatus: VALID
+                          analyticalFreshnessStatus: FRESH
+                      page: 0
+                      pageSize: 50
+                      hasNext: false
+                      metadata:
+                        source: GOLD_MART
+                        namespace: live
+                        simulationRunId: run-1
+                        scenarioId: normal
+                        windowSizeSec: 60
+                empty:
+                  value:
+                    status: 200
+                    message: Success
+                    data:
+                      items: []
+                      page: 0
+                      pageSize: 50
+                      hasNext: false
+        '400':
+          description: Invalid query
+        '503':
+          description: Analytics unavailable or not ready
+  /api/analytics/network/windows:
+    get:
+      summary: Network overview (gated)
+      responses:
+        '503':
+          description: ANALYTICS_NOT_READY while Gold network mart is WHERE 0 scaffold
+          content:
+            application/json:
+              example:
+                status: 503
+                data: null
+                message: 'ANALYTICS_NOT_READY: Network overview mart is not populated (Gold WHERE 0 scaffold)'
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+  schemas:
+    AnalyticsPageMetadata:
+      type: object
+      required: [source, namespace, simulationRunId, scenarioId, windowSizeSec, generatedAt]
+      properties:
+        source: { type: string }
+        namespace: { type: string, enum: [live] }
+        simulationRunId: { type: string }
+        scenarioId: { type: string }
+        windowSizeSec: { type: integer }
+        generatedAt: { type: string, format: date-time }
+    IntersectionWindowDto:
+      type: object
+      properties:
+        simulationRunId: { type: string }
+        scenarioId: { type: string }
+        namespace: { type: string }
+        intersectionId: { type: string }
+        windowId: { type: string }
+        windowSizeSec: { type: integer }
+        qualityStatus: { type: string }
+        qualityFlags: { type: string }
+        analyticalFreshnessStatus: { type: string }
+        revisionSeq: { type: integer, format: int64 }
+        computedAt: { type: string, format: date-time }
+    IntersectionWindowPageResponse:
+      type: object
+      properties:
+        status: { type: integer }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/IntersectionWindowDto' }
+            page: { type: integer }
+            pageSize: { type: integer }
+            hasNext: { type: boolean }
+            metadata: { $ref: '#/components/schemas/AnalyticsPageMetadata' }
