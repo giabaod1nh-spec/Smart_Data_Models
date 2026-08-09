@@ -34,7 +34,10 @@ class NetworkRuntimeController:
         self.state.ensure_nodes(publish_nodes)
         self.artifacts_run_dir = artifacts_run_dir
         self._event_path: Optional[Path] = None
-        self._last_t = 0.0
+        # Demand/actuator dt must advance every TraCI step — NOT only on
+        # observation/context ticks (those can be 1s+ apart and used to
+        # over-accrue then choke inserts).
+        self._last_actuator_t: Optional[float] = None
         self.set_demand_profile("normal")
 
     def attach_run_dir(self, run_dir: Path) -> None:
@@ -56,8 +59,8 @@ class NetworkRuntimeController:
         return info
 
     def set_control_mode(self, mode: str) -> None:
-        if mode not in ("FIXED", "PREEMPTION_ENABLED"):
-            raise ValueError("control_mode must be FIXED|PREEMPTION_ENABLED")
+        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL"):
+            raise ValueError("control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL")
         self.state.control_mode = mode
         self._emit("control", {"control_mode": mode})
 
@@ -107,9 +110,14 @@ class NetworkRuntimeController:
 
     def pre_step_actuators(self, traci_module, sim_t: float) -> None:
         """Pre-simulationStep: insertion schedule, overlay expiry, emergency insert."""
-        dt = max(0.0, sim_t - self._last_t) if self._last_t > 0 else cfg_dt_fallback()
-        # Note: sim_t here is previous step time; caller may pass last known time
-        self.demand.tick(traci_module, dt if dt > 0 else 0.01)
+        if self._last_actuator_t is None:
+            dt = cfg_dt_fallback()
+        else:
+            dt = max(0.0, float(sim_t) - float(self._last_actuator_t))
+        if dt <= 0:
+            dt = cfg_dt_fallback()
+        self.demand.tick(traci_module, dt)
+        self._last_actuator_t = float(sim_t)
         self.capacity.tick_expiry(traci_module, sim_t)
         self.emergency.tick(traci_module, sim_t)
         for ov in self.capacity.active_list():
@@ -129,7 +137,6 @@ class NetworkRuntimeController:
         signals: Dict[str, Any],
     ) -> None:
         """Post-observation: derive local + network context from fresh snapshots."""
-        self._last_t = sim_t
         overlays = self.capacity.active_list()
         for o in overlays:
             inst = self.capacity.overlays.get(o["overlay_id"])

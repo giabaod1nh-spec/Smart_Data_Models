@@ -121,19 +121,28 @@ export const PHASE_LABELS: Record<PhaseId, string> = {
   EW_YELLOW: 'E/W Yellow',
 }
 
-/** Control modes — verified from ControlModeRequest pattern */
-export const CONTROL_MODES = ['FIXED', 'PREEMPTION_ENABLED'] as const
+/** Control modes — FIXED=auto cycle, MANUAL=officer hold, PREEMPTION=EV */
+export const CONTROL_MODES = ['FIXED', 'PREEMPTION_ENABLED', 'MANUAL'] as const
 export type ControlMode = (typeof CONTROL_MODES)[number]
+
+export const CONTROL_MODE_LABELS: Record<ControlMode, string> = {
+  FIXED: 'Automatic',
+  MANUAL: 'Manual (Officer)',
+  PREEMPTION_ENABLED: 'Preemption',
+}
 
 /** Green duration bounds — verified from GreenDurationRequest Field(ge=10, le=120) */
 export const GREEN_DURATION_MIN = 10
 export const GREEN_DURATION_MAX = 120
 
 /**
- * Legacy proxy mutation response — queued=true means queue acceptance only.
- * Frontend must NOT infer APPLIED from this response alone.
+ * Legacy proxy mutation response.
+ * - Most endpoints: queued=true means queue acceptance only (do NOT treat as applied).
+ * - POST /scenario (Approach B): waits for TraCI; applied=true means already executed.
  */
 export interface ControlProxyQueuedResponse {
   queued: boolean
+  /** Present when the engine waited for TraCI and confirmed execution (scenario apply). */
+  applied?: boolean
   [key: string]: unknown
 }

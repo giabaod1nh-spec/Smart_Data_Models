@@ -7,11 +7,16 @@ import {
   avgSpeed,
   formatAvgSpeed,
   formatSpeedKmh,
+  sumArrivalRatePcuPerSec,
+  arrivalFlowPcuPerHour,
+  formatArrivalFlow,
+  formatDirectionArrivalFlow,
   formatOccupancyRate,
   formatPhaseLabel,
   formatScenarioLabel,
   getFreshnessState,
   formatSimSec,
+  formatLastSeen,
   trafficStatusColor,
 } from '@/transforms/realtimeTransforms'
 import type { VehicleSensorResponse, RealtimeMetadata } from '@/types/realtime'
@@ -132,6 +137,16 @@ describe('realtimeTransforms', () => {
     expect(avgSpeed(sampleSensors)).toBe(25)
   })
 
+  it('sums arrival rates and formats hourly flow (PCU/h)', () => {
+    // sampleSensors: 1.2 + 2.5 = 3.7 PCU/s → 13320 PCU/h
+    expect(sumArrivalRatePcuPerSec(sampleSensors)).toBeCloseTo(3.7)
+    expect(arrivalFlowPcuPerHour(sampleSensors)).toBeCloseTo(13320)
+    expect(formatArrivalFlow(sampleSensors)).toBe('13,320 PCU/h')
+    expect(formatDirectionArrivalFlow(1.2)).toBe('4,320 PCU/h')
+    expect(formatArrivalFlow([])).toBe('—')
+    expect(formatDirectionArrivalFlow(null)).toBe('—')
+  })
+
   it('determines freshness state accurately', () => {
     const freshMeta: RealtimeMetadata = {
       simulationRunId: 'run-1',
@@ -161,6 +176,12 @@ describe('realtimeTransforms', () => {
     expect(formatSimSec(125)).toBe('2m 5s')
     expect(formatSimSec(3665)).toBe('1h 1m 5s')
     expect(formatSimSec(null)).toBe('—')
+  })
+
+  it('formats last-seen from wall-clock poll time or freshnessSeconds', () => {
+    expect(formatLastSeen(Date.now() - 1500)).toMatch(/1\.\ds ago/)
+    expect(formatLastSeen(0, 3.2)).toBe('3.2s ago')
+    expect(formatLastSeen(null, null)).toBe('—')
   })
 
   it('maps traffic status string to correct color bucket', () => {

@@ -77,6 +77,8 @@ class SumoBackend:
         self._snapshot_cache: Dict[str, dict] = {}
         self._stats_cache: dict = {}
         self._last_cache_sim_t: float = -1e9
+        # TraCI runner: publish on next loop iteration (bypass publish_interval).
+        self._publish_asap: bool = False
         # Observation/context cadence (not every TraCI micro-step when step_length≪1s)
         self._cache_interval_sec: float = float(os.getenv("OBSERVATION_INTERVAL_SEC", "1.0"))
         self._last_obs_sim_t: float = -1e9
@@ -220,7 +222,10 @@ class SumoBackend:
         traci.simulationStep()
         for sig in self.signals.values():
             sig.tick_pending(traci)
-            sig.update_preemption(traci)
+            if sig.manual_mode:
+                sig.apply_manual_hold(traci)
+            else:
+                sig.update_preemption(traci)
         tracker = getattr(self, "_command_tracker", None)
         if tracker is not None:
             tracker.tick(self)
@@ -268,6 +273,13 @@ class SumoBackend:
                 merged["observation_seq"] = obs_seq
                 merged["source_observation_seq"] = obs_seq
                 merged["context_source_observation_seq"] = obs_seq
+                # Optional RF anomaly annotate (no-op if model missing / disabled)
+                try:
+                    from ml.runtime import get_rolling_classifier
+
+                    get_rolling_classifier().annotate_snapshot(node_id, merged)
+                except Exception as e:
+                    log.debug("traffic RF annotate %s: %s", node_id, e)
                 self._snapshot_cache[node_id] = merged
             try:
                 self._stats_cache = self._build_stats_now()
@@ -307,6 +319,13 @@ class SumoBackend:
         out = dict(snap)
         out["simulation_run_id"] = self.simulation_run_id
         out["scenario"] = self.per_node_scenario.get(node_id) or self.current_scenario
+        out["control_mode"] = self.control_mode
+        if self.control_mode == "MANUAL":
+            out["timing_mode"] = "MANUAL"
+        elif self.control_mode == "PREEMPTION_ENABLED":
+            out["timing_mode"] = "EMERGENCY_PRIORITY"
+        else:
+            out["timing_mode"] = "FIXED_TIME"
         return out
 
     def get_snapshot(self, node_id: str = "A", *, fresh: bool = False) -> dict:
@@ -433,11 +452,24 @@ class SumoBackend:
         self._stats_cache = {}
         self._last_cache_sim_t = -1e9
 
+    def request_publish_asap(self) -> None:
+        """Ask traci_runner to emit a publish cycle on the next loop tick."""
+        self._publish_asap = True
+
+    def should_publish_asap(self) -> bool:
+        return bool(self._publish_asap)
+
+    def clear_publish_asap(self) -> None:
+        self._publish_asap = False
+
     def force_phase(self, node_id: str, phase: str) -> None:
         self._require_started()
         self._assert_node(node_id)
         self.signals[node_id].force_phase(self._traci, phase)
+        if self.control_mode == "MANUAL":
+            self.signals[node_id].apply_manual_hold(self._traci)
         self._invalidate_caches()
+        self.request_publish_asap()
 
     def set_green_duration(self, node_id: str, seconds: int) -> None:
         self._require_started()
@@ -475,6 +507,13 @@ class SumoBackend:
         if scenario in demand_ids:
             self.runtime.set_demand_profile(scenario)
             result["demandProfileChanged"] = True
+            # Network-wide demand → label every publish node so Orion/Kafka
+            # cycles stay uniform (PublishCycle requires a single scenarioId).
+            for n in self.publish_nodes:
+                self.per_node_scenario[n] = scenario
+                if n in self.scenarios:
+                    self.scenarios[n].current_scenario = scenario
+            result["affectedIntersections"] = list(self.publish_nodes)
         elif scenario in ("accident", "blocked_intersection"):
             ov = self.runtime.add_overlay(
                 self._traci,
@@ -519,17 +558,25 @@ class SumoBackend:
         else:
             result["failures"].append(f"NOT_SUPPORTED:{scenario}")
         self._invalidate_caches()
+        # Push scenarioId into Orion/Kafka on the next TraCI tick (not after
+        # a full publish_interval), so Spring realtime matches /health after reload.
+        self.request_publish_asap()
         return result
 
     def set_demand_profile(self, profile: str) -> dict:
         self._require_started()
         info = self.runtime.set_demand_profile(profile)
         self.current_scenario = profile
+        for n in self.publish_nodes:
+            self.per_node_scenario[n] = profile
+            if n in self.scenarios:
+                self.scenarios[n].current_scenario = profile
         try:
             self._traci.simulation.setScale(1.0)
         except Exception:
             pass
         self._invalidate_caches()
+        self.request_publish_asap()
         return info
 
     def add_overlay(
@@ -566,13 +613,24 @@ class SumoBackend:
         return ok if ok else True  # idempotent success when overlay missing
 
     def set_control_mode(self, mode: str) -> None:
+        """FIXED=auto cycle, MANUAL=officer hold, PREEMPTION_ENABLED=EV override."""
+        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL"):
+            raise ValueError("control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL")
+        self._require_started()
         self.runtime.set_control_mode(mode)
         self.control_mode = mode
-        enabled = mode == "PREEMPTION_ENABLED"
         for sig in self.signals.values():
-            sig.preemption_enabled = enabled
-            if not enabled:
+            if mode == "MANUAL":
+                sig.set_manual_mode(self._traci, True)
+            elif mode == "PREEMPTION_ENABLED":
+                sig.set_manual_mode(self._traci, False)
+                sig.preemption_enabled = True
+            else:
+                sig.set_manual_mode(self._traci, False)
+                sig.preemption_enabled = False
                 sig.preemption_active = False
+        self._invalidate_caches()
+        self.request_publish_asap()
 
     def get_network_state(self) -> dict:
         return self.runtime.network_state()

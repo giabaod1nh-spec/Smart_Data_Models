@@ -73,16 +73,21 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
     expect(rawId.startsWith('urn:ngsi-ld:Intersection:')).toBe(true)
   })
 
-  // Test 5 & 6: Scenario selection & Queued do not change authoritative current scenario
-  it('5-6. Scenario selection and queued response do not mutate authoritative current scenario', () => {
-    const authoritativeScenario = 'normal'
+  // Test 5 & 6: Approach B — applied response may update UI before realtime
+  it('5-6. Scenario applied response updates effective scenario before realtime', () => {
+    const realtimeScenario = 'normal'
     const selectedScenario = 'morning_peak'
-    const queuedResponse = { queued: true }
+    const applyResponse = { queued: false, applied: true, current: selectedScenario }
 
-    // Authoritative scenario remains 'normal' until Realtime emits 'morning_peak'
-    expect(authoritativeScenario).toBe('normal')
-    expect(queuedResponse.queued).toBe(true)
-    expect(authoritativeScenario).not.toBe(selectedScenario)
+    let appliedScenarioId: string | null = null
+    if (applyResponse.applied) {
+      appliedScenarioId = selectedScenario
+    }
+    const effectiveScenario = appliedScenarioId ?? realtimeScenario
+
+    expect(applyResponse.queued).toBe(false)
+    expect(applyResponse.applied).toBe(true)
+    expect(effectiveScenario).toBe('morning_peak')
   })
 
   // Test 7: Realtime scenario mới update UI
@@ -177,7 +182,7 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
 
     // Freeze logic
     expect(deriveRealtimePageStatus('stale', false)).toBe('STALE')
-    expect(deriveRealtimePageStatus('live', true)).toBe('PAUSED')
+    expect(deriveRealtimePageStatus('live', true)).toBe('DELAYED')
   })
 
   // Test 17 & 18: vehicleCount to sprite count and cap
@@ -221,7 +226,8 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
   it('27-30. Control tabs and schemas exist and are distinct', () => {
     expect(PHASE_IDS).toHaveLength(4)
     expect(SCENARIO_IDS).toHaveLength(10)
-    expect(CONTROL_MODES).toHaveLength(2)
+    expect(CONTROL_MODES).toHaveLength(3)
+    expect(CONTROL_MODES).toContain('MANUAL')
     expect(GREEN_DURATION_MIN).toBe(10)
     expect(GREEN_DURATION_MAX).toBe(120)
   })

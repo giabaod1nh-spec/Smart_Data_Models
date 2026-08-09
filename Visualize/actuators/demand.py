@@ -3,12 +3,19 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Tuple
 
 from configuration.model_params import get_registry
 
 log = logging.getLogger(__name__)
+
+# Try freer departure placements when the entry edge is contested.
+_DEPART_TRIES = (
+    ("free", "base"),
+    ("free", "free"),
+    ("best", "random_free"),
+)
 
 
 @dataclass
@@ -36,6 +43,7 @@ class ScenarioDemandActuator:
         self._buckets: Dict[str, SourceBucket] = {}
         self._seq = 0
         self.enabled = True
+        self._last_logged_failed = 0
         self.stats: Dict[str, Any] = {
             "inserted_total": 0,
             "failed_total": 0,
@@ -49,6 +57,7 @@ class ScenarioDemandActuator:
         sources = reg.boundary_sources()
         self.profile_id = profile_id
         self._buckets.clear()
+        self._last_logged_failed = 0
         targets = prof.get("source_targets") or {}
         for sid, tgt in targets.items():
             src = sources[sid]
@@ -64,10 +73,11 @@ class ScenarioDemandActuator:
                 interval_s=interval,
             )
         log.info(
-            "Demand profile %s active; sources=%d deltas=%s",
+            "Demand profile %s active; sources=%d deltas=%s intervals_s=%s",
             profile_id,
             len(self._buckets),
             {k: round(v.target_delta_vph, 1) for k, v in self._buckets.items()},
+            {k: round(v.interval_s, 3) for k, v in self._buckets.items()},
         )
         return {"profile_id": profile_id, "deltas": {k: v.target_delta_vph for k, v in self._buckets.items()}}
 
@@ -105,7 +115,7 @@ class ScenarioDemandActuator:
         if not self.enabled or dt <= 0:
             return 0
         policy = get_registry().insertion_policy()
-        max_pending = int(policy.get("max_pending_per_source", 40))
+        max_pending = int(policy.get("max_pending_per_source", 80))
         max_retries = int(policy.get("max_retries", 3))
         inserted = 0
         pending = 0
@@ -113,14 +123,18 @@ class ScenarioDemandActuator:
             if bucket.target_delta_vph <= 0:
                 continue
             bucket.accumulator_s += dt
+            # Cap accrual while jammed so a later unblock does not dump a huge burst.
+            if bucket.pending >= max_pending:
+                bucket.accumulator_s = min(bucket.accumulator_s, bucket.interval_s)
             while bucket.accumulator_s >= bucket.interval_s and bucket.pending < max_pending:
                 bucket.accumulator_s -= bucket.interval_s
                 bucket.scheduled += 1
                 self.stats["scheduled_total"] += 1
                 bucket.pending += 1
-            # drain pending
+            # Drain pending: keep trying a few inserts per source per step.
             attempts = 0
-            while bucket.pending > 0 and attempts < max_retries * 2:
+            max_attempts = max(1, max_retries * 2)
+            while bucket.pending > 0 and attempts < max_attempts:
                 attempts += 1
                 ok = self._try_insert(traci_module, sid, bucket)
                 if ok:
@@ -134,6 +148,16 @@ class ScenarioDemandActuator:
                     break
             pending += bucket.pending
         self.stats["pending_total"] = pending
+        failed = int(self.stats["failed_total"])
+        if failed - self._last_logged_failed >= 250:
+            log.warning(
+                "Demand insert pressure profile=%s inserted=%s failed=%s pending=%s",
+                self.profile_id,
+                self.stats["inserted_total"],
+                failed,
+                pending,
+            )
+            self._last_logged_failed = failed
         return inserted
 
     def _try_insert(self, traci_module, source_id: str, bucket: SourceBucket) -> bool:
@@ -141,26 +165,44 @@ class ScenarioDemandActuator:
         route_key, fr, to, vtype = self._pick_route_vtype(source_id, self._seq)
         rid = f"r_{source_id}_{self._seq}"
         vid = f"d_{source_id}_{self._seq}"
+        edges = [fr, to]
         try:
-            edges = [fr, to]
+            found = traci_module.simulation.findRoute(fr, to)
+            if found and getattr(found, "edges", None):
+                edges = list(found.edges)
+        except Exception:
+            pass
+        try:
+            traci_module.route.add(rid, edges)
+        except Exception:
+            # Route id may already exist from a prior partial attempt.
+            pass
+        last_err: Exception | None = None
+        for depart_lane, depart_pos in _DEPART_TRIES:
             try:
-                found = traci_module.simulation.findRoute(fr, to)
-                if found and getattr(found, "edges", None):
-                    edges = list(found.edges)
-            except Exception:
-                pass
-            if rid not in traci_module.route.getIDList():
-                traci_module.route.add(rid, edges)
-            traci_module.vehicle.add(vid, rid, typeID=vtype, depart="now")
-            return True
-        except Exception as e:
-            log.debug("insert fail %s route=%s: %s", vid, route_key, e)
-            return False
+                traci_module.vehicle.add(
+                    vid,
+                    rid,
+                    typeID=vtype,
+                    depart="now",
+                    departLane=depart_lane,
+                    departPos=depart_pos,
+                    departSpeed="0",
+                )
+                return True
+            except Exception as e:
+                last_err = e
+                # Vehicle id is spent after a successful add; on failure SUMO
+                # should not keep it — continue with alternate depart placement.
+                continue
+        log.debug("insert fail %s route=%s: %s", vid, route_key, last_err)
+        return False
 
     def source_stats(self) -> Dict[str, Any]:
         return {
             sid: {
                 "target_delta_vph": b.target_delta_vph,
+                "interval_s": round(b.interval_s, 3),
                 "scheduled": b.scheduled,
                 "inserted": b.inserted,
                 "failed": b.failed,
