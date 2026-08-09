@@ -381,3 +381,163 @@ $env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
 cd frontend
 
 npm.cmd run dev
+
+## Cài đặt và chạy trên máy mới sau khi clone
+
+Lỗi `ModuleNotFoundError: No module named 'yaml'` nghĩa là virtualenv chưa cài
+PyYAML. Hãy cài toàn bộ dependency vào đúng virtualenv đang chạy.
+
+### Phần mềm bắt buộc
+
+Cần có Git, Docker Desktop (Compose v2), Python 3.12, Eclipse SUMO, JDK 21,
+PostgreSQL và Node.js 20+ (khuyến nghị Node 22 LTS).
+
+```powershell
+git --version
+docker version
+py --version
+java -version
+node --version
+psql --version
+```
+
+### Clone và PostgreSQL
+
+```powershell
+cd D:\
+git clone <URL_REPOSITORY>
+cd DO_AN_TTTN_v0
+```
+
+`docker-compose.yml` không tạo PostgreSQL. Spring mặc định dùng
+`localhost:5432/traffic`, user `erp_user`, password `123456`:
+
+```powershell
+psql -U postgres -c "CREATE USER erp_user WITH PASSWORD '123456';"
+psql -U postgres -c "CREATE DATABASE traffic OWNER erp_user;"
+```
+
+Nếu user hoặc database đã tồn tại thì giữ nguyên.
+
+### SUMO và Python
+
+Thay đường dẫn SUMO nếu cần:
+
+```powershell
+$env:SUMO_HOME="C:\Program Files (x86)\Eclipse\Sumo"
+$env:PATH="$env:SUMO_HOME\bin;$env:PATH"
+sumo-gui --version
+```
+
+Tạo virtualenv trong `Visualize\.venv`:
+
+```powershell
+cd D:\DO_AN_TTTN_v0\Visualize
+py -3.12 -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Kiểm tra:
+
+```powershell
+python -c "import sys; print(sys.executable)"
+python -m pip -V
+python -c "import yaml, traci, fastapi, confluent_kafka; print('Python dependencies OK')"
+```
+
+Nếu cần sửa nhanh lỗi trong hình:
+
+```powershell
+python -m pip install PyYAML
+```
+
+### Frontend
+
+```powershell
+cd D:\DO_AN_TTTN_v0\frontend
+npm.cmd ci
+```
+
+Nếu `npm ci` lỗi do lockfile, dùng `npm.cmd install`.
+
+### Docker stack
+
+```powershell
+cd D:\DO_AN_TTTN_v0
+docker compose up -d --build
+docker compose ps
+```
+
+Lần đầu Kafka/ClickHouse có thể mất 30–60 giây. Kiểm tra:
+
+```powershell
+Invoke-RestMethod http://localhost:8091/ready
+Invoke-RestMethod http://localhost:8092/ready
+Invoke-RestMethod http://localhost:8095/ready
+Invoke-RestMethod http://localhost:8096/ready
+Invoke-RestMethod http://localhost:8093/ready
+```
+
+HTTP 503 trong lúc warm-up là bình thường; không reset Kafka offset.
+
+### Spring Server
+
+Mở PowerShell riêng:
+
+```powershell
+$env:JAVA_HOME="C:\Program Files\Java\jdk-21"
+$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+$env:SPRING_PROFILES_ACTIVE="local,analytics"
+$env:SERVER_PORT="8081"
+$env:MAVEN_OPTS="-Xmx384m -XX:MaxMetaspaceSize=192m"
+
+cd D:\DO_AN_TTTN_v0\server
+.\mvnw.cmd spring-boot:run
+```
+
+### SUMO realtime liên tục
+
+Mở PowerShell riêng và chạy foreground để GUI/TraCI dùng cùng một phiên:
+
+```powershell
+cd D:\DO_AN_TTTN_v0\Visualize
+$env:SUMO_HOME="C:\Program Files (x86)\Eclipse\Sumo"
+$env:PATH="$env:SUMO_HOME\bin;$env:PATH"
+$env:ORION_PUBLISH_ENABLED="false"
+$env:ORION_SYNC_PUBLISH="false"
+$env:KAFKA_OUTBOX_ENABLED="true"
+$env:KAFKA_PUBLISH_ENABLED="false"
+$env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
+
+python -m app.traci_runner `
+  --gui `
+  --no-orion `
+  --nodes A,B,C,D `
+  --realtime `
+  --publish-interval 5 `
+  --log-level INFO
+```
+
+Không thêm `--max-sim-time` nếu muốn chạy liên tục. Cadence 5 giây giúp máy
+local không bị Projector vượt lag.
+
+### Dashboard
+
+Mở PowerShell riêng:
+
+```powershell
+cd D:\DO_AN_TTTN_v0\frontend
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
+```
+
+Mở `http://localhost:5173`, đăng nhập `admin` / `admin123`.
+
+Nếu vẫn gặp `No module named 'yaml'`, `python -m pip -V` phải trỏ vào
+`DO_AN_TTTN_v0\Visualize\.venv`; chạy lại `python -m pip install -r
+requirements.txt` bằng chính interpreter đó.
+
+Không chạy `docker compose down -v`, `docker volume prune` hoặc xóa SQLite
+outbox/Projector nếu muốn giữ dữ liệu và offset cho lần demo sau.
