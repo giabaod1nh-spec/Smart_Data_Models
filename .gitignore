@@ -33,14 +33,37 @@ env/
 # Runtime output / audit evidence
 ###############################################################################
 Visualize/artifacts/
+data/kafka/
 
 ###############################################################################
 # Internal documentation and tests
 ###############################################################################
 Visualize/docs/
 Visualize/tests/
-docs/implementation/Chuong2_Phan_tich_source_mo_phong.md
+!Visualize/tests/__init__.py
+!Visualize/tests/orion_async/
+!Visualize/tests/orion_async/**
+!Visualize/tests/tools/
+!Visualize/tests/tools/**
+# Team-facing documentation Source of Truth. Everything else under docs/ is
+# local/internal material and must not be added by future commits.
+docs/**
+!docs/shared/
+!docs/shared/**
+docs/Architecture_lock/
 
+de/artifacts/
+# pytest
+.pytest_cache/
+.pytest_tmp/
+.pytest-tmp*/
+.pytest-tmp-codex-realtime-final/
+.pytest_gold*/
+
+.pytest_plan3*/
+.pytest_followup*/
+artifacts/
+postman/
 ###############################################################################
 # Coverage
 ###############################################################################

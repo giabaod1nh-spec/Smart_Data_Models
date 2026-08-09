@@ -1,0 +1,23 @@
+{
+  "eventId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "eventVersion": "2.0.0",
+  "contractVersion": "2.0.0",
+  "eventType": "TrafficEntityObserved",
+  "source": "sumo",
+  "simulationRunId": "00000000-0000-4000-8000-000000000001",
+  "simulationTime": 1.0,
+  "cycleSequence": 0,
+  "entitySequence": 5,
+  "cycleEntityCount": 2,
+  "capturedAt": "2026-07-24T07:56:09Z",
+  "entityPayloadHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "entity": {
+    "id": "urn:ngsi-ld:Intersection:A",
+    "type": "Intersection",
+    "simulationRunId": { "type": "Property", "value": "00000000-0000-4000-8000-000000000001" },
+    "simulationTime": { "type": "Property", "value": 1.0 },
+    "scenarioId": { "type": "Property", "value": "normal" }
+  },
+  "nodeId": "A",
+  "scenarioId": "normal"
+}

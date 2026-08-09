@@ -28,12 +28,18 @@ def orion_base() -> str:
     return os.getenv("ORION_URL", "http://localhost:1026").rstrip("/")
 
 
-def delete_subscription(sub_id: str, timeout: float = 10.0) -> None:
+def delete_subscription(sub_id: str, timeout: float = 10.0) -> int:
     url = f"{orion_base()}/ngsi-ld/v1/subscriptions/{quote(sub_id, safe='')}"
     try:
-        requests.delete(url, headers=HEADERS, timeout=timeout)
-    except requests.RequestException:
-        pass
+        response = requests.delete(url, headers=HEADERS, timeout=timeout)
+    except requests.RequestException as exc:
+        raise RuntimeError(f"DELETE subscription failed: {exc}") from exc
+    if response.status_code not in (204, 404):
+        raise RuntimeError(
+            f"DELETE subscription expected HTTP 204/404; got "
+            f"{response.status_code}: {response.text[:400]}"
+        )
+    return response.status_code
 
 
 def get_subscription(sub_id: str, timeout: float = 10.0) -> Tuple[int, Dict[str, Any]]:

@@ -1,37 +1,101 @@
 package com.traffic.server.service;
 
 import com.traffic.server.config.AppProperties;
+import com.traffic.server.exception.RealtimeIdleException;
+import com.traffic.server.exception.RealtimeUnavailableException;
+import com.traffic.server.exception.RealtimeRunConflictException;
 import com.traffic.server.payload.*;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class RealtimeAggregateService {
 
     private final OrionService orionService;
+    private final ProjectorClient projectorClient;
     private final RealtimeConsistencyChecker consistencyChecker;
     private final long retryDelayMs;
+    private final double freshnessThresholdSec;
+    private final AtomicLong mismatchCounter = new AtomicLong();
 
     public RealtimeAggregateService(OrionService orionService,
+                                    ProjectorClient projectorClient,
                                     RealtimeConsistencyChecker consistencyChecker,
                                     AppProperties appProperties) {
         this.orionService = orionService;
+        this.projectorClient = projectorClient;
         this.consistencyChecker = consistencyChecker;
         this.retryDelayMs = appProperties.realtime().consistencyRetryMs();
+        this.freshnessThresholdSec = appProperties.realtime().freshnessThresholdSec();
     }
 
     public RealtimeIntersectionResponse getIntersectionAggregate(String intersectionId) {
-        RealtimeIntersectionResponse first = loadAggregate(intersectionId);
+        return getIntersectionAggregate(intersectionId, null);
+    }
+
+    public RealtimeIntersectionResponse getIntersectionAggregate(String intersectionId,
+                                                                 String requestedRunId) {
+        ProjectorClient.CurrentRunResult currentRun = projectorClient.fetchCurrentRun();
+        if (currentRun instanceof ProjectorClient.CurrentRunResult.Unavailable) {
+            throw new RealtimeUnavailableException("projector current-run unavailable");
+        }
+        if (currentRun instanceof ProjectorClient.CurrentRunResult.Idle) {
+            throw new RealtimeIdleException();
+        }
+        ProjectorCurrentRunResponse run = ((ProjectorClient.CurrentRunResult.Ok) currentRun).body();
+        if (requestedRunId != null && !requestedRunId.equals(run.simulationRunId())) {
+            throw new RealtimeRunConflictException(
+                    "requested run " + requestedRunId + " != active " + run.simulationRunId());
+        }
+        if (run.freshnessSeconds() != null && run.freshnessSeconds() > freshnessThresholdSec) {
+            throw new RealtimeUnavailableException("snapshot stale");
+        }
+        RealtimeIntersectionResponse first = loadAggregate(intersectionId, run);
         if (Boolean.TRUE.equals(first.getMetadata().getConsistent())) {
             return first;
         }
+        mismatchCounter.incrementAndGet();
         sleepQuietly(retryDelayMs);
-        return loadAggregate(intersectionId);
+        RealtimeIntersectionResponse second = loadAggregate(intersectionId, run);
+        if (!Boolean.TRUE.equals(second.getMetadata().getConsistent())) {
+            throw new RealtimeUnavailableException("mixed run after retry");
+        }
+        return second;
     }
 
-    private RealtimeIntersectionResponse loadAggregate(String intersectionId) {
+    public long getMismatchCount() {
+        return mismatchCounter.get();
+    }
+
+    public List<IntersectionResponse> getCurrentIntersections() {
+        ProjectorClient.CurrentRunResult currentRun = projectorClient.fetchCurrentRun();
+        if (currentRun instanceof ProjectorClient.CurrentRunResult.Unavailable) {
+            throw new RealtimeUnavailableException("projector current-run unavailable");
+        }
+        if (currentRun instanceof ProjectorClient.CurrentRunResult.Idle) {
+            throw new RealtimeIdleException();
+        }
+        ProjectorCurrentRunResponse run = ((ProjectorClient.CurrentRunResult.Ok) currentRun).body();
+        return filterCurrentRun(orionService.getIntersections(), run.simulationRunId());
+    }
+
+    static List<IntersectionResponse> filterCurrentRun(List<IntersectionResponse> intersections,
+                                                        String activeRunId) {
+        if (intersections == null || activeRunId == null || activeRunId.isBlank()) {
+            return List.of();
+        }
+        return intersections.stream()
+                .filter(Objects::nonNull)
+                .filter(item -> activeRunId.equals(item.getSimulationRunId()))
+                .toList();
+    }
+
+    private RealtimeIntersectionResponse loadAggregate(String intersectionId,
+                                                       ProjectorCurrentRunResponse currentRun) {
         IntersectionResponse intersection = orionService.getIntersection(intersectionId);
 
         List<TrafficLightResponse> trafficLights = new ArrayList<>();
@@ -56,7 +120,7 @@ public class RealtimeAggregateService {
         }
 
         RealtimeMetadata metadata = consistencyChecker.buildMetadata(
-                intersection, trafficLights, vehicleSensors, cameras);
+                currentRun, intersection, trafficLights, vehicleSensors, cameras);
 
         return RealtimeIntersectionResponse.builder()
                 .intersection(intersection)

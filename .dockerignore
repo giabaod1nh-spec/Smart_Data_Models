@@ -1,0 +1,29 @@
+# Version-control and editor metadata
+.git/
+.cursor/
+.idea/
+.vscode/
+
+# Python caches and local environments
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Runtime state is mounted at container runtime and must never enter images.
+data/
+de/artifacts/
+Visualize/artifacts/
+
+# Internal reports/evidence are not image dependencies.
+docs/
+
+# Local output
+coverage/
+htmlcov/
+*.log
+*.tmp
+*.bak

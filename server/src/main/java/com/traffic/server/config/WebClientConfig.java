@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
@@ -13,6 +14,11 @@ import java.time.Duration;
 @Configuration
 @EnableConfigurationProperties({AppProperties.class, OrionProperties.class})
 public class WebClientConfig {
+
+    @Bean
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
+    }
 
     @Bean
     public WebClient orionWebClient(OrionProperties orion) {
@@ -27,6 +33,22 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .baseUrl(orion.apiBaseUrl())
                 .defaultHeader(HttpHeaders.LINK, linkHeader)
+                .defaultHeader(HttpHeaders.ACCEPT, "application/ld+json")
+                .build();
+    }
+
+    /**
+     * List queries without Link context — custom Link + type filter returns [] on local Orion
+     * while entity-by-id reads still work. Normalized entities are returned as stored.
+     */
+    @Bean
+    public WebClient orionListWebClient(OrionProperties orion) {
+        HttpClient httpClient = HttpClient.create()
+                .responseTimeout(Duration.ofMillis(orion.timeoutMs()));
+
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .baseUrl(orion.apiBaseUrl())
                 .defaultHeader(HttpHeaders.ACCEPT, "application/ld+json")
                 .build();
     }

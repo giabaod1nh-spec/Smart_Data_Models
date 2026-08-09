@@ -1,0 +1,12 @@
+{
+  "update_method": "PATCH",
+  "inactive_field": "isActive",
+  "inactive_value": false,
+  "active_value": true,
+  "get_status": 200,
+  "update_status": 204,
+  "create_status": 201,
+  "delete_status": 204,
+  "absent_status": 404,
+  "content_type": "application/ld+json"
+}

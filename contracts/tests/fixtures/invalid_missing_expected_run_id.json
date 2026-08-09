@@ -1,0 +1,11 @@
+{
+  "contractVersion": "1.0",
+  "commandId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "commandType": "FORCE_PHASE",
+  "target": {"intersectionId": "A", "direction": null, "overlayId": null},
+  "payload": {"phase": "GREEN_NS"},
+  "idempotencyKey": "idem-missing-run",
+  "requestedAt": "2026-08-05T12:00:00Z",
+  "expiresAt": "2026-08-05T12:05:00Z",
+  "source": "DASHBOARD"
+}

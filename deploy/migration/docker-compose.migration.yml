@@ -1,0 +1,38 @@
+# Migration / dual-path profile (Architecture Lock)
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.migration.yml --env-file deploy/profiles/migration.env up -d
+#
+# Keeps de-webhook deployed. Adds orion-projector with shadow namespace.
+
+services:
+  de-webhook:
+    # Explicitly clear profiles so webhook runs under migration stack
+    profiles: []
+
+  orion-projector:
+    build:
+      context: .
+      dockerfile: Visualize/Dockerfile.projector
+    container_name: orion-projector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      orion:
+        condition: service_started
+    ports:
+      - "8093:8092"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: traffic.entity-events.v2
+      ORION_URL: http://orion:1026
+      PROJECTOR_SHADOW_MODE: "true"
+      PROJECTOR_TARGET_NAMESPACE: shadow
+      PROJECTOR_GROUP_ID: projector-migration
+      PROJECTOR_HEALTH_HOST: 0.0.0.0
+      PROJECTOR_HEALTH_PORT: "8092"
+      PROJECTOR_DB: /app/Visualize/artifacts/projector/live.sqlite3
+      ARCHITECTURE_PROFILE: migration
+      ARCHITECTURE_LOCK_SMOKE: "false"
+    volumes:
+      - ./Visualize/artifacts:/app/Visualize/artifacts

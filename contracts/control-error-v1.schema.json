@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-traffic.local/contracts/control-error-v1.schema.json",
+  "title": "Control Error v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message", "requestId"],
+  "properties": {
+    "code": {"type": "string", "enum": ["INVALID_COMMAND", "INVALID_TARGET", "INVALID_PHASE", "INVALID_DURATION", "INVALID_SCENARIO", "STALE_RUN", "SIMULATION_NOT_RUNNING", "RESOURCE_BUSY", "QUEUE_FULL", "COMMAND_EXPIRED", "RUNTIME_RESTARTED", "UNKNOWN_OUTCOME", "TRACI_OPERATION_FAILED", "UPSTREAM_UNAVAILABLE", "OBSERVATION_TIMEOUT", "OBSERVATION_MISMATCH", "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST", "COMMAND_NOT_FOUND"]},
+    "message": {"type": "string", "minLength": 1, "maxLength": 512},
+    "requestId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "details": {"type": ["object", "null"]}
+  }
+}

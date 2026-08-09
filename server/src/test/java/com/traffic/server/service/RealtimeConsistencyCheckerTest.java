@@ -13,31 +13,46 @@ class RealtimeConsistencyCheckerTest {
 
     private final RealtimeConsistencyChecker checker = new RealtimeConsistencyChecker(
             new AppProperties(
-                    new AppProperties.ControlApi("http://localhost:9090", 5000, 65536),
+                    new AppProperties.ControlApi("http://localhost:9090", 5000, 65536, ""),
+                    new AppProperties.Control(false, false, true),
                     new AppProperties.ContextProvider("http://localhost:3004/x"),
-                    new AppProperties.Realtime(150L, 0.0001),
+                    new AppProperties.Realtime(150L, 0.0001, 2.0),
                     new AppProperties.Security(new AppProperties.Security.Admin("admin", "admin123"))
             ));
 
     @Test
     void consistentWhenMetadataMatches() {
+        ProjectorCurrentRunResponse currentRun = currentRun();
         IntersectionResponse intersection = baseIntersection();
         TrafficLightResponse tl = trafficLightMatching(intersection);
         RealtimeMetadata meta = checker.buildMetadata(
-                intersection, List.of(tl), List.of(), List.of());
+                currentRun, intersection, List.of(tl), List.of(), List.of());
         assertTrue(meta.getConsistent());
     }
 
     @Test
     void inconsistentWhenSimulationTimeDiffers() {
+        ProjectorCurrentRunResponse currentRun = currentRun();
         IntersectionResponse intersection = baseIntersection();
         TrafficLightResponse tl = trafficLightMatching(intersection);
         tl.setSimulationTime(999.0);
         RealtimeMetadata meta = checker.buildMetadata(
-                intersection, List.of(tl), List.of(), List.of());
+                currentRun, intersection, List.of(tl), List.of(), List.of());
         assertFalse(meta.getConsistent());
         assertTrue(meta.getConsistencyIssues().stream()
                 .anyMatch(s -> s.contains("simulationTime")));
+    }
+
+    private static ProjectorCurrentRunResponse currentRun() {
+        return new ProjectorCurrentRunResponse(
+                "run-1",
+                "normal",
+                120.5,
+                "ACTIVE",
+                120,
+                0.5,
+                "2026-08-05T00:00:00Z"
+        );
     }
 
     private static IntersectionResponse baseIntersection() {

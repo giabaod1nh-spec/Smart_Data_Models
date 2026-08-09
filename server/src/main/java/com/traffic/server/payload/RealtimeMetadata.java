@@ -18,4 +18,6 @@ public class RealtimeMetadata {
     private String scenarioId;
     private Boolean consistent;
     private List<String> consistencyIssues;
+    private String projectorStatus;
+    private Double freshnessSeconds;
 }

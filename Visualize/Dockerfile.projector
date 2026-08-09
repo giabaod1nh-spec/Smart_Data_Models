@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY Visualize/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY contracts/ /app/contracts/
+COPY Visualize/ /app/Visualize/
+
+WORKDIR /app/Visualize
+ENV PYTHONPATH=/app:/app/Visualize
+ENV PROJECTOR_HEALTH_HOST=0.0.0.0
+ENV PROJECTOR_HEALTH_PORT=8092
+
+EXPOSE 8092
+
+CMD ["python", "tools/projector_live_consumer.py"]

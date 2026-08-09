@@ -1,0 +1,92 @@
+{
+  "eventId": "d6b9393470caa8f033ff7a3f9a2ec934f174c809d389fe80404fbac152941afa",
+  "eventVersion": "2.0.0",
+  "contractVersion": "2.0.0",
+  "eventType": "TrafficEntityObserved",
+  "source": "sumo",
+  "simulationRunId": "00000000-0000-4000-8000-000000000001",
+  "simulationTime": 120.5,
+  "scenarioId": "normal",
+  "nodeId": "A",
+  "cycleSequence": 0,
+  "entitySequence": 1,
+  "cycleEntityCount": 4,
+  "nodeEntityCount": 4,
+  "capturedAt": "2026-07-24T07:56:09Z",
+  "producerId": "visualize-traci",
+  "producerSessionId": "session-example-001",
+  "traceId": "trace-example-001",
+  "correlationId": "00000000-0000-4000-8000-000000000001:0",
+  "entityPayloadHash": "16f4d3baab44fb0eb9f5a74e7e56b0ea3386ff0ce478b94fe412ab491923f3fb",
+  "entity": {
+    "id": "urn:ngsi-ld:TrafficLight:A-North",
+    "type": "TrafficLight",
+    "name": {
+      "type": "Property",
+      "value": "Nguyen Hue - Le Loi NORTHBOUND"
+    },
+    "location": {
+      "type": "GeoProperty",
+      "value": {
+        "type": "Point",
+        "coordinates": [
+          106.7009,
+          10.7769
+        ]
+      }
+    },
+    "currentStatus": {
+      "type": "Property",
+      "value": "GREEN"
+    },
+    "currentPhase": {
+      "type": "Property",
+      "value": "NS_GREEN"
+    },
+    "timingMode": {
+      "type": "Property",
+      "value": "FIXED_TIME"
+    },
+    "workingState": {
+      "type": "Property",
+      "value": "OK"
+    },
+    "trafficDirection": {
+      "type": "Property",
+      "value": "NORTHBOUND"
+    },
+    "greenDurationCurrent": {
+      "type": "Property",
+      "value": 42
+    },
+    "redDurationCurrent": {
+      "type": "Property",
+      "value": 42
+    },
+    "yellowDuration": {
+      "type": "Property",
+      "value": 3
+    },
+    "refIntersection": {
+      "type": "Relationship",
+      "object": "urn:ngsi-ld:Intersection:A"
+    },
+    "refCamera": {
+      "type": "Relationship",
+      "object": "urn:ngsi-ld:Camera:A"
+    },
+    "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+    "simulationTime": {
+      "type": "Property",
+      "value": 120.5
+    },
+    "simulationRunId": {
+      "type": "Property",
+      "value": "00000000-0000-4000-8000-000000000001"
+    },
+    "scenarioId": {
+      "type": "Property",
+      "value": "normal"
+    }
+  }
+}

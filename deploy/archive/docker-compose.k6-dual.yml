@@ -1,0 +1,23 @@
+# K-6a Historical dual-ingest validation. Webhook/subscription stay active.
+services:
+  de-webhook:
+    profiles: []
+    environment:
+      ARCHITECTURE_PROFILE: k6-dual
+      DE_WEBHOOK_ENABLED: "true"
+
+  de-kafka-raw-consumer:
+    environment:
+      ARCHITECTURE_PROFILE: k6-dual
+      K4_CUTOVER_MAX_LAG: "0"
+
+  de-bronze-processor:
+    environment:
+      ARCHITECTURE_PROFILE: k6-dual
+
+  orion-projector:
+    environment:
+      ARCHITECTURE_PROFILE: k6-dual
+      PROJECTOR_SHADOW_MODE: "false"
+      PROJECTOR_TARGET_NAMESPACE: production
+      DE_WEBHOOK_ENABLED: "true"

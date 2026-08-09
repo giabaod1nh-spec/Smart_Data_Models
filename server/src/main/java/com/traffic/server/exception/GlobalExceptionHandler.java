@@ -1,5 +1,11 @@
 package com.traffic.server.exception;
 
+import com.traffic.server.analytics.exception.AnalyticsNotReadyException;
+import com.traffic.server.analytics.exception.AnalyticsQueryTimeoutException;
+import com.traffic.server.analytics.exception.AnalyticsUnavailableException;
+import com.traffic.server.analytics.exception.InvalidAnalyticsQueryException;
+import com.traffic.server.control.command.IdempotencyConflictException;
+import com.traffic.server.control.command.ResourceBusyException;
 import com.traffic.server.payload.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -43,6 +49,45 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(503, "SERVICE_UNAVAILABLE", e.getMessage(), request.getRequestURI()));
     }
 
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIdempotencyConflict(IdempotencyConflictException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidAnalyticsQueryException.class)
+    public ResponseEntity<ApiResponse<Object>> handleInvalidAnalyticsQuery(InvalidAnalyticsQueryException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), e.errorCode() + ": " + e.getMessage()));
+    }
+
+    @ExceptionHandler(AnalyticsNotReadyException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAnalyticsNotReady(AnalyticsNotReadyException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        e.errorCode() + ": " + e.getMessage()));
+    }
+
+    @ExceptionHandler(AnalyticsUnavailableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAnalyticsUnavailable(AnalyticsUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        "ANALYTICS_UNAVAILABLE: " + e.getMessage()));
+    }
+
+    @ExceptionHandler(AnalyticsQueryTimeoutException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAnalyticsQueryTimeout(AnalyticsQueryTimeoutException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        "QUERY_TIMEOUT: " + e.getMessage()));
+    }
+
+    @ExceptionHandler(ResourceBusyException.class)
+    public ResponseEntity<ApiResponse<Object>> handleResourceBusy(ResourceBusyException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), e.getMessage()));
+    }
+
     @ExceptionHandler(ControlApiTimeoutException.class)
     public ResponseEntity<ErrorResponse> handleControlTimeout(ControlApiTimeoutException e,
                                                               HttpServletRequest request) {
@@ -62,6 +107,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ApiResponse.error(HttpStatus.BAD_GATEWAY.value(),
                         "Cannot reach Orion Context Broker: " + e.getMessage()));
+    }
+
+    @ExceptionHandler(RealtimeIdleException.class)
+    public ResponseEntity<Void> handleRealtimeIdle(RealtimeIdleException e) {
+        return ResponseEntity.noContent().build();
+    }
+
+    @ExceptionHandler(RealtimeUnavailableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleRealtimeUnavailable(RealtimeUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(HttpStatus.SERVICE_UNAVAILABLE.value(), e.getMessage()));
+    }
+
+    @ExceptionHandler(RealtimeRunConflictException.class)
+    public ResponseEntity<ApiResponse<Object>> handleRealtimeConflict(RealtimeRunConflictException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

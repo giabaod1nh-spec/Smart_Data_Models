@@ -1,0 +1,21 @@
+{
+  "run_id": "s4e1785771601",
+  "namespace": "replay:s4e1785771601",
+  "processed": 1,
+  "partition": 0,
+  "target_offset": 67556,
+  "main_before": {
+    "traffic": 3314,
+    "quarantine": 309,
+    "approach": 16
+  },
+  "main_after": {
+    "traffic": 3327,
+    "quarantine": 309,
+    "approach": 16
+  },
+  "replay_facts_for_run": 1,
+  "replay_quarantine_for_run": 0,
+  "live_checkpoint_unchanged": true,
+  "suppressed_dims": 1
+}

@@ -1,0 +1,11 @@
+{
+  "eventType": "TrafficSimulationRunStarted",
+  "eventVersion": "2.0.0",
+  "contractVersion": "2.0.0",
+  "source": "sumo",
+  "producerId": "visualize-traci",
+  "producerSessionId": "session-example-001",
+  "simulationRunId": "00000000-0000-4000-8000-000000000001",
+  "startedAt": "2026-07-24T07:56:00Z",
+  "scenarioId": "normal"
+}
