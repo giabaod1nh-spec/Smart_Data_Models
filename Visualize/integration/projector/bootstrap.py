@@ -61,6 +61,21 @@ def reconcile_broker_commit(
         )
 
 
+def reconcile_retention_floor(
+    store,
+    topic: str,
+    partition: int,
+    *,
+    log_start_offset: int,
+) -> Optional[tuple[int, int]]:
+    """Advance an existing SQLite authority past broker-retained-away offsets."""
+    return store.advance_past_retention_gap(
+        topic,
+        partition,
+        log_start_offset=int(log_start_offset),
+    )
+
+
 def build_normal_on_assign_seek(
     store,
     topic: str,

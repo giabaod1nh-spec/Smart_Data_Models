@@ -418,14 +418,27 @@ class OrionProjector:
 
     def recover(self, topic: str, partitions: Sequence[int], *, producer_id: str = "visualize-traci") -> None:
         for p in partitions:
-            last = self.store.rebuild_completed_offsets(topic, p)
+            # The partition commit is the durable authority.  Ledger rows can
+            # be retention-pruned, so rebuilding from the oldest remaining row
+            # could otherwise regress this offset on every restart.  Only use
+            # the ledger to bootstrap a missing authority or advance through a
+            # contiguous terminal suffix written before a crash.
+            persisted = self.store.get_committed_offset(topic, p)
+            last = self.store.rebuild_completed_offsets(
+                topic, p, after_offset=persisted
+            )
             if last is not None:
                 self.offsets.load_committed(topic, p, last)
-                self.store.set_committed_offset(topic, p, last)
+                if persisted is None or last > persisted:
+                    self.store.set_committed_offset(topic, p, last)
+        active = self.store.get_active_run(source=self.source, producer_id=producer_id)
+        if active is not None:
+            self.store.reconcile_runtime_state_from_entities(
+                str(active["simulation_run_id"])
+            )
         self.runtime_cache.rebuild_from_store(
             self.store, source=self.source, producer_id=producer_id
         )
-        active = self.store.get_active_run(source=self.source, producer_id=producer_id)
         self.runtime_phase = RuntimePhase.READY_IDLE if active is None else RuntimePhase.ACTIVE
 
     def process_record(
@@ -938,6 +951,52 @@ class OrionProjector:
         entities_out = filtered_entities
         meta = filtered_meta
 
+        # Buffers from different partitions/cycles may become ready out of
+        # order. Re-check durable entity state immediately before the Orion
+        # write so a delayed buffer can never overwrite newer current state.
+        current_states = self.store.get_entity_states(
+            buf.simulation_run_id,
+            [str(be.event["entity"]["id"]) for be in meta],
+        )
+        monotonic_entities: List[dict] = []
+        monotonic_meta: List[BufferedEvent] = []
+        regressed_rows: List[dict] = []
+        for ent, be in zip(entities_out, meta):
+            entity_id = str(be.event["entity"]["id"])
+            state = current_states.get(entity_id)
+            incoming_cycle = int(be.event.get("cycleSequence") or 0)
+            incoming_time = float(be.event.get("simulationTime") or 0)
+            is_regression = bool(
+                state
+                and (
+                    incoming_cycle < int(state["last_cycle_sequence"])
+                    or incoming_time < float(state.get("last_simulation_time") or 0) - 1e-9
+                )
+            )
+            if not is_regression:
+                monotonic_entities.append(ent)
+                monotonic_meta.append(be)
+                continue
+            regressed_rows.append({
+                "event_id": be.event["eventId"],
+                "topic": be.topic,
+                "partition": be.partition,
+                "offset": be.offset,
+                "simulation_run_id": buf.simulation_run_id,
+                "cycle_sequence": incoming_cycle,
+                "entity_id": entity_id,
+                "status": STATUS_SIM_TIME_REGRESSION,
+                "payload_hash": be.event["entityPayloadHash"],
+            })
+            self.metrics["stale_event_count"] += 1
+            self.metrics["projector_stale_total"] += 1
+            if self._can_commit_offsets():
+                self.offsets.mark_completed(be.topic, be.partition, be.offset)
+        if regressed_rows:
+            self.store.apply_batch_tx(ledger_rows=regressed_rows, entity_updates=[])
+        entities_out = monotonic_entities
+        meta = monotonic_meta
+
         if not meta:
             # Entire cycle already applied — commit offsets only.
             if self._can_commit_offsets():
@@ -1098,7 +1157,7 @@ class OrionProjector:
             )
             if self.runtime_phase == RuntimePhase.DEGRADED:
                 rt_status = RuntimeStatus.DEGRADED
-            self.store.set_runtime_state(
+            runtime_state = self.store.set_runtime_state(
                 simulation_run_id=buf.simulation_run_id,
                 scenario_id=scenario_id,
                 simulation_time=sim_time,
@@ -1107,12 +1166,12 @@ class OrionProjector:
                 freshness_seconds=fresh,
             )
             self.runtime_cache.update_after_apply(
-                simulation_run_id=buf.simulation_run_id,
-                scenario_id=scenario_id,
-                simulation_time=sim_time,
-                last_applied_cycle=buf.cycle_sequence,
-                freshness_seconds=fresh,
-                status=rt_status,
+                simulation_run_id=str(runtime_state["simulation_run_id"]),
+                scenario_id=runtime_state.get("scenario_id"),
+                simulation_time=float(runtime_state["simulation_time"]),
+                last_applied_cycle=int(runtime_state["last_applied_cycle"]),
+                freshness_seconds=runtime_state.get("freshness_seconds"),
+                status=RuntimeStatus(str(runtime_state["status"])),
             )
             self.runtime_phase = (
                 RuntimePhase.CATCH_UP

@@ -117,6 +117,55 @@ class LedgerStore:
                 ),
             )
 
+    def mark_complete_batch(self, rows: list[Dict[str, Any]]) -> None:
+        """Durably mark a batch after its Raw/Quarantine insert succeeded.
+
+        Recovery and rebalance paths can contain thousands of records.  Keep
+        the same ledger semantics as ``mark_complete`` but commit one SQLite
+        transaction for the batch instead of fsyncing once per row.
+        """
+        if not rows:
+            return
+        now = _utc_now()
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                self._conn.executemany(
+                    """
+                    INSERT INTO raw_consumer_ledger (
+                        topic, partition_id, offset_value, raw_ingestion_id,
+                        destination, status, event_id, payload_hash,
+                        retry_count, last_error, consumed_at, completed_at
+                    ) VALUES (?,?,?,?,?,?,?,?,0,NULL,?,?)
+                    ON CONFLICT(topic, partition_id, offset_value) DO UPDATE SET
+                        raw_ingestion_id=excluded.raw_ingestion_id,
+                        destination=excluded.destination,
+                        status=excluded.status,
+                        event_id=excluded.event_id,
+                        payload_hash=excluded.payload_hash,
+                        completed_at=excluded.completed_at
+                    """,
+                    [
+                        (
+                            r["topic"],
+                            int(r["partition"]),
+                            int(r["offset"]),
+                            str(r["raw_ingestion_id"]),
+                            r["destination"],
+                            r["status"],
+                            r.get("event_id"),
+                            r.get("payload_bytes_hash"),
+                            now,
+                            now,
+                        )
+                        for r in rows
+                    ],
+                )
+                self._conn.execute("COMMIT")
+            except Exception:
+                self._conn.execute("ROLLBACK")
+                raise
+
     def is_complete(self, topic: str, partition: int, offset: int) -> bool:
         row = self.get(topic, partition, offset)
         return bool(row and row["status"] in (STATUS_STORED, STATUS_QUARANTINED))

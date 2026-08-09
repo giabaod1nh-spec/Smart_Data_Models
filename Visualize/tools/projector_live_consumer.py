@@ -26,6 +26,7 @@ from integration.projector.bootstrap import (
     build_demo_assignments,
     build_normal_on_assign_seek,
     reconcile_broker_commit,
+    reconcile_retention_floor,
 )
 log = logging.getLogger("projector.live")
 
@@ -458,6 +459,23 @@ def main() -> int:
         from confluent_kafka import TopicPartition as TP
 
         part_nums = [int(tp.partition) for tp in partitions]
+        for tp in partitions:
+            part = int(tp.partition)
+            low, _high = cons.get_watermark_offsets(tp, timeout=10.0)
+            gap = reconcile_retention_floor(
+                store,
+                args.topic,
+                part,
+                log_start_offset=int(low),
+            )
+            if gap is not None:
+                log.warning(
+                    "retention gap audited p=%s unavailable=%s..%s log_start=%s",
+                    part,
+                    gap[0],
+                    gap[1],
+                    low,
+                )
         seeks = build_normal_on_assign_seek(
             store, args.topic, part_nums, brand_new_sqlite=brand_new_sqlite
         )

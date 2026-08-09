@@ -433,10 +433,11 @@ class GoldClickHouseRepository:
         if not source_set_hashes:
             return {}
         sql = (
-            "SELECT source_set_hash, revision_seq, disposition "
+            "SELECT source_set_hash, revision_seq, argMax(disposition, computed_at) "
             f"FROM {self.database}.{LEDGER_TABLE} "
             "WHERE namespace = {ns:String} "
-            "  AND source_set_hash IN {hashes:Array(String)}"
+            "  AND source_set_hash IN {hashes:Array(String)} "
+            "GROUP BY source_set_hash, revision_seq"
         )
         result = self.client.query(
             sql, parameters={"ns": namespace, "hashes": list(source_set_hashes)}

@@ -43,7 +43,11 @@ def classify_raw_record(
             if key not in body:
                 return "INVALID_SCHEMA", body, str(body.get("simulationRunId") or "") or None
         # eventId is optional — core derives run-started:{session}:{run}
-    elif event_type is None:
+    else:
+        # Any event type outside the projector protocol is poison.  Returning
+        # it as a normal body makes core label it "ignored" without a terminal
+        # ledger disposition, permanently blocking the contiguous partition
+        # commit prefix.
         return "INVALID_PROTOCOL", body, None
     return "", body, str(body.get("simulationRunId") or "") or None
 

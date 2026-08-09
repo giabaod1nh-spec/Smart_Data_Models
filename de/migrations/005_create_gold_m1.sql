@@ -4,27 +4,10 @@
 
 CREATE DATABASE IF NOT EXISTS smart_traffic;
 
--- Recreate empty Gold M1 objects so additive harden columns and view semantics apply.
--- Gold runtime facts are not produced until Gold 2; drop is schema-only for M1.
-DROP VIEW IF EXISTS smart_traffic.gold_mart_network_window_overview;
-DROP VIEW IF EXISTS smart_traffic.gold_mart_intersection_window_summary;
-DROP VIEW IF EXISTS smart_traffic.gold_mart_direction_window_summary;
-DROP VIEW IF EXISTS smart_traffic.gold_mart_congestion_window;
-DROP VIEW IF EXISTS smart_traffic.gold_mart_priority_window_ranking;
-DROP VIEW IF EXISTS smart_traffic.gold_mart_signal_operation_window;
-
-DROP TABLE IF EXISTS smart_traffic.gold_processing_ledger;
-DROP TABLE IF EXISTS smart_traffic.gold_fact_kpi_result;
-DROP TABLE IF EXISTS smart_traffic.gold_fact_signal_operation_window;
-DROP TABLE IF EXISTS smart_traffic.gold_fact_traffic_comparison;
-DROP TABLE IF EXISTS smart_traffic.gold_fact_intersection_window;
-DROP TABLE IF EXISTS smart_traffic.gold_fact_traffic_window;
-DROP TABLE IF EXISTS smart_traffic.gold_dim_metric_definition;
-DROP TABLE IF EXISTS smart_traffic.gold_dim_window;
-DROP TABLE IF EXISTS smart_traffic.gold_dim_approach;
-DROP TABLE IF EXISTS smart_traffic.gold_dim_intersection;
-DROP TABLE IF EXISTS smart_traffic.gold_dim_scenario;
-DROP TABLE IF EXISTS smart_traffic.gold_dim_run;
+-- Canonical runtime migration is restart-safe.  This file is executed by the
+-- Compose migration job on every canonical startup, so it must never destroy
+-- Gold facts, dimensions, ledger evidence, or views.  Schema replacement is a
+-- separately reviewed migration/rollout operation, not a startup side effect.
 
 CREATE TABLE IF NOT EXISTS smart_traffic.gold_dim_run (
     simulation_run_id String,

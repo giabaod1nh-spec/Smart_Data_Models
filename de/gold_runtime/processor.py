@@ -53,6 +53,7 @@ from de.gold_runtime.dimensions import (
 from de.gold_runtime.instance_lock import GoldLockLost, InstanceLock
 from de.gold_runtime.metrics import HealthSnapshot, Metrics, utc_str
 from de.gold_runtime.processing_ledger import (
+    DISPOSITION_CHECKPOINTED,
     DISPOSITION_PERSISTED,
     DISPOSITION_RECEIVED,
     DISPOSITION_REPLAYED,
@@ -65,6 +66,7 @@ from de.gold_runtime.processing_ledger import (
     build_manifest,
     input_digest,
     output_digest,
+    work_unit_terminal_disposition,
 )
 from de.gold_runtime.repositories import (
     PERSISTENCE_ORDER,
@@ -616,6 +618,15 @@ class GoldProcessor:
             batch_id,
             WorkUnitState.REPLAYED if self.settings.is_replay() else WorkUnitState.CHECKPOINTED,
         )
+        if not self.settings.is_replay():
+            # SQLite is the checkpoint authority. Publish externally visible
+            # terminal evidence only after that durable transition succeeds.
+            self._record_ledger(
+                observed_hash,
+                target_revision,
+                DISPOSITION_CHECKPOINTED,
+                computed_at,
+            )
         if self.settings.is_replay():
             self.metrics.replay_batches_total += 1
         self.metrics.facts_written_total += written
@@ -841,6 +852,7 @@ class GoldProcessor:
                 recovered += 1
             else:
                 self.store.set_work_unit_state(unit.batch_id, WorkUnitState.FAILED_RETRYABLE)
+        self._reconcile_terminal_ledger_evidence()
         self.metrics.recovered_work_units_total += recovered
         self.metrics.ledger_recovery_counts = {
             "non_terminal_at_start": len(units),
@@ -848,6 +860,49 @@ class GoldProcessor:
         }
         self._non_terminal = len(self.store.non_terminal_work_units(self.settings.namespace))
         return recovered
+
+    def _reconcile_terminal_ledger_evidence(self) -> int:
+        """Backfill ClickHouse terminal evidence from authoritative SQLite state.
+
+        A crash can occur after the SQLite work unit becomes terminal but before
+        the corresponding ClickHouse ledger row is acknowledged.  Such a unit
+        must never be replayed; instead, publish the missing terminal evidence
+        idempotently during startup recovery.
+        """
+        candidates: list[tuple[str, int, str]] = []
+        for unit in self.store.terminal_work_units(self.settings.namespace):
+            disposition = work_unit_terminal_disposition(WorkUnitState(unit.state))
+            if disposition is None:
+                continue
+            window_state = self.store.get_window_state(
+                unit.namespace,
+                unit.window_id,
+                unit.revision_seq,
+            )
+            if window_state is None or not window_state.source_set_hash:
+                raise IdentityConflictError(
+                    f"terminal work unit {unit.batch_id} has no batch source_set_hash"
+                )
+            candidates.append(
+                (window_state.source_set_hash, int(unit.revision_seq), disposition)
+            )
+
+        existing = self.repository.find_ledger_dispositions(
+            self.settings.namespace,
+            sorted({source_hash for source_hash, _, _ in candidates}),
+        )
+        backfilled = 0
+        for source_hash, revision_seq, disposition in candidates:
+            if existing.get((source_hash, revision_seq)) == disposition:
+                continue
+            self._record_ledger(
+                source_hash,
+                revision_seq,
+                disposition,
+                self.clock(),
+            )
+            backfilled += 1
+        return backfilled
 
     # ── health ──────────────────────────────────────────────────────────────
 

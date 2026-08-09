@@ -47,6 +47,17 @@ CREATE TABLE IF NOT EXISTS projector_partition_commits (
     PRIMARY KEY (topic, partition)
 );
 
+CREATE TABLE IF NOT EXISTS projector_offset_gap_ledger (
+    topic TEXT NOT NULL,
+    partition INTEGER NOT NULL,
+    from_offset INTEGER NOT NULL,
+    to_offset INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (topic, partition, from_offset, to_offset),
+    CHECK (to_offset >= from_offset)
+);
+
 CREATE INDEX IF NOT EXISTS idx_ledger_status_completed
 ON projector_event_ledger(status, completed_at);
 

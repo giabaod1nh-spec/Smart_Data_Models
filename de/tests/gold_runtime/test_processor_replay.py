@@ -66,6 +66,7 @@ def test_processor_calls_public_engine_once_per_window(tmp_path, store):
     dispositions = {row.disposition for row in repository.ledger}
     assert "RECEIVED" in dispositions
     assert "PERSISTED" in dispositions
+    assert "CHECKPOINTED" in dispositions
 
 
 def test_processor_idempotent_on_closed_window(tmp_path, store):

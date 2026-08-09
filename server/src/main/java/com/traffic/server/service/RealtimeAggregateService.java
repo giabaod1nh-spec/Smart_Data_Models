@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -68,6 +69,29 @@ public class RealtimeAggregateService {
 
     public long getMismatchCount() {
         return mismatchCounter.get();
+    }
+
+    public List<IntersectionResponse> getCurrentIntersections() {
+        ProjectorClient.CurrentRunResult currentRun = projectorClient.fetchCurrentRun();
+        if (currentRun instanceof ProjectorClient.CurrentRunResult.Unavailable) {
+            throw new RealtimeUnavailableException("projector current-run unavailable");
+        }
+        if (currentRun instanceof ProjectorClient.CurrentRunResult.Idle) {
+            throw new RealtimeIdleException();
+        }
+        ProjectorCurrentRunResponse run = ((ProjectorClient.CurrentRunResult.Ok) currentRun).body();
+        return filterCurrentRun(orionService.getIntersections(), run.simulationRunId());
+    }
+
+    static List<IntersectionResponse> filterCurrentRun(List<IntersectionResponse> intersections,
+                                                        String activeRunId) {
+        if (intersections == null || activeRunId == null || activeRunId.isBlank()) {
+            return List.of();
+        }
+        return intersections.stream()
+                .filter(Objects::nonNull)
+                .filter(item -> activeRunId.equals(item.getSimulationRunId()))
+                .toList();
     }
 
     private RealtimeIntersectionResponse loadAggregate(String intersectionId,

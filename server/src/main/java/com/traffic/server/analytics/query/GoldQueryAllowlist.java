@@ -16,11 +16,12 @@ public final class GoldQueryAllowlist {
             "NORTH", "SOUTH", "EAST", "WEST", "UNKNOWN");
 
     public static final Set<String> COMPARISON_METRICS = Set.of(
-            "VEHICLE_COUNT",
-            "QUEUE_LENGTH_M",
-            "SPEED_KMH",
-            "OCCUPANCY_PCT",
-            "PCU_EQUIVALENT");
+            "AVG_SPEED_KMH",
+            "AVG_QUEUE_LENGTH_M",
+            "MAX_QUEUE_LENGTH_M",
+            "AVG_OCCUPANCY_PCT",
+            "AVG_VEHICLE_COUNT",
+            "AVG_ARRIVAL_RATE_PCU_PER_SEC");
 
     private GoldQueryAllowlist() {}
 }

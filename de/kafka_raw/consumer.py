@@ -453,13 +453,29 @@ class RawKafkaConsumer:
                 "durable_next_offset": durable_next,
             }
             try:
+                # Health sampling runs on the consumer thread so it must never
+                # issue blocking broker RPCs: those can sit behind a long fetch,
+                # starve poll()/heartbeats and revoke an otherwise healthy
+                # assignment.  librdkafka maintains watermarks locally after
+                # fetches; broker commit success is represented by OffsetTracker
+                # because it advances only after synchronous commit returns.
                 low, high = self._consumer.get_watermark_offsets(
-                    TopicPartition(topic, partition), timeout=1.0, cached=False
+                    TopicPartition(topic, partition), cached=True
                 )
-                committed = self._consumer.committed(
-                    [TopicPartition(topic, partition)], timeout=1.0
-                )[0].offset
-                committed_next = int(committed) if int(committed) >= 0 else None
+                committed_next = (
+                    None if runtime_record is None else int(runtime_record) + 1
+                )
+                try:
+                    # Preserve the cutover drift diagnostic when librdkafka can
+                    # answer immediately, but never wait for a coordinator RPC
+                    # on the heartbeat-owning thread.
+                    committed = self._consumer.committed(
+                        [TopicPartition(topic, partition)], timeout=0.0
+                    )[0].offset
+                    if int(committed) >= 0:
+                        committed_next = int(committed)
+                except Exception:
+                    pass
                 row.update(
                     {
                         "broker_low_watermark": int(low),

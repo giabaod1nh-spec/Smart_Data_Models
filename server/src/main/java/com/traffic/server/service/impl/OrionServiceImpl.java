@@ -23,10 +23,14 @@ public class OrionServiceImpl implements OrionService {
     private static final int QUERY_LIMIT = 1000;
 
     private final WebClient webClient;
+    private final WebClient listWebClient;
     private final NgsiEntityMapper mapper;
 
-    public OrionServiceImpl(WebClient orionWebClient, NgsiEntityMapper mapper) {
+    public OrionServiceImpl(WebClient orionWebClient,
+                            WebClient orionListWebClient,
+                            NgsiEntityMapper mapper) {
         this.webClient = orionWebClient;
+        this.listWebClient = orionListWebClient;
         this.mapper = mapper;
     }
 
@@ -109,7 +113,7 @@ public class OrionServiceImpl implements OrionService {
     }
 
     private <T> List<T> fetchEntitiesByType(String entityType, Function<JsonNode, T> entityMapper) {
-        JsonNode entities = webClient.get()
+        JsonNode entities = listWebClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/entities")
                         .queryParam("type", entityType)

@@ -448,6 +448,22 @@ class KafkaOutboxStore:
                 conn.execute("COMMIT")
         except sqlite3.IntegrityError as e:
             self._rollback_quiet(conn)
+            # RunStarted is a durable lifecycle sentinel.  A broker outage can
+            # leave its first append OUTBOXED/FAILED_RETRYABLE while the TraCI
+            # thread times out waiting for the ACK.  Retrying the same sentinel
+            # must resume waiting for/delivering that row, not fault the run on
+            # its deterministic primary key.  A different payload for the same
+            # id is still a hard contract violation.
+            existing = self.get(event_id)
+            if (
+                existing is not None
+                and existing.event_kind == EVENT_KIND_RUN_STARTED
+                and existing.simulation_run_id == simulation_run_id
+                and existing.payload_hash == payload_hash
+                and existing.topic == topic
+                and existing.event_key == event_key
+            ):
+                return (time.perf_counter() - t0) * 1000.0
             raise OutboxDuplicateError(str(e)) from e
         except Exception as e:
             self._rollback_quiet(conn)

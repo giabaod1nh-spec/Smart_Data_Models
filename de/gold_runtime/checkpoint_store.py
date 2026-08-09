@@ -509,6 +509,19 @@ class GoldRuntimeStore:
             ).fetchall()
             return tuple(WorkUnitRow(**dict(row)) for row in rows)
 
+    def terminal_work_units(self, namespace: str) -> tuple[WorkUnitRow, ...]:
+        """Return terminal SQLite work units for external-ledger reconciliation."""
+        terminal = [state.value for state in TERMINAL_WORK_UNIT_STATES]
+        placeholders = ",".join("?" for _ in terminal)
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT * FROM gold_runtime_work_unit "
+                f"WHERE namespace=? AND state IN ({placeholders}) "
+                "ORDER BY created_at, batch_id",
+                (namespace, *terminal),
+            ).fetchall()
+            return tuple(WorkUnitRow(**dict(row)) for row in rows)
+
     # -- lease -----------------------------------------------------------------
 
     def get_lease(self, namespace: str) -> Optional[LeaseRow]:

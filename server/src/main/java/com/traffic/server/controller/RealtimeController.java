@@ -1,6 +1,7 @@
 package com.traffic.server.controller;
 
 import com.traffic.server.payload.ApiResponse;
+import com.traffic.server.payload.IntersectionResponse;
 import com.traffic.server.payload.RealtimeIntersectionResponse;
 import com.traffic.server.payload.SystemHealthDetailsResponse;
 import com.traffic.server.payload.SystemHealthResponse;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -31,6 +34,16 @@ public class RealtimeController {
             @RequestParam(name = "simulationRunId", required = false) String simulationRunId) {
         return ApiResponse.success(
                 aggregateService.getIntersectionAggregate(intersectionId, simulationRunId));
+    }
+
+    /**
+     * Current-run-safe list for Dashboard discovery.  The legacy
+     * /api/intersections endpoint intentionally remains an unfiltered Orion
+     * inventory endpoint and may contain shadow/probe entities.
+     */
+    @GetMapping("/realtime/intersections")
+    public ApiResponse<List<IntersectionResponse>> getCurrentIntersections() {
+        return ApiResponse.success(aggregateService.getCurrentIntersections());
     }
 
     @GetMapping("/system/health")

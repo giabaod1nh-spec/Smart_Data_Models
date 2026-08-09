@@ -73,7 +73,7 @@ class ProjectorStore:
         producer_id: str,
         producer_session_id: str,
         simulation_run_id: str,
-    ) -> None:
+    ) -> dict:
         now = _utc_now()
         with self._lock:
             self._conn.execute("BEGIN IMMEDIATE")
@@ -183,6 +183,13 @@ class ProjectorStore:
                             last_payload_hash=excluded.last_payload_hash,
                             last_applied_at=excluded.last_applied_at,
                             last_simulation_time=excluded.last_simulation_time
+                        WHERE
+                            excluded.last_cycle_sequence > projector_entity_state.last_cycle_sequence
+                            OR (
+                                excluded.last_cycle_sequence = projector_entity_state.last_cycle_sequence
+                                AND COALESCE(excluded.last_simulation_time, 0)
+                                    >= COALESCE(projector_entity_state.last_simulation_time, 0)
+                            )
                         """,
                         (
                             e["simulation_run_id"],
@@ -284,6 +291,81 @@ class ProjectorStore:
             ).fetchone()
             return row is not None
 
+    def advance_past_retention_gap(
+        self,
+        topic: str,
+        partition: int,
+        *,
+        log_start_offset: int,
+    ) -> Optional[Tuple[int, int]]:
+        """Durably audit and advance past offsets removed by Kafka retention.
+
+        This is only valid for an existing partition authority whose next
+        offset is below the broker's current low watermark.  The gap evidence
+        and new authority are committed atomically; no Kafka group reset and no
+        fabricated per-event ledger rows are used.
+        """
+        low = int(log_start_offset)
+        now = _utc_now()
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._conn.execute(
+                    """
+                    SELECT committed_offset FROM projector_partition_commits
+                    WHERE topic = ? AND partition = ?
+                    """,
+                    (topic, int(partition)),
+                ).fetchone()
+                if row is None:
+                    self._conn.execute("COMMIT")
+                    return None
+                current = int(row["committed_offset"])
+                if current + 1 >= low:
+                    self._conn.execute("COMMIT")
+                    return None
+                gap_from, gap_to = current + 1, low - 1
+                self._conn.execute(
+                    """
+                    INSERT OR IGNORE INTO projector_offset_gap_ledger
+                    (topic, partition, from_offset, to_offset, reason, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        topic,
+                        int(partition),
+                        gap_from,
+                        gap_to,
+                        "KAFKA_RETENTION_UNAVAILABLE",
+                        now,
+                    ),
+                )
+                self._conn.execute(
+                    """
+                    UPDATE projector_partition_commits
+                    SET committed_offset = ?, updated_at = ?
+                    WHERE topic = ? AND partition = ?
+                    """,
+                    (gap_to, now, topic, int(partition)),
+                )
+                self._conn.execute("COMMIT")
+                return gap_from, gap_to
+            except Exception:
+                _safe_rollback(self._conn)
+                raise
+
+    def get_retention_gaps(self, topic: str, partition: int) -> List[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT * FROM projector_offset_gap_ledger
+                WHERE topic = ? AND partition = ?
+                ORDER BY from_offset
+                """,
+                (topic, int(partition)),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def set_runtime_state(
         self,
         *,
@@ -310,6 +392,14 @@ class ProjectorStore:
                     last_applied_cycle=excluded.last_applied_cycle,
                     freshness_seconds=excluded.freshness_seconds,
                     updated_at=excluded.updated_at
+                WHERE
+                    projector_runtime_state.simulation_run_id IS NULL
+                    OR projector_runtime_state.simulation_run_id != excluded.simulation_run_id
+                    OR excluded.last_applied_cycle > projector_runtime_state.last_applied_cycle
+                    OR (
+                        excluded.last_applied_cycle = projector_runtime_state.last_applied_cycle
+                        AND excluded.simulation_time >= projector_runtime_state.simulation_time
+                    )
                 """,
                 (
                     RUNTIME_STATE_KEY,
@@ -322,6 +412,12 @@ class ProjectorStore:
                     now,
                 ),
             )
+            row = self._conn.execute(
+                "SELECT * FROM projector_runtime_state WHERE state_key = ?",
+                (RUNTIME_STATE_KEY,),
+            ).fetchone()
+            assert row is not None
+            return dict(row)
 
     def get_runtime_state(self) -> Optional[dict]:
         with self._lock:
@@ -331,23 +427,104 @@ class ProjectorStore:
             ).fetchone()
             return dict(row) if row else None
 
-    def rebuild_completed_offsets(
-        self, topic: str, partition: int
-    ) -> Optional[int]:
-        """Highest contiguous completed offset from ledger (or None)."""
+    def get_entity_states(
+        self, simulation_run_id: str, entity_ids: Sequence[str]
+    ) -> Dict[str, dict]:
+        ids = [str(entity_id) for entity_id in entity_ids if entity_id]
+        if not ids:
+            return {}
+        out: Dict[str, dict] = {}
         with self._lock:
-            rows = self._conn.execute(
-                f"""
-                SELECT offset, status FROM projector_event_ledger
-                WHERE topic = ? AND partition = ?
-                ORDER BY offset ASC
+            for i in range(0, len(ids), 400):
+                chunk = ids[i : i + 400]
+                placeholders = ",".join("?" * len(chunk))
+                rows = self._conn.execute(
+                    f"""
+                    SELECT * FROM projector_entity_state
+                    WHERE simulation_run_id = ?
+                      AND entity_id IN ({placeholders})
+                    """,
+                    [simulation_run_id, *chunk],
+                ).fetchall()
+                for row in rows:
+                    out[str(row["entity_id"])] = dict(row)
+        return out
+
+    def reconcile_runtime_state_from_entities(self, simulation_run_id: str) -> Optional[dict]:
+        """Repair a stale runtime cursor from durably applied entity state.
+
+        Entity batches from different Kafka partitions can finish out of order.
+        The per-entity ledger is authoritative evidence of Orion success, so a
+        restart may safely advance (but never rewind) the summary cursor to its
+        highest applied cycle.
+        """
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT last_cycle_sequence, last_simulation_time
+                FROM projector_entity_state
+                WHERE simulation_run_id = ?
+                ORDER BY last_cycle_sequence DESC, last_simulation_time DESC
+                LIMIT 1
                 """,
-                (topic, int(partition)),
-            ).fetchall()
+                (simulation_run_id,),
+            ).fetchone()
+            current = self.get_runtime_state()
+        if row is None or current is None:
+            return current
+        return self.set_runtime_state(
+            simulation_run_id=simulation_run_id,
+            scenario_id=current.get("scenario_id"),
+            simulation_time=float(row["last_simulation_time"] or 0.0),
+            status=str(current["status"]),
+            last_applied_cycle=int(row["last_cycle_sequence"]),
+            freshness_seconds=current.get("freshness_seconds"),
+        )
+
+    def rebuild_completed_offsets(
+        self,
+        topic: str,
+        partition: int,
+        *,
+        after_offset: Optional[int] = None,
+    ) -> Optional[int]:
+        """Highest contiguous completed offset recoverable from the ledger.
+
+        ``projector_partition_commits`` is the durable offset authority.  Ledger
+        retention is allowed to remove older terminal rows, so a recovery must
+        never rebuild from the oldest remaining ledger row and move an existing
+        partition commit backwards.  When ``after_offset`` is supplied, only
+        the contiguous terminal suffix immediately following that authority is
+        considered (this also closes the crash window between ledger COMMIT and
+        partition-commit persistence).
+        """
+        with self._lock:
+            if after_offset is None:
+                rows = self._conn.execute(
+                    """
+                    SELECT offset, status FROM projector_event_ledger
+                    WHERE topic = ? AND partition = ?
+                    ORDER BY offset ASC
+                    """,
+                    (topic, int(partition)),
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    """
+                    SELECT offset, status FROM projector_event_ledger
+                    WHERE topic = ? AND partition = ? AND offset > ?
+                    ORDER BY offset ASC
+                    """,
+                    (topic, int(partition), int(after_offset)),
+                ).fetchall()
         if not rows:
-            return None
-        expected = int(rows[0]["offset"])
-        last = None
+            return after_offset
+        expected = (
+            int(after_offset) + 1
+            if after_offset is not None
+            else int(rows[0]["offset"])
+        )
+        last = after_offset
         for r in rows:
             off = int(r["offset"])
             if off != expected:

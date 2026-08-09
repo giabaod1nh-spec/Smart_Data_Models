@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from de.gold_runtime.checkpoint_store import GoldRuntimeStore
-from de.gold_runtime.config import CasResult, ProcessorState, WorkUnitState
+from de.gold_runtime.config import CasResult, ProcessorState, WindowState, WorkUnitState
 from de.gold_runtime.cursor import ZERO_FACT_CURSOR, FactCursor
 from de.gold_runtime.instance_lock import GoldInstanceAlreadyRunning, InstanceLock
 from de.gold_runtime.processing_ledger import ExpectedOutputManifest, ManifestEntry
@@ -89,6 +89,14 @@ def test_recover_marks_complete_manifest_terminal(tmp_path, store):
         input_digest="in",
         expected_manifest_json=manifest.to_json(),
     )
+    store.upsert_window_state(
+        "live",
+        manifest.window_id,
+        0,
+        state=WindowState.CLOSED,
+        batch_id=manifest.batch_id,
+        source_set_hash="a" * 64,
+    )
     repository.tables["gold_fact_traffic_window"] = [row]
     proc = GoldProcessor(
         settings,
@@ -104,6 +112,59 @@ def test_recover_marks_complete_manifest_terminal(tmp_path, store):
     unit = store.get_work_unit(manifest.batch_id)
     assert unit is not None
     assert unit.state == WorkUnitState.CHECKPOINTED.value
+
+
+def test_recover_backfills_missing_clickhouse_terminal_evidence(tmp_path, store):
+    settings = make_settings(tmp_path)
+    repository = FakeGoldRepository(settings)
+    manifest = ExpectedOutputManifest(
+        batch_id="batch-terminal-evidence",
+        namespace="live",
+        window_id="wid-terminal",
+        revision_seq=0,
+        entries=(
+            ManifestEntry(
+                target_table="gold_fact_traffic_window",
+                logical_identity=("gold_fact_traffic_window", "live", "run-1", "scenario-1", "J1", "N", "wid-terminal"),
+                source_set_hash="b" * 64,
+                revision_seq=0,
+                payload_digest="digest-terminal",
+            ),
+        ),
+    )
+    store.upsert_work_unit(
+        batch_id=manifest.batch_id,
+        namespace="live",
+        window_id=manifest.window_id,
+        revision_seq=0,
+        state=WorkUnitState.CHECKPOINTED,
+        input_digest="input-terminal",
+        expected_manifest_json=manifest.to_json(),
+    )
+    store.upsert_window_state(
+        "live",
+        manifest.window_id,
+        0,
+        state=WindowState.CLOSED,
+        batch_id=manifest.batch_id,
+        source_set_hash="b" * 64,
+    )
+    proc = GoldProcessor(
+        settings,
+        reader=FakeSilverReader({}),
+        repository=repository,
+        store=store,
+        engine=CountingEngine(),
+        clock=lambda: NOW,
+        lock_held=True,
+    )
+
+    assert proc.recover() == 0
+    assert [row.disposition for row in repository.ledger] == ["CHECKPOINTED"]
+
+    # A second restart sees the terminal evidence and does not duplicate it.
+    assert proc.recover() == 0
+    assert [row.disposition for row in repository.ledger] == ["CHECKPOINTED"]
 
 
 def test_cursor_cas_conflict_is_detectable(tmp_path):

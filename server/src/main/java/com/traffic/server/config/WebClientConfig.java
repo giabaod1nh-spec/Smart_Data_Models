@@ -37,6 +37,22 @@ public class WebClientConfig {
                 .build();
     }
 
+    /**
+     * List queries without Link context — custom Link + type filter returns [] on local Orion
+     * while entity-by-id reads still work. Normalized entities are returned as stored.
+     */
+    @Bean
+    public WebClient orionListWebClient(OrionProperties orion) {
+        HttpClient httpClient = HttpClient.create()
+                .responseTimeout(Duration.ofMillis(orion.timeoutMs()));
+
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .baseUrl(orion.apiBaseUrl())
+                .defaultHeader(HttpHeaders.ACCEPT, "application/ld+json")
+                .build();
+    }
+
     @Bean
     public WebClient controlApiWebClient(AppProperties app) {
         HttpClient httpClient = HttpClient.create()
