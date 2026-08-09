@@ -11,6 +11,8 @@ import {
   arrivalFlowPcuPerHour,
   formatArrivalFlow,
   formatDirectionArrivalFlow,
+  formatAnomalyScore,
+  anomalyScoreDot,
   formatOccupancyRate,
   formatPhaseLabel,
   formatScenarioLabel,
@@ -247,6 +249,15 @@ describe('AVG SPEED — regression against displaying traffic status as speed', 
     expect(formatSpeedKmh(8.234)).toBe('8.23 km/h')
     expect(formatSpeedKmh(null)).toBe('—')
     expect(formatSpeedKmh(undefined)).toBe('—')
+  })
+
+  it('formatAnomalyScore and anomalyScoreDot handle RF scores', () => {
+    expect(formatAnomalyScore(0.816)).toBe('0.82')
+    expect(formatAnomalyScore(null)).toBe('—')
+    expect(anomalyScoreDot(0.1)).toBe('green')
+    expect(anomalyScoreDot(0.4)).toBe('yellow')
+    expect(anomalyScoreDot(0.6)).toBe('orange')
+    expect(anomalyScoreDot(0.9)).toBe('red')
   })
 
   it('formatAvgSpeed averages sensors with two decimal display', () => {

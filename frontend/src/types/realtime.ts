@@ -38,6 +38,10 @@ export interface IntersectionResponse {
   probableCauseType: string | null
   affectedBy: string | null
   causeDetectedAt: number | null
+  /** Random Forest anomaly (1 - P(NORMAL)), 0–1 when model is ready. */
+  anomalyScore: number | null
+  /** NORMAL | CONGESTION | ACCIDENT when model is ready. */
+  anomalyLabel: string | null
 }
 
 /** VehicleSensorResponse — matches VehicleSensorResponse.java */

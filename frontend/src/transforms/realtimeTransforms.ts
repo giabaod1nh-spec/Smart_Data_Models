@@ -364,6 +364,23 @@ export function formatScenarioLabel(scenario: string | null | undefined): string
   return SCENARIO_DISPLAY_NAMES[scenario] ?? scenario
 }
 
+/** Format RF anomaly score (0–1) for KPI display. */
+export function formatAnomalyScore(score: number | null | undefined): string {
+  if (score === null || score === undefined || !Number.isFinite(score)) return '—'
+  return score.toFixed(2)
+}
+
+/** Status-dot color for anomaly score severity. */
+export function anomalyScoreDot(
+  score: number | null | undefined,
+): 'green' | 'yellow' | 'orange' | 'red' | 'muted' {
+  if (score === null || score === undefined || !Number.isFinite(score)) return 'muted'
+  if (score < 0.25) return 'green'
+  if (score < 0.5) return 'yellow'
+  if (score < 0.75) return 'orange'
+  return 'red'
+}
+
 /** Map IntersectionResponse to schematic node for map display */
 export interface IntersectionMapNode {
   id: string

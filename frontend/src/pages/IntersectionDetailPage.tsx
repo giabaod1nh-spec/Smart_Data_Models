@@ -39,6 +39,8 @@ import {
   formatSimSec,
   formatLastSeen,
   deriveRealtimePageStatus,
+  formatAnomalyScore,
+  anomalyScoreDot,
 } from '@/transforms/realtimeTransforms'
 import { getIntersectionDisplayName } from '@/utils/intersectionDisplayName'
 import { KpiCard } from '@/components/cards/KpiCard'
@@ -47,7 +49,7 @@ import { ReverseControlPanel } from '@/components/control/ReverseControlPanel'
 import { ScenarioControlCard } from '@/components/control/ScenarioControlCard'
 import { TrafficLightPanel } from '@/components/feedback/TrafficLightPanel'
 import { RealtimeEventFeed } from '@/components/feedback/RealtimeEventFeed'
-import { TrafficStatusBadge } from '@/components/feedback/StatusBadge'
+import { TrafficStatusBadge, AnomalyLabelBadge } from '@/components/feedback/StatusBadge'
 import { SkeletonKpiCard, ErrorState, Skeleton } from '@/components/feedback/LoadingStates'
 import { setStoredSelectedIntersectionId } from '@/utils/navigation'
 import { classifyApiError } from '@/utils/apiErrors'
@@ -143,6 +145,9 @@ export function IntersectionDetailPage() {
   const avgSpeedDisplay = formatAvgSpeed(sensors)
   // Arrival flow = Σ approach arrivalRatePcuPerSec × 3600 (PCU/h) — demand-sensitive
   const arrivalFlowDisplay = useMemo(() => formatArrivalFlow(sensors), [sensors])
+
+  const anomalyScoreDisplay = formatAnomalyScore(intersection?.anomalyScore)
+  const anomalyDot = anomalyScoreDot(intersection?.anomalyScore)
 
   const totalVehicles = useMemo(
     () => intersection?.totalVehicleCount ?? sumVehicleCount(sensors),
@@ -276,7 +281,7 @@ export function IntersectionDetailPage() {
       {/* ── ROW 1: KPI CARDS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
         {isLoading ? (
-          Array.from({ length: 7 }).map((_, i) => <SkeletonKpiCard key={i} />)
+          Array.from({ length: 9 }).map((_, i) => <SkeletonKpiCard key={i} />)
         ) : (
           <>
             <KpiCard
@@ -319,6 +324,36 @@ export function IntersectionDetailPage() {
               subtitle="Overall intersection status"
               icon={<Activity size={16} color="#EF4444" />}
               iconBg="rgba(239,68,68,0.15)"
+            />
+            <KpiCard
+              id="kpi-detail-anomaly-label"
+              label="ML Anomaly"
+              value={<AnomalyLabelBadge label={intersection?.anomalyLabel} />}
+              subtitle={
+                intersection?.anomalyLabel
+                  ? 'Random Forest prediction'
+                  : 'Waiting for RF window…'
+              }
+              icon={<AlertTriangle size={16} color="#F97316" />}
+              iconBg="rgba(249,115,22,0.15)"
+              statusDot={
+                intersection?.anomalyLabel?.toUpperCase() === 'ACCIDENT'
+                  ? 'red'
+                  : intersection?.anomalyLabel?.toUpperCase() === 'CONGESTION'
+                    ? 'orange'
+                    : intersection?.anomalyLabel?.toUpperCase() === 'NORMAL'
+                      ? 'green'
+                      : 'muted'
+              }
+            />
+            <KpiCard
+              id="kpi-detail-anomaly-score"
+              label="Anomaly Score"
+              value={anomalyScoreDisplay}
+              subtitle="1 − P(NORMAL), 0–1"
+              icon={<Activity size={16} color="#EA580C" />}
+              iconBg="rgba(234,88,12,0.15)"
+              statusDot={anomalyDot}
             />
             <KpiCard
               id="kpi-detail-scenario"
@@ -364,6 +399,8 @@ export function IntersectionDetailPage() {
                   ['On Approaches', totalVehicles ?? '—'],
                   ['Arrival Flow', arrivalFlowDisplay],
                   ['Traffic Status', intersection?.overallTrafficStatus ?? '—'],
+                  ['ML Anomaly', intersection?.anomalyLabel ?? '—'],
+                  ['Anomaly Score', anomalyScoreDisplay],
                   ['Derived State', intersection?.derivedTrafficState ?? '—'],
                   ['Spillback', intersection?.hasSpillback ? '⚠ Yes' : 'No'],
                   ['Box Blocked', intersection?.isBoxBlocked ? '⚠ Yes' : 'No'],
