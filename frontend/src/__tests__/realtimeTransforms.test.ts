@@ -288,9 +288,7 @@ describe('formatPhaseLabel and formatScenarioLabel', () => {
 
   it('formats scenario IDs to friendly human readable labels', () => {
     expect(formatScenarioLabel('normal')).toBe('Normal')
-    expect(formatScenarioLabel('morning_peak')).toBe('Morning Peak')
-    expect(formatScenarioLabel('evening_peak')).toBe('Evening Peak')
-    expect(formatScenarioLabel('oversaturated')).toBe('Oversaturated')
+    expect(formatScenarioLabel('heavy_traffic')).toBe('Heavy Traffic')
     expect(formatScenarioLabel('rain')).toBe('Rain')
     expect(formatScenarioLabel('heavy_rain')).toBe('Heavy Rain')
     expect(formatScenarioLabel('accident')).toBe('Accident')

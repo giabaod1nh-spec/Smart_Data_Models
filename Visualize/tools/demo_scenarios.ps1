@@ -7,8 +7,8 @@ $Base = "http://127.0.0.1:9090"
 Write-Host "Health..."
 Invoke-RestMethod "$Base/health" | ConvertTo-Json -Compress
 
-Write-Host "Demand: morning_peak"
-Invoke-RestMethod -Method POST -Uri "$Base/demand-profile" -ContentType "application/json" -Body '{"profile":"morning_peak"}'
+Write-Host "Demand: heavy_traffic"
+Invoke-RestMethod -Method POST -Uri "$Base/demand-profile" -ContentType "application/json" -Body '{"profile":"heavy_traffic"}'
 
 Start-Sleep -Seconds 2
 

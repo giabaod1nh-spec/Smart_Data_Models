@@ -7,6 +7,7 @@ This module remains a compatibility facade for topology / publish / env wiring.
 """
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from types import MappingProxyType
@@ -324,9 +325,7 @@ DENSITY_THRESHOLDS_INTERSECTION = _REG.traffic_load_bins_intersection()
 
 SCENARIO_IDS = (
     "normal",
-    "morning_peak",
-    "evening_peak",
-    "oversaturated",
+    "heavy_traffic",
     "rain",
     "heavy_rain",
     "accident",
@@ -334,6 +333,29 @@ SCENARIO_IDS = (
     "blocked_intersection",
     "spillback",
 )
+
+# Legacy demand scenario ids accepted via alias → heavy_traffic (backward compat).
+LEGACY_PEAK_SCENARIO_IDS = frozenset({"morning_peak", "evening_peak", "oversaturated"})
+DEMAND_PROFILE_IDS = frozenset({"normal", "heavy_traffic"})
+
+_log = logging.getLogger(__name__)
+
+
+def normalize_demand_profile_id(profile_id: str) -> str:
+    """Map retired peak profiles to heavy_traffic; pass through known demand ids."""
+    if profile_id in LEGACY_PEAK_SCENARIO_IDS:
+        _log.warning("Legacy demand profile %s mapped to heavy_traffic", profile_id)
+        return "heavy_traffic"
+    return profile_id
+
+
+def normalize_scenario_id(scenario_id: str) -> str:
+    """Map legacy peak scenario ids to heavy_traffic for demand + metadata."""
+    return normalize_demand_profile_id(scenario_id)
+
+
+def is_known_scenario_id(scenario_id: str) -> bool:
+    return scenario_id in SCENARIO_IDS or scenario_id in LEGACY_PEAK_SCENARIO_IDS
 
 _sc = _REG.export_effective_config().get("scenarios") or {}
 SCENARIO_TRAFFIC_SCALE: Dict[str, float] = dict(_sc.get("traffic_scale") or {})
