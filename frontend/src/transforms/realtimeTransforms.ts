@@ -71,6 +71,19 @@ export function sumVehicleCount(sensors: VehicleSensorResponse[]): number {
 }
 
 /**
+ * Format a single speed value for display (km/h).
+ * CRITICAL: NEVER use trafficStatus or derivedTrafficState as speed.
+ * @returns "XX.XX km/h" or "—"
+ */
+export function formatSpeedKmh(
+  value: number | null | undefined,
+  decimals = 2,
+): string {
+  if (value === null || value === undefined) return '—'
+  return `${value.toFixed(decimals)} km/h`
+}
+
+/**
  * Simple average speed across sensors — for display only.
  * INVARIANT: MUST return number | null ONLY — never a traffic status string.
  * Sources: VehicleSensor.averageSpeed only.
@@ -86,12 +99,10 @@ export function avgSpeed(sensors: VehicleSensorResponse[]): number | null {
 /**
  * Format average speed for display.
  * CRITICAL: NEVER use trafficStatus or derivedTrafficState as speed.
- * @returns "XX.X km/h" or "—"
+ * @returns "XX.XX km/h" or "—"
  */
 export function formatAvgSpeed(sensors: VehicleSensorResponse[]): string {
-  const val = avgSpeed(sensors)
-  if (val === null) return '—'
-  return `${val.toFixed(1)} km/h`
+  return formatSpeedKmh(avgSpeed(sensors))
 }
 
 export interface TrafficLightView {

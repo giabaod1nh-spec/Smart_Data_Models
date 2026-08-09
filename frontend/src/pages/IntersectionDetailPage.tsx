@@ -28,6 +28,7 @@ import {
   mapTrafficLights,
   sumVehicleCount,
   formatAvgSpeed,
+  formatSpeedKmh,
   formatOccupancyRate,
   formatPhaseLabel,
   formatScenarioLabel,
@@ -489,7 +490,7 @@ export function IntersectionDetailPage() {
                       <td style={{ padding: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>{s.vehicleCount ?? '—'}</td>
                       {/* AVG SPEED: numeric only */}
                       <td style={{ padding: '6px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        {s.averageSpeed !== null && s.averageSpeed !== undefined ? `${s.averageSpeed.toFixed(1)} km/h` : '—'}
+                        {formatSpeedKmh(s.averageSpeed)}
                       </td>
                       <td style={{ padding: '6px', color: 'var(--text-secondary)' }}>
                         {s.queueLength !== null ? `${s.queueLength.toFixed(0)} m` : '—'}

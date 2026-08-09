@@ -22,7 +22,7 @@ import {
   type Direction,
   type SensorInput,
 } from './useVehicleAnimation'
-import { normalizeCardinalDirection, formatOccupancyRate } from '@/transforms/realtimeTransforms'
+import { normalizeCardinalDirection, formatOccupancyRate, formatSpeedKmh } from '@/transforms/realtimeTransforms'
 
 // ─── Canvas layout ratios ───────────────────────────────────────────────────
 const CX_RATIO = 0.5
@@ -657,7 +657,7 @@ export function IntersectionScene({
                 {([
                   ['Vehicles', tooltip.sensor.vehicleCount ?? '—'],
                   ['Waiting', tooltip.sensor.waitingVehicleCount ?? '—'],
-                  ['Avg Speed', tooltip.sensor.averageSpeed !== null ? `${tooltip.sensor.averageSpeed.toFixed(1)} km/h` : '—'],
+                  ['Avg Speed', formatSpeedKmh(tooltip.sensor.averageSpeed)],
                   ['Queue Length', tooltip.sensor.queueLength !== null ? `${tooltip.sensor.queueLength.toFixed(0)} m` : '—'],
                   ['Occupancy', formatOccupancyRate(tooltip.sensor.occupancyRate)],
                   ['Traffic Status', tooltip.sensor.trafficStatus ?? '—'],

@@ -6,6 +6,7 @@ import {
   sumVehicleCount,
   avgSpeed,
   formatAvgSpeed,
+  formatSpeedKmh,
   formatOccupancyRate,
   formatPhaseLabel,
   formatScenarioLabel,
@@ -217,8 +218,22 @@ describe('AVG SPEED — regression against displaying traffic status as speed', 
 
   it('formatAvgSpeed returns km/h formatted number when speed is available', () => {
     const result = formatAvgSpeed([{ ...speedlessSensor, averageSpeed: 35.5 }])
-    expect(result).toBe('35.5 km/h')
+    expect(result).toBe('35.50 km/h')
     expect(result).not.toBe('CONGESTED')
+  })
+
+  it('formatSpeedKmh uses two decimal places by default', () => {
+    expect(formatSpeedKmh(8.234)).toBe('8.23 km/h')
+    expect(formatSpeedKmh(null)).toBe('—')
+    expect(formatSpeedKmh(undefined)).toBe('—')
+  })
+
+  it('formatAvgSpeed averages sensors with two decimal display', () => {
+    const sensors: VehicleSensorResponse[] = [
+      { ...speedlessSensor, averageSpeed: 8.17 },
+      { ...speedlessSensor, id: 'sensor-2', averageSpeed: 8.23 },
+    ]
+    expect(formatAvgSpeed(sensors)).toBe('8.20 km/h')
   })
 
   it('avgSpeed uses only averageSpeed field, not trafficStatus or derivedTrafficState', () => {
