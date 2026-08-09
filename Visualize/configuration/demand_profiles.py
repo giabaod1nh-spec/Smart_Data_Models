@@ -47,9 +47,27 @@ def split_flow(total_vph: float) -> Dict[str, int]:
     return core
 
 
+def _vn_urban_chaos_config() -> Dict[str, object] | None:
+    chaos = (_reg.export_effective_config().get("driver_behavior") or {}).get("vn_urban_chaos") or {}
+    if not chaos.get("enabled"):
+        return None
+    return dict(chaos)
+
+
+def _merge_chaos_tier(base: Dict[str, str], tier: str) -> Dict[str, str]:
+    chaos = _vn_urban_chaos_config()
+    if not chaos:
+        return dict(base)
+    tier_cfg = chaos.get(tier) or {}
+    out = dict(base)
+    for key, val in tier_cfg.items():
+        out[key] = str(val)
+    return out
+
+
 def moto_vtype_attrs() -> Dict[str, str]:
-    """vType attributes for motorcycle (no sublane — ADR-001). Keeps GUI imgFile."""
-    return {
+    """vType attributes for motorcycle; sublane/jm chaos when vn_urban_chaos enabled."""
+    base = {
         "vClass": "motorcycle",
         "guiShape": "motorcycle",
         "length": "2.0",
@@ -66,6 +84,14 @@ def moto_vtype_attrs() -> Dict[str, str]:
         "lcKeepRight": "0.5",
         "imgFile": "images/bike_bg.png",
     }
+    return _merge_chaos_tier(base, "motorcycle")
+
+
+def vn_urban_chaos_lateral_resolution_m() -> float | None:
+    chaos = _vn_urban_chaos_config()
+    if not chaos:
+        return None
+    return float(chaos.get("lateral_resolution_m", 0.45))
 
 
 # SUMO GUI sprites (relative to sumocfg / Visualize/Visualize/)
@@ -155,6 +181,12 @@ VTYPE_GUI: Dict[str, Dict[str, str]] = {
         "imgFile": "images/firetruck_bg.png",
     },
 }
+
+
+def car_vtype_attrs() -> Dict[str, str]:
+    """vType attributes for car; moderate junction/lc chaos when vn_urban_chaos enabled."""
+    return _merge_chaos_tier(dict(VTYPE_GUI["car"]), "car")
+
 
 # Container trailer params (SUMO multi-carriage rendering)
 CONTAINER_PARAMS = {

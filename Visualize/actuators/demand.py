@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 
 from configuration.model_params import get_registry
+from configuration.turn_routes import to_edge_for_route_key
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ class ScenarioDemandActuator:
             if r2 <= cum:
                 vtype = k
                 break
-        return route_key, src["source_edge"], src["to_edge"], vtype
+        return route_key, src["source_edge"], to_edge_for_route_key(source_id, route_key, src), vtype
 
     def tick(self, traci_module, dt: float) -> int:
         if not self.enabled or dt <= 0:

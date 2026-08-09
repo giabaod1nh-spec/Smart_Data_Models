@@ -128,7 +128,7 @@ function Run-PositiveCase($Name, $Body, $ExpectCompleted = $true) {
 
 Run-PositiveCase "FORCE_PHASE" (New-CommandBody "FORCE_PHASE" @{ intersectionId = "A" } @{ phase = "NS_GREEN" })
 Run-PositiveCase "SET_GREEN_DURATION" (New-CommandBody "SET_GREEN_DURATION" @{ intersectionId = "A" } @{ seconds = 45 })
-Run-PositiveCase "SET_SCENARIO" (New-CommandBody "SET_SCENARIO" @{ intersectionId = "A" } @{ scenario = "morning_peak" })
+Run-PositiveCase "SET_SCENARIO" (New-CommandBody "SET_SCENARIO" @{ intersectionId = "A" } @{ scenario = "heavy_traffic" })
 Run-PositiveCase "SET_DEMAND_PROFILE" (New-CommandBody "SET_DEMAND_PROFILE" @{} @{ profile = "normal" })
 Run-PositiveCase "ADD_OVERLAY" (New-CommandBody "ADD_OVERLAY" @{ intersectionId = "A" } @{ overlayType = "accident"; direction = "North" })
 Run-PositiveCase "SET_CONTROL_MODE" (New-CommandBody "SET_CONTROL_MODE" @{} @{ mode = "FIXED" })

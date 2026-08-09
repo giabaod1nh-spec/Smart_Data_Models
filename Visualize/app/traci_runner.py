@@ -665,7 +665,7 @@ def run(args: argparse.Namespace) -> int:
                     for step in seq:
                         action = step.get("action")
                         if action == "demand_profile":
-                            backend.set_demand_profile(step.get("profile") or "morning_peak")
+                            backend.set_demand_profile(step.get("profile") or "heavy_traffic")
                             break
                     for step in seq:
                         if step.get("action") == "overlay":

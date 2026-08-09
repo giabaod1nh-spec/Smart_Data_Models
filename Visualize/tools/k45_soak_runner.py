@@ -16,7 +16,7 @@ Env knobs:
   K45_KAFKA_BOOTSTRAP     default localhost:29092
   K45_TOPIC               default traffic.entity-events.v2
   K45_SKIP_CHAOS          default 0
-  K45_PEAK_DEMAND         default morning_peak
+  K45_PEAK_DEMAND         default heavy_traffic
   K45_NORMAL_DEMAND       default normal
 """
 from __future__ import annotations
@@ -824,7 +824,7 @@ def mode_full(ev: EvidenceWriter) -> int:
     rehearsal_budget = _env_int("K45_REHEARSAL_SEC", 300)
     drain_timeout = _env_float("K45_DRAIN_TIMEOUT_SEC", 300)
     normal_demand = os.getenv("K45_NORMAL_DEMAND", "normal")
-    peak_demand = os.getenv("K45_PEAK_DEMAND", "morning_peak")
+    peak_demand = os.getenv("K45_PEAK_DEMAND", "heavy_traffic")
     skip_chaos = os.getenv("K45_SKIP_CHAOS", "0").lower() in ("1", "true", "yes")
 
     topology_audit(ev, control)

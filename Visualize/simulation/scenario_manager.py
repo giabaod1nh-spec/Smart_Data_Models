@@ -29,12 +29,9 @@ class SumoScenarioManager:
         target_direction: Optional[str] = None,
     ) -> None:
         """Compat: record metadata only. Physical effects via NetworkRuntimeController."""
-        if scenario not in cfg.SCENARIO_IDS and scenario != "oversaturated":
-            # allow oversaturated even if not in old SCENARIO_IDS until config updated
-            if scenario not in ("normal", "morning_peak", "evening_peak", "oversaturated",
-                                "accident", "blocked_intersection", "spillback", "heavy_rain",
-                                "emergency", "rain"):
-                raise ValueError(f"Unknown scenario '{scenario}'")
+        scenario = cfg.normalize_scenario_id(scenario)
+        if scenario not in cfg.SCENARIO_IDS:
+            raise ValueError(f"Unknown scenario '{scenario}'")
         self.current_scenario = scenario
         self.blocked_direction = None
         # No physical effects here; NetworkRuntimeController owns demand/overlays.

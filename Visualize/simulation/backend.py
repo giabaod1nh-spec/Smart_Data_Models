@@ -487,6 +487,7 @@ class SumoBackend:
         self._require_started()
         node = target_intersection or self.publish_node
         self._assert_node(node)
+        scenario = cfg.normalize_scenario_id(scenario)
         self.scenarios[node].set_scenario(self._traci, scenario, target_direction)
         self.current_scenario = scenario
         self.per_node_scenario[node] = scenario
@@ -503,7 +504,7 @@ class SumoBackend:
             "failures": [],
         }
 
-        demand_ids = {"normal", "morning_peak", "evening_peak", "oversaturated"}
+        demand_ids = cfg.DEMAND_PROFILE_IDS
         if scenario in demand_ids:
             self.runtime.set_demand_profile(scenario)
             result["demandProfileChanged"] = True
@@ -565,6 +566,9 @@ class SumoBackend:
 
     def set_demand_profile(self, profile: str) -> dict:
         self._require_started()
+        profile = cfg.normalize_demand_profile_id(profile)
+        if profile not in cfg.DEMAND_PROFILE_IDS:
+            raise ValueError(f"Unknown demand profile '{profile}'")
         info = self.runtime.set_demand_profile(profile)
         self.current_scenario = profile
         for n in self.publish_nodes:

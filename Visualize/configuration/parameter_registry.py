@@ -308,6 +308,7 @@ class ParameterRegistry:
                 "source_type": scenarios.get("source_type"),
             },
             "demand_baselines": copy.deepcopy(self._raw.get("demand_baselines") or {}),
+            "turn_demand_mix": copy.deepcopy(self._raw.get("turn_demand_mix") or {}),
             "boundary_sources": copy.deepcopy(self._raw.get("boundary_sources") or {}),
             "network_demand_profiles": copy.deepcopy(self._raw.get("network_demand_profiles") or {}),
             "insertion_policy": copy.deepcopy(self._raw.get("insertion_policy") or {}),
@@ -322,6 +323,9 @@ class ParameterRegistry:
             "metrics_provenance": metrics_provenance,
         }
         self._validate_hybrid_demand()
+        driver_behavior = copy.deepcopy(self._raw.get("driver_behavior") or {})
+        self._validate_driver_behavior(driver_behavior)
+        self._effective["driver_behavior"] = driver_behavior
         # Build flat parameter index for catalog
         self._param_index = {}
         for vtype, meta in pcu_runtime.items():
@@ -455,17 +459,57 @@ class ParameterRegistry:
         self._require_ready()
         return copy.deepcopy(self._effective["detectors"])
 
+    _CHAOS_PROB_KEYS = frozenset(
+        {
+            "impatience",
+            "lcCooperative",
+            "lcPushy",
+            "lcPushyGap",
+            "lcSublane",
+            "jmIgnoreFoeProb",
+            "jmIgnoreJunctionFoeProb",
+            "jmSigmaMinor",
+        }
+    )
+
+    def _validate_driver_behavior(self, driver_behavior: Dict[str, Any]) -> None:
+        chaos = driver_behavior.get("vn_urban_chaos")
+        if not chaos:
+            return
+        if chaos.get("enabled") is False:
+            return
+        lat = chaos.get("lateral_resolution_m")
+        if lat is not None and float(lat) <= 0:
+            raise ValueError("driver_behavior.vn_urban_chaos.lateral_resolution_m must be > 0")
+        for tier in ("motorcycle", "car"):
+            tier_cfg = chaos.get(tier)
+            if tier_cfg is None:
+                continue
+            if not isinstance(tier_cfg, dict):
+                raise ValueError(f"driver_behavior.vn_urban_chaos.{tier} must be a mapping")
+            for key, val in tier_cfg.items():
+                f = float(val)
+                if not math.isfinite(f):
+                    raise ValueError(f"driver_behavior.vn_urban_chaos.{tier}.{key} must be finite")
+                if key in self._CHAOS_PROB_KEYS and not 0.0 <= f <= 1.0:
+                    raise ValueError(
+                        f"driver_behavior.vn_urban_chaos.{tier}.{key} must be in [0,1], got {f}"
+                    )
+                if key in ("minGap", "minGapLat", "tau", "jmDriveAfterRedTime", "jmTimegapMinor"):
+                    if f < 0:
+                        raise ValueError(
+                            f"driver_behavior.vn_urban_chaos.{tier}.{key} must be >= 0"
+                        )
+
     def _validate_hybrid_demand(self) -> None:
+        from configuration.turn_routes import validate_source_turn_routes
+
         sources = self._effective.get("boundary_sources") or {}
         profiles = self._effective.get("network_demand_profiles") or {}
         for sid, src in sources.items():
             if "source_edge" not in src or "baseline_veh_per_hour" not in src:
                 raise ValueError(f"boundary_sources.{sid} needs source_edge and baseline_veh_per_hour")
-            rd = src.get("route_distribution") or {}
-            if rd:
-                s = sum(float(v) for v in rd.values())
-                if abs(s - 1.0) > 1e-6:
-                    raise ValueError(f"boundary_sources.{sid} route_distribution must sum to 1, got {s}")
+            validate_source_turn_routes(sid, src)
         for pid, prof in profiles.items():
             if pid in ("active_default",):
                 continue
@@ -515,6 +559,10 @@ class ParameterRegistry:
     def metrics_provenance(self) -> Dict[str, Any]:
         self._require_ready()
         return copy.deepcopy(self._effective.get("metrics_provenance") or {})
+
+    def driver_behavior(self) -> Dict[str, Any]:
+        self._require_ready()
+        return copy.deepcopy(_as_plain(self._effective.get("driver_behavior") or {}))
 
     def traffic_load_bins_direction(self) -> Dict[str, tuple]:
         raw = self.threshold("traffic_load_bins_per_direction")

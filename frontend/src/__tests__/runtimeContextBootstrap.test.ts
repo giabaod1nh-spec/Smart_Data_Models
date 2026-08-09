@@ -3,9 +3,9 @@ import { buildRuntimeContextUpdates } from '@/hooks/useRealtimeContextBootstrap'
 
 describe('runtime analytics context bootstrap', () => {
   it('fills run and scenario atomically when both filters are missing', () => {
-    expect(buildRuntimeContextUpdates('', '', 'run-123', 'morning_peak')).toEqual({
+    expect(buildRuntimeContextUpdates('', '', 'run-123', 'heavy_traffic')).toEqual({
       simulationRunId: 'run-123',
-      scenarioId: 'morning_peak',
+      scenarioId: 'heavy_traffic',
     })
   })
 

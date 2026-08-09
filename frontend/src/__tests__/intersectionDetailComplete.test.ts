@@ -76,7 +76,7 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
   // Test 5 & 6: Approach B — applied response may update UI before realtime
   it('5-6. Scenario applied response updates effective scenario before realtime', () => {
     const realtimeScenario = 'normal'
-    const selectedScenario = 'morning_peak'
+    const selectedScenario = 'heavy_traffic'
     const applyResponse = { queued: false, applied: true, current: selectedScenario }
 
     let appliedScenarioId: string | null = null
@@ -87,17 +87,17 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
 
     expect(applyResponse.queued).toBe(false)
     expect(applyResponse.applied).toBe(true)
-    expect(effectiveScenario).toBe('morning_peak')
+    expect(effectiveScenario).toBe('heavy_traffic')
   })
 
   // Test 7: Realtime scenario mới update UI
   it('7. Realtime scenario update changes authoritative scenario', () => {
     let currentScenario = 'normal'
-    const realtimePayload = { scenarioId: 'morning_peak' }
+    const realtimePayload = { scenarioId: 'heavy_traffic' }
     if (realtimePayload.scenarioId) {
       currentScenario = realtimePayload.scenarioId
     }
-    expect(currentScenario).toBe('morning_peak')
+    expect(currentScenario).toBe('heavy_traffic')
   })
 
   // Test 8 & 9: Phase queued does not change lights; realtime phase does
@@ -225,7 +225,7 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
   // Test 27-30: Signal Control tabs render separately and remain accessible
   it('27-30. Control tabs and schemas exist and are distinct', () => {
     expect(PHASE_IDS).toHaveLength(4)
-    expect(SCENARIO_IDS).toHaveLength(10)
+    expect(SCENARIO_IDS).toHaveLength(8)
     expect(CONTROL_MODES).toHaveLength(3)
     expect(CONTROL_MODES).toContain('MANUAL')
     expect(GREEN_DURATION_MIN).toBe(10)

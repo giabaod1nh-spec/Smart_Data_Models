@@ -232,14 +232,15 @@ def _enqueue_wait(eng, name: str, **kwargs: Any) -> Any:
 @app.post("/scenario")
 def set_scenario(req: ScenarioRequest):
     eng = _require_engine()
-    if req.scenario not in cfg.SCENARIO_IDS:
+    if not cfg.is_known_scenario_id(req.scenario):
         raise HTTPException(400, f"Unknown scenario '{req.scenario}'")
+    scenario = cfg.normalize_scenario_id(req.scenario)
     if req.target_intersection and req.target_intersection not in eng.publish_nodes:
         raise HTTPException(400, f"Unknown intersection '{req.target_intersection}'")
     result = _enqueue_wait(
         eng,
         "set_scenario",
-        scenario=req.scenario,
+        scenario=scenario,
         target_intersection=req.target_intersection,
         target_direction=req.target_direction,
     )
@@ -247,12 +248,12 @@ def set_scenario(req: ScenarioRequest):
         for node_id, sc in req.node_overrides.items():
             if node_id not in eng.publish_nodes:
                 raise HTTPException(400, f"Unknown intersection '{node_id}'")
-            if sc not in cfg.SCENARIO_IDS:
+            if not cfg.is_known_scenario_id(sc):
                 raise HTTPException(400, f"Unknown scenario '{sc}'")
             _enqueue_wait(
                 eng,
                 "set_scenario",
-                scenario=sc,
+                scenario=cfg.normalize_scenario_id(sc),
                 target_intersection=node_id,
                 target_direction=None,
             )
@@ -268,14 +269,15 @@ def set_scenario(req: ScenarioRequest):
 @app.post("/demand-profile")
 def set_demand_profile(req: DemandProfileRequest):
     eng = _require_engine()
+    profile = cfg.normalize_demand_profile_id(req.profile)
     try:
         from configuration.model_params import get_registry
 
-        get_registry().demand_profile(req.profile)
+        get_registry().demand_profile(profile)
     except Exception as e:
         raise HTTPException(400, str(e)) from e
-    eng.commands.enqueue("set_demand_profile", profile=req.profile)
-    return {"queued": True, "profile": req.profile}
+    eng.commands.enqueue("set_demand_profile", profile=profile)
+    return {"queued": True, "profile": profile}
 
 
 @app.post("/overlays")

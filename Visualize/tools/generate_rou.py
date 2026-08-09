@@ -1,4 +1,4 @@
-"""Generate intersection.rou.xml with weighted composition + GUI imgFile sprites."""
+"""Generate intersection.rou.xml with weighted composition + full O-D turn split."""
 from __future__ import annotations
 
 import sys
@@ -9,26 +9,16 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from configuration.demand_profiles import (
-    BASE_TRUNK_VEH_PER_HOUR,
     CONTAINER_PARAMS,
     DIAGONAL_VEH_PER_HOUR,
     VTYPE_GUI,
+    car_vtype_attrs,
     moto_vtype_attrs,
     split_flow,
 )
+from configuration.model_params import get_registry
 
 OUT = _ROOT / "Visualize" / "intersection.rou.xml"
-
-TRUNKS = [
-    ("ns_w", "N1J3", "J1S1"),
-    ("sn_w", "S1J1", "J3N1"),
-    ("ns_e", "N2J4", "J2S2"),
-    ("sn_e", "S2J2", "J4N2"),
-    ("we_s", "W1J1", "J2E1"),
-    ("ew_s", "E1J2", "J1W1"),
-    ("we_n", "W2J3", "J4E2"),
-    ("ew_n", "E2J4", "J3W2"),
-]
 
 DIAGONALS = [
     ("x1", "N1J3", "J2E1", "car"),
@@ -56,11 +46,16 @@ def _vtype_block(vtype_id: str, attrs: dict, params: dict | None = None) -> list
     return [f'    <vType id="{vtype_id}" {_attrs(attrs)}/>']
 
 
+def _scaled_vph(vph: int, weight: float) -> int:
+    return max(0, int(round(vph * weight)))
+
+
 def main() -> None:
-    trunk = split_flow(BASE_TRUNK_VEH_PER_HOUR)
+    reg = get_registry(reload=True)
+    sources = reg.boundary_sources()
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        "<!-- Weighted demand (ADR-007) + GUI imgFile from Visualize/images/ -->",
+        "<!-- Weighted demand (ADR-007) + full O-D turn split + GUI imgFile -->",
         '<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
         'xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">',
         "",
@@ -68,19 +63,33 @@ def main() -> None:
     ]
     lines.extend(_vtype_block("motorcycle", moto_vtype_attrs()))
     for vid, attrs in VTYPE_GUI.items():
+        if vid == "car":
+            attrs = car_vtype_attrs()
         params = CONTAINER_PARAMS if vid == "container" else None
         lines.extend(_vtype_block(vid, attrs, params))
     lines.append("")
 
-    for prefix, fr, to in TRUNKS:
-        lines.append(f"    <!-- corridor {prefix}: {fr} -> {to} -->")
-        for vtype, vph in trunk.items():
-            if vph <= 0:
-                continue
-            lines.append(
-                f'    <flow id="{prefix}_{vtype}" type="{vtype}" from="{fr}" to="{to}" '
-                f'begin="0" end="3600" vehsPerHour="{vph}"/>'
-            )
+    for source_id, src in sorted(sources.items()):
+        fr = src["source_edge"]
+        baseline = float(src["baseline_veh_per_hour"])
+        trunk = split_flow(baseline)
+        lines.append(
+            f"    <!-- corridor {source_id}: {fr} @ {src['turn_at_tls']} "
+            f"({baseline:.0f} veh/h baseline) -->"
+        )
+        for dest in src["destinations"]:
+            mov = dest["movement"]
+            to = dest["to_edge"]
+            weight = float(dest["weight"])
+            for vtype, vph in trunk.items():
+                scaled = _scaled_vph(vph, weight)
+                if scaled <= 0:
+                    continue
+                flow_id = f"{source_id}_{mov}_{vtype}"
+                lines.append(
+                    f'    <flow id="{flow_id}" type="{vtype}" from="{fr}" to="{to}" '
+                    f'begin="0" end="3600" vehsPerHour="{scaled}"/>'
+                )
         lines.append("")
 
     diag_vph = max(1, int(round(DIAGONAL_VEH_PER_HOUR / len(DIAGONALS))))
@@ -92,7 +101,7 @@ def main() -> None:
         )
     lines.append("</routes>")
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Wrote {OUT} with imgFile sprites; trunk={trunk}")
+    print(f"Wrote {OUT} with turn-split flows for {len(sources)} boundary sources")
 
 
 if __name__ == "__main__":
