@@ -44,8 +44,9 @@ export function SchematicMap({
 
   const cols = Math.max(Math.min(nodes.length, 4), 1)
   const isLoading = listStatus === 'loading'
-  const isError = listStatus !== 'loading' && listStatus !== 'success' && listStatus !== 'empty'
-  const isEmpty = listStatus === 'empty'
+  const isRunMismatch = listStatus === 'run_mismatch'
+  const isError = listStatus !== 'loading' && listStatus !== 'success' && listStatus !== 'empty' && !isRunMismatch
+  const isEmpty = listStatus === 'empty' || isRunMismatch
 
   return (
     <div style={{ position: 'relative', width: '100%', minHeight: 280 }}>
@@ -130,8 +131,13 @@ export function SchematicMap({
             )}
           </div>
         ) : isEmpty ? (
-          <div style={{ gridColumn: `1 / -1`, textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 13 }}>
-            No intersections exist in Orion for the current run.
+          <div style={{ gridColumn: `1 / -1`, textAlign: 'center', padding: 32 }}>
+            {isRunMismatch && (
+              <AlertTriangle size={28} color="#FACC15" style={{ marginBottom: 8 }} />
+            )}
+            <div style={{ color: isRunMismatch ? 'var(--text-secondary)' : 'var(--text-muted)', fontSize: 13, fontWeight: isRunMismatch ? 600 : 400 }}>
+              {statusMessage ?? intersectionListStatusMessage(listStatus)}
+            </div>
           </div>
         ) : (
           nodes.map((node) => {

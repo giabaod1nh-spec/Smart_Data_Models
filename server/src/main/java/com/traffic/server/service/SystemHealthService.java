@@ -13,13 +13,16 @@ public class SystemHealthService {
     private final WebClient healthCheckWebClient;
     private final OrionProperties orionProperties;
     private final AppProperties appProperties;
+    private final RuntimeAlignmentService runtimeAlignmentService;
 
     public SystemHealthService(WebClient healthCheckWebClient,
                                OrionProperties orionProperties,
-                               AppProperties appProperties) {
+                               AppProperties appProperties,
+                               RuntimeAlignmentService runtimeAlignmentService) {
         this.healthCheckWebClient = healthCheckWebClient;
         this.orionProperties = orionProperties;
         this.appProperties = appProperties;
+        this.runtimeAlignmentService = runtimeAlignmentService;
     }
 
     public SystemHealthResponse publicHealth() {
@@ -39,6 +42,7 @@ public class SystemHealthService {
                 .orionApiBaseUrl(orionProperties.apiBaseUrl())
                 .contextProviderHealthUrl(appProperties.contextProvider().healthUrl())
                 .controlApiBaseUrl(appProperties.controlApi().baseUrl())
+                .runtimeAlignment(runtimeAlignmentService.evaluate())
                 .build();
     }
 

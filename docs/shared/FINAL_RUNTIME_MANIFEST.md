@@ -106,9 +106,9 @@ Dashboard source is not present in this repository. Its owner must provide the r
 ## Realtime startup order (normal mode)
 
 1. `docker compose up -d` — Kafka, Orion, projector (wait `/ready` idle OK).
-2. Start SUMO/TraCI (RunStarted must ACK before entity cycles).
+2. Start SUMO/TraCI (RunStarted must ACK before entity cycles). TraCI **refuses a silent new run** when Projector `/current-run` is active — use `--new-run` or `--simulation-run-id`.
 3. Start Spring Server (`projector.base-url=http://localhost:8093`).
-4. Dashboard reads Server only.
+4. Dashboard reads Server only. Admin `GET /api/system/health/details` exposes `runtimeAlignment` (TraCI vs Projector run IDs).
 
 Clean demo uses `Visualize/tools/realtime_demo_reset.py` with `--consumer-mode demo` and a separate SQLite DB; it never resets normal production offsets.
 

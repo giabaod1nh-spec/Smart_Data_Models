@@ -188,6 +188,16 @@ $env:PYTHONUNBUFFERED = "1"
 
 Các biến trên buộc đường realtime dùng durable outbox → Kafka và không bật publish trực tiếp vào Orion. Giữ Terminal A chạy trong lúc xem demo; nhấn Ctrl+C để kết thúc run. Nếu không mở GUI, dùng --no-gui thay cho --gui.
 
+**Run ID (TraCI ↔ Projector):** TraCI không tự sinh UUID mới khi Projector còn active run (fail-safe). Nếu restart SUMO trong khi Projector vẫn giữ run cũ, dùng một trong hai cách:
+
+| Tình huống | Lệnh |
+|---|---|
+| Lần chạy đầu / Projector idle | `python -m app.traci_runner ...` (mặc định) |
+| Cố ý bắt đầu run mới | thêm `--new-run` (TraCI poll Projector sau RunStarted) |
+| Resume run Projector đang active | `--simulation-run-id <uuid từ GET :8093/current-run>` |
+
+Nếu start không flag trong khi Projector active, TraCI thoát mã 2 và in hướng dẫn — tránh dashboard empty do run mismatch.
+
 ## 8. Chạy Spring Server
 
 Mở Terminal B:

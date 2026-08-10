@@ -16,4 +16,5 @@ public class SystemHealthDetailsResponse {
     private String orionApiBaseUrl;
     private String contextProviderHealthUrl;
     private String controlApiBaseUrl;
+    private RuntimeAlignmentResponse runtimeAlignment;
 }

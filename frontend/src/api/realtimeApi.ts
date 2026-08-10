@@ -8,6 +8,7 @@ import type {
   TrafficLightResponse,
   VehicleSensorResponse,
   SystemHealthResponse,
+  SystemHealthDetailsResponse,
 } from '@/types/realtime'
 import { httpClient } from './httpClient'
 
@@ -16,6 +17,16 @@ import { httpClient } from './httpClient'
  */
 export async function getSystemHealth(): Promise<SystemHealthResponse> {
   const res = await httpClient.get<SystemHealthResponse>('/api/system/health')
+  return res.data
+}
+
+/**
+ * GET /api/system/health/details — admin runtime alignment (TraCI vs Projector).
+ */
+export async function getSystemHealthDetails(): Promise<ApiResponse<SystemHealthDetailsResponse>> {
+  const res = await httpClient.get<ApiResponse<SystemHealthDetailsResponse>>(
+    '/api/system/health/details',
+  )
   return res.data
 }
 
