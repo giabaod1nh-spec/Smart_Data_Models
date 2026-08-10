@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useIntersectionList } from '@/hooks/useIntersectionList'
-import { useRuntimeAlignment } from '@/hooks/useRuntimeAlignment'
 import { useSystemStatus } from '@/hooks/useSystemStatus'
 import { getSystemStatusInfo } from '@/utils/systemStatus'
 import { buildRunMismatchMessage } from '@/utils/intersectionListStatus'
@@ -68,9 +67,9 @@ export function AppShell() {
     status: listStatus,
     statusMessage,
     isLoading: listLoading,
+    alignment,
+    isRunMismatch,
   } = useIntersectionList()
-
-  const { alignment, isRunMismatch } = useRuntimeAlignment()
 
   const { status: sysStatus } = useSystemStatus()
   const sysStatusInfo = getSystemStatusInfo(sysStatus)

@@ -2,7 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { getSystemHealthDetails } from '@/api/realtimeApi'
+import { useAuth } from '@/features/auth/AuthContext'
 import type { RuntimeAlignmentResponse } from '@/types/realtime'
+
+export const RUNTIME_ALIGNMENT_QUERY_KEY = ['system', 'health', 'details', 'alignment'] as const
 
 const ALIGNMENT_POLL_MS = 15_000
 
@@ -11,14 +14,17 @@ export function useRuntimeAlignment(): {
   isLoading: boolean
   isRunMismatch: boolean
 } {
+  const { isAuthenticated } = useAuth()
+
   const query = useQuery({
-    queryKey: ['system', 'health', 'details', 'alignment'],
+    queryKey: RUNTIME_ALIGNMENT_QUERY_KEY,
     queryFn: async () => {
       const res = await getSystemHealthDetails()
       return res.data?.runtimeAlignment ?? null
     },
+    enabled: isAuthenticated,
     staleTime: ALIGNMENT_POLL_MS,
-    refetchInterval: ALIGNMENT_POLL_MS,
+    refetchInterval: isAuthenticated ? ALIGNMENT_POLL_MS : false,
     refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

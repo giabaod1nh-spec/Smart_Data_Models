@@ -193,10 +193,12 @@ Các biến trên buộc đường realtime dùng durable outbox → Kafka và k
 | Tình huống | Lệnh |
 |---|---|
 | Lần chạy đầu / Projector idle | `python -m app.traci_runner ...` (mặc định) |
-| Cố ý bắt đầu run mới | thêm `--new-run` (TraCI poll Projector sau RunStarted) |
+| Cố ý bắt đầu run mới | thêm `--new-run` (sync gate chạy **background** sau RunStarted — SUMO không block) |
 | Resume run Projector đang active | `--simulation-run-id <uuid từ GET :8093/current-run>` |
 
 Nếu start không flag trong khi Projector active, TraCI thoát mã 2 và in hướng dẫn — tránh dashboard empty do run mismatch.
+
+Sau `--new-run`, dashboard có thể báo mismatch vài chục giây cho đến khi Projector chuyển run (thread nền poll `/current-run`). Tùy chọn: `$env:PROJECTOR_SYNC_TIMEOUT_SEC = "60"` (mặc định 60). Bỏ qua sync: `--skip-projector-sync`.
 
 ## 8. Chạy Spring Server
 

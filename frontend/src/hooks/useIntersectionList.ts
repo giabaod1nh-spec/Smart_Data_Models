@@ -14,7 +14,7 @@ import { useRuntimeAlignment } from '@/hooks/useRuntimeAlignment'
 export const INTERSECTION_LIST_KEY = ['intersections'] as const
 
 export function useIntersectionList() {
-  const { alignment } = useRuntimeAlignment()
+  const { alignment, isRunMismatch } = useRuntimeAlignment()
 
   const query = useQuery({
     queryKey: INTERSECTION_LIST_KEY,
@@ -47,6 +47,8 @@ export function useIntersectionList() {
   return {
     ...query,
     intersections: query.data,
+    alignment,
+    isRunMismatch,
     status,
     statusMessage,
     isEmpty: status === 'empty' || status === 'run_mismatch',

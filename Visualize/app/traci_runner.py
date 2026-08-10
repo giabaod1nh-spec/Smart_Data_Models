@@ -221,6 +221,19 @@ def fanout_publish_cycle(
     return cycle
 
 
+def _run_projector_sync_gate(resolved_run_id: str, projector_base_url: str) -> None:
+    from integration.projector.run_resolver import wait_for_projector_run
+
+    try:
+        ok = wait_for_projector_run(resolved_run_id, projector_base_url)
+        if ok:
+            log.info("Background projector sync aligned run=%s", resolved_run_id)
+        else:
+            log.warning("Background projector sync timed out run=%s", resolved_run_id)
+    except Exception as e:
+        log.warning("Background projector sync failed: %s", e, exc_info=True)
+
+
 def _maybe_sync_projector_after_outbox_publish(
     *,
     kafka_outbox,
@@ -228,14 +241,30 @@ def _maybe_sync_projector_after_outbox_publish(
     projector_sync_pending: bool,
     resolved_run_id: str,
     projector_base_url: str,
+    projector_sync_launched: list[bool],
 ) -> bool:
-    """After first successful outbox append_cycle (RunStarted path), poll Projector."""
+    """After first successful outbox append_cycle, start background Projector sync."""
     if not projector_sync_pending or skip_projector_sync or kafka_outbox is None:
         return projector_sync_pending
 
-    from integration.projector.run_resolver import wait_for_projector_run
+    if projector_sync_launched[0]:
+        return False
 
-    wait_for_projector_run(resolved_run_id, projector_base_url)
+    from integration.projector.run_resolver import projector_sync_timeout_sec
+
+    projector_sync_launched[0] = True
+    timeout = projector_sync_timeout_sec()
+    log.info(
+        "Projector sync gate started in background (timeout=%.0fs, run=%s)",
+        timeout,
+        resolved_run_id,
+    )
+    threading.Thread(
+        target=_run_projector_sync_gate,
+        args=(resolved_run_id, projector_base_url),
+        daemon=True,
+        name="projector-sync",
+    ).start()
     return False
 
 
@@ -546,6 +575,7 @@ def run(args: argparse.Namespace) -> int:
 
     demo = getattr(args, "demo", False)
     demo_applied = False
+    projector_sync_launched = [False]
     last_step_wall = time.perf_counter()
     pace_anchor_wall: Optional[float] = None
     pace_anchor_sim: float = 0.0
@@ -781,6 +811,7 @@ def run(args: argparse.Namespace) -> int:
                                 projector_sync_pending=projector_sync_pending,
                                 resolved_run_id=resolved_run_id,
                                 projector_base_url=proj_url,
+                                projector_sync_launched=projector_sync_launched,
                             )
                             if _perf_enabled():
                                 log.info(
@@ -853,6 +884,7 @@ def run(args: argparse.Namespace) -> int:
                             projector_sync_pending=projector_sync_pending,
                             resolved_run_id=resolved_run_id,
                             projector_base_url=proj_url,
+                            projector_sync_launched=projector_sync_launched,
                         )
                         last_publish_sim_t = cycle.simulation_time
                         backend.clear_publish_asap()

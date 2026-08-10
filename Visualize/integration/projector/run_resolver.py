@@ -18,6 +18,21 @@ DEFAULT_SYNC_TIMEOUT_SEC = 60.0
 DEFAULT_SYNC_POLL_SEC = 2.0
 
 
+def projector_sync_timeout_sec() -> float:
+    raw = os.getenv("PROJECTOR_SYNC_TIMEOUT_SEC", "").strip()
+    if not raw:
+        return DEFAULT_SYNC_TIMEOUT_SEC
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        log.warning(
+            "Invalid PROJECTOR_SYNC_TIMEOUT_SEC=%r; using default %.0fs",
+            raw,
+            DEFAULT_SYNC_TIMEOUT_SEC,
+        )
+        return DEFAULT_SYNC_TIMEOUT_SEC
+
+
 class ProjectorUnreachableError(OSError):
     """Projector /current-run could not be reached."""
 
@@ -169,31 +184,33 @@ def wait_for_projector_run(
     run_id: str,
     base_url: Optional[str] = None,
     *,
-    timeout_sec: float = DEFAULT_SYNC_TIMEOUT_SEC,
+    timeout_sec: Optional[float] = None,
     poll_sec: float = DEFAULT_SYNC_POLL_SEC,
 ) -> bool:
-    """Poll /current-run until simulationRunId matches run_id."""
+    """Poll /current-run until simulationRunId matches run_id. Never raises."""
     target = str(run_id).strip()
     if not target:
         return False
 
+    effective_timeout = (
+        projector_sync_timeout_sec() if timeout_sec is None else max(0.0, float(timeout_sec))
+    )
     root = (base_url or projector_base_url()).rstrip("/")
-    deadline = time.monotonic() + max(0.0, float(timeout_sec))
+    deadline = time.monotonic() + effective_timeout
     last_seen: Optional[str] = None
 
     while time.monotonic() < deadline:
         try:
             current = fetch_projector_current_run(root)
+            seen = _active_run_id(current)
+            last_seen = seen
+            if seen == target:
+                log.info("Projector current-run aligned: simulationRunId=%s", target)
+                return True
         except ProjectorUnreachableError as e:
             log.warning("Projector sync poll failed: %s", e)
-            time.sleep(poll_sec)
-            continue
-
-        seen = _active_run_id(current)
-        last_seen = seen
-        if seen == target:
-            log.info("Projector current-run aligned: simulationRunId=%s", target)
-            return True
+        except Exception as e:
+            log.warning("Projector sync poll unexpected error: %s", e, exc_info=True)
 
         time.sleep(poll_sec)
 
@@ -201,7 +218,7 @@ def wait_for_projector_run(
         "Projector sync gate timeout after %.0fs: TraCI run=%s projector run=%s. "
         "Dashboard may show empty intersections until Projector catches up. "
         "Check: Invoke-RestMethod %s/current-run",
-        timeout_sec,
+        effective_timeout,
         target,
         last_seen,
         root,
