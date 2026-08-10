@@ -1,0 +1,4 @@
+# AI_Control_Traffic_Light — Cooperative Multi-Agent DQN
+tensorflow>=2.15.0
+numpy>=1.24.0
+PyYAML>=6.0

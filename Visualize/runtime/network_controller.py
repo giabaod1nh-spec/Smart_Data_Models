@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import configuration.config as cfg
 from context_engine.coordinator import NetworkContextCoordinator
 from actuators.emergency import EmergencyActuator
+from actuators.incident import IncidentActuator
 from configuration.model_params import get_registry
 from runtime.state import NetworkRuntimeState
 from actuators.capacity import ScenarioCapacityActuator
@@ -25,6 +26,7 @@ class NetworkRuntimeController:
         self.demand = ScenarioDemandActuator(seed=seed)
         self.capacity = ScenarioCapacityActuator()
         self.emergency = EmergencyActuator()
+        self.incident = IncidentActuator()
         catalog = None
         cat_path = cfg.GENERATED_ROOT / "network_topology_catalog.json"
         if cat_path.is_file():
@@ -32,6 +34,9 @@ class NetworkRuntimeController:
         self.coordinator = NetworkContextCoordinator(catalog)
         self.state = NetworkRuntimeState()
         self.state.ensure_nodes(publish_nodes)
+        for nid in publish_nodes:
+            self.state.per_node_scenarios[nid] = "normal"
+            self.state.per_node_demand_profiles[nid] = "normal"
         self.artifacts_run_dir = artifacts_run_dir
         self._event_path: Optional[Path] = None
         # Demand/actuator dt must advance every TraCI step — NOT only on
@@ -58,7 +63,11 @@ class NetworkRuntimeController:
         target_intersection: Optional[str] = None,
     ) -> Dict[str, Any]:
         info = self.demand.set_profile(profile_id, target_intersection=target_intersection)
-        # Keep last active profile for health; per-node map lives on the actuator.
+        if target_intersection:
+            self.state.per_node_demand_profiles[str(target_intersection)] = profile_id
+        else:
+            for nid in self.state.per_node_demand_profiles:
+                self.state.per_node_demand_profiles[nid] = profile_id
         self.state.demand_profile_id = profile_id
         self._emit(
             "demand_profile",
@@ -114,6 +123,11 @@ class NetworkRuntimeController:
         self._emit("overlay", {"action": "remove", "overlay_id": overlay_id, "ok": ok})
         return ok
 
+    def apply_node_scenario(self, traci_module, node_id: str, scenario: str, sim_t: float) -> Dict[str, Any]:
+        from runtime.scenario_runtime import apply_node_scenario
+
+        return apply_node_scenario(self, traci_module, node_id, scenario, sim_t)
+
     def on_start(self, traci_module) -> None:
         try:
             traci_module.simulation.setScale(1.0)
@@ -130,6 +144,7 @@ class NetworkRuntimeController:
             dt = cfg_dt_fallback()
         self.demand.tick(traci_module, dt)
         self._last_actuator_t = float(sim_t)
+        self.incident.tick(traci_module)
         self.capacity.tick_expiry(traci_module, sim_t)
         self.emergency.tick(traci_module, sim_t)
         for ov in self.capacity.active_list():

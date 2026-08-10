@@ -51,6 +51,15 @@ MOTO_FRONT_ZONE_START_RATIO = float(_REG.threshold("moto_front_zone_start_ratio"
 
 CONTROL_API_PORT = int(os.getenv("CONTROL_API_PORT", "9090"))
 
+# Live TraCI → WebSocket vehicle stream (Control API /ws/live)
+LIVE_STREAM_ENABLED = os.getenv("LIVE_STREAM_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+LIVE_STREAM_HZ = float(os.getenv("LIVE_STREAM_HZ", "10"))
+LIVE_STREAM_QUEUE_SIZE = int(os.getenv("LIVE_STREAM_QUEUE_SIZE", "3"))
+
 # ── DetectorParameters (from registry detector profile) ───────────
 _DET = _REG.detector_meta()
 E1_OFFSET_FROM_END_M = float(_DET["e1_offset_from_end_m"]["value"])
@@ -325,11 +334,14 @@ DENSITY_THRESHOLDS_INTERSECTION = _REG.traffic_load_bins_intersection()
 
 SCENARIO_IDS = (
     "normal",
+    "peak",
+    "oversaturated",
+    "rain",
+    "incident",
+    # legacy (compat — normalized to canonical)
     "morning_peak",
     "evening_peak",
     "heavy_traffic",
-    "oversaturated",
-    "rain",
     "heavy_rain",
     "accident",
     "emergency",
@@ -337,25 +349,65 @@ SCENARIO_IDS = (
     "spillback",
 )
 
-DEMAND_PROFILE_IDS = frozenset(
-    {"normal", "morning_peak", "evening_peak", "heavy_traffic", "oversaturated"}
+CANONICAL_SCENARIO_IDS = frozenset(
+    {"normal", "peak", "oversaturated", "rain", "incident"}
 )
+
+LEGACY_SCENARIO_ALIASES: Dict[str, str] = {
+    "morning_peak": "peak",
+    "evening_peak": "peak",
+    "heavy_traffic": "peak",
+    "heavy_rain": "rain",
+    "accident": "incident",
+    "blocked_intersection": "incident",
+    "spillback": "peak",
+    "emergency": "incident",
+}
+
+DEMAND_PROFILE_IDS = frozenset(
+    {
+        "normal",
+        "peak",
+        "oversaturated",
+        # legacy demand ids (normalized to peak where applicable)
+        "morning_peak",
+        "evening_peak",
+        "heavy_traffic",
+    }
+)
+
+# Deterministic incident approach per node (no UI direction picker).
+INCIDENT_APPROACH_BY_NODE: Dict[str, str] = {
+    "A": "North",
+    "B": "East",
+    "C": "West",
+    "D": "South",
+}
+
+
+def incident_approach_direction(node_id: str) -> str:
+    return INCIDENT_APPROACH_BY_NODE.get(node_id, "North")
 
 _log = logging.getLogger(__name__)
 
 
 def normalize_demand_profile_id(profile_id: str) -> str:
-    """Pass through known demand profile ids (no silent remapping)."""
-    return profile_id
+    """Map legacy demand profile ids to canonical ids."""
+    pid = profile_id.strip().lower()
+    if pid in ("morning_peak", "evening_peak", "heavy_traffic"):
+        return "peak"
+    return pid
 
 
 def normalize_scenario_id(scenario_id: str) -> str:
-    """Normalize scenario id (demand profiles pass through unchanged)."""
-    return normalize_demand_profile_id(scenario_id)
+    """Normalize to canonical scenario id."""
+    sid = scenario_id.strip().lower()
+    return LEGACY_SCENARIO_ALIASES.get(sid, sid)
 
 
 def is_known_scenario_id(scenario_id: str) -> bool:
-    return scenario_id in SCENARIO_IDS
+    sid = normalize_scenario_id(scenario_id.strip().lower())
+    return sid in CANONICAL_SCENARIO_IDS or scenario_id.strip().lower() in SCENARIO_IDS
 
 _sc = _REG.export_effective_config().get("scenarios") or {}
 SCENARIO_TRAFFIC_SCALE: Dict[str, float] = dict(_sc.get("traffic_scale") or {})

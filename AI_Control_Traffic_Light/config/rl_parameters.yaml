@@ -1,0 +1,49 @@
+# Cooperative Multi-Agent DQN hyperparameters
+num_agents: 4
+agent_nodes: ["A", "B", "C", "D"]
+
+# DQN
+gamma: 0.95
+epsilon_start: 1.0
+epsilon_min: 0.05
+epsilon_decay: 0.995
+learning_rate: 0.001
+batch_size: 64
+memory_size: 50000
+target_update_frequency: 10
+
+# Decision cadence (simulation seconds between agent actions)
+decision_interval_sec: 5.0
+
+# Reward mixing
+local_reward_weight: 0.5
+global_reward_weight: 0.5
+
+# Local reward coefficients
+w_queue: 0.1
+w_waiting: 0.15
+w_halted: 0.05
+w_throughput: 0.2
+
+# Global reward coefficients
+W_queue: 0.05
+W_waiting: 0.08
+W_throughput: 0.15
+spillback_fixed_penalty: 5.0
+spillback_occ_threshold: 0.7
+
+# Training
+num_episodes: 500
+seed: 42
+training_mode: cooperative  # fixed | independent | cooperative
+
+# State normalization caps
+max_queue_veh: 50.0
+max_waiting: 30.0
+
+# Network architecture
+hidden_layers: [128, 64, 32]
+action_size: 4
+max_neighbors: 2
+local_state_dim: 17
+neighbor_block_dim: 12

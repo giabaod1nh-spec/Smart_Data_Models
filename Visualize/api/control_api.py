@@ -3,13 +3,19 @@ control_api.py — FastAPI Control API for SumoBackend (ADR-005).
 
 Mutating endpoints enqueue commands; TraCI thread drains via SumoBackend.step().
 Scenario apply waits for TraCI drain (wait=True) so HTTP returns only after apply.
+
+Live vehicle stream: GET /live/health, GET /live/network, WS /live/ws
+(read-only; TraCI publishes frames via LiveStreamHub — never blocked by clients).
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -19,10 +25,11 @@ from control.command_intake import CommandIntakeError, accept_command
 from control.command_registry import CommandRegistry
 from control.models import ControlCommandEnvelope, ControlCommandStatus
 from runtime.command_queue import QueueFullError
-from uuid import UUID
 
 # Wall-clock wait for TraCI thread to drain a command (slow realtime sims need headroom).
 _TRACI_WAIT_TIMEOUT_SEC = float(os.getenv("CONTROL_TRACI_WAIT_TIMEOUT_SEC", "15"))
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Visualize SUMO Control API", version=cfg.VERSION)
 command_registry = CommandRegistry()
@@ -38,6 +45,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -197,7 +205,7 @@ def set_orion_publish(req: OrionPublishRequest):
 @app.get("/scenario")
 def get_scenario():
     eng = _require_engine()
-    available = [{"id": s, "description": s} for s in cfg.SCENARIO_IDS]
+    available = [{"id": s, "description": s} for s in cfg.CANONICAL_SCENARIO_IDS]
     net = eng.get_network_state() if eng._started else {}
     return {
         "current": eng.current_scenario,
@@ -235,16 +243,25 @@ def set_scenario(req: ScenarioRequest):
     eng = _require_engine()
     if not cfg.is_known_scenario_id(req.scenario):
         raise HTTPException(400, f"Unknown scenario '{req.scenario}'")
+    if not req.target_intersection:
+        raise HTTPException(400, "target_intersection is required")
     scenario = cfg.normalize_scenario_id(req.scenario)
-    if req.target_intersection and req.target_intersection not in eng.publish_nodes:
+    if scenario not in cfg.CANONICAL_SCENARIO_IDS:
+        raise HTTPException(400, f"Unknown scenario '{req.scenario}'")
+    if req.target_intersection not in eng.publish_nodes:
         raise HTTPException(400, f"Unknown intersection '{req.target_intersection}'")
-    result = _enqueue_wait(
-        eng,
-        "set_scenario",
-        scenario=scenario,
-        target_intersection=req.target_intersection,
-        target_direction=req.target_direction,
-    )
+    try:
+        result = _enqueue_wait(
+            eng,
+            "set_scenario",
+            scenario=scenario,
+            target_intersection=req.target_intersection,
+            target_direction=req.target_direction,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(502, str(e)) from e
     if req.node_overrides:
         for node_id, sc in req.node_overrides.items():
             if node_id not in eng.publish_nodes:
@@ -258,12 +275,11 @@ def set_scenario(req: ScenarioRequest):
                 target_intersection=node_id,
                 target_direction=None,
             )
-    # applied=true: TraCI has already executed set_scenario (not merely queued).
     return {
         "queued": False,
         "applied": True,
-        "current": req.scenario,
-        "result": result if isinstance(result, dict) else {"scenarioId": req.scenario},
+        "current": scenario,
+        "result": result if isinstance(result, dict) else {"scenarioId": scenario},
     }
 
 
@@ -405,3 +421,100 @@ def get_trip_records(limit: int = 50):
 def get_stats():
     eng = _require_engine()
     return eng.get_stats()
+
+
+# ── Live vehicle WebSocket stream ─────────────────────────────────────────────
+
+@app.get("/live/health")
+def live_health():
+    """Health for live TraCI vehicle stream (does not require engine for disabled state)."""
+    from streaming.live_vehicle_stream import get_live_stream_hub
+
+    hub = get_live_stream_hub()
+    body = hub.health()
+    body["engineRunning"] = engine is not None and getattr(engine, "_started", False)
+    body["hz"] = cfg.LIVE_STREAM_HZ
+    return body
+
+
+@app.get("/live/network")
+def live_network():
+    """Static SUMO network geometry for canvas mapping (cartesian bounds, no fake lat/lon)."""
+    from streaming.live_vehicle_stream import get_live_stream_hub
+
+    hub = get_live_stream_hub()
+    geom = hub.get_network_geometry()
+    if geom is None:
+        raise HTTPException(503, "Network geometry not loaded (start TraCI first)")
+    return geom
+
+
+@app.websocket("/live/ws")
+async def ws_live(websocket: WebSocket):
+    """
+    Push latest vehicle frames to the browser.
+
+    TraCI publishes into LiveStreamHub on its own thread; this handler only polls
+    the latest frame. Disconnects are swallowed so SUMO keeps running.
+    """
+    from streaming.live_vehicle_stream import get_live_stream_hub
+
+    hub = get_live_stream_hub()
+    if not hub.enabled and not cfg.LIVE_STREAM_ENABLED:
+        await websocket.close(code=1013)
+        return
+
+    await websocket.accept()
+    hub.client_connected()
+    last_seq = -1
+    # Poll slightly faster than stream Hz so clients see frames promptly
+    poll_s = max(0.03, 0.5 / max(1.0, cfg.LIVE_STREAM_HZ))
+    try:
+        # Send geometry once so FE can draw roads without a separate race
+        geom = hub.get_network_geometry()
+        if geom is not None:
+            try:
+                await websocket.send_json({"type": "network", "network": geom})
+            except Exception:
+                pass
+
+        while True:
+            frame = hub.get_latest()
+            if frame is not None:
+                seq = int(frame.get("seq") or 0)
+                if seq != last_seq:
+                    last_seq = seq
+                    payload = dict(frame)
+                    payload["type"] = "frame"
+                    try:
+                        await websocket.send_json(payload)
+                    except Exception:
+                        break
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=poll_s)
+            except asyncio.TimeoutError:
+                continue
+            except WebSocketDisconnect:
+                break
+            except Exception:
+                # Client sent binary/close/etc. — keep streaming until socket dies
+                continue
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        log.debug("live/ws ended: %s", e)
+    finally:
+        try:
+            hub.client_disconnected()
+        except Exception:
+            pass
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+# Back-compat alias for earlier plan path
+@app.websocket("/ws/live")
+async def ws_live_alias(websocket: WebSocket):
+    await ws_live(websocket)

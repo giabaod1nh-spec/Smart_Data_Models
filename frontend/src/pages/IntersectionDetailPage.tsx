@@ -22,6 +22,7 @@ import {
   Activity, LayoutGrid, Clock, Calendar, TrendingUp,
 } from 'lucide-react'
 import { useRealtimeIntersection } from '@/hooks/useRealtimeIntersection'
+import { useLiveVehicleStream } from '@/hooks/useLiveVehicleStream'
 import { useSimulationPauseDetector } from '@/hooks/useSimulationPauseDetector'
 import { useRealtimeEventFeed } from '@/hooks/useRealtimeEventFeed'
 import {
@@ -45,6 +46,7 @@ import {
 import { getIntersectionDisplayName } from '@/utils/intersectionDisplayName'
 import { KpiCard } from '@/components/cards/KpiCard'
 import { IntersectionScene } from '@/components/canvas/IntersectionScene'
+import { LiveSumoTrafficView } from '@/components/canvas/LiveSumoTrafficView'
 import { ReverseControlPanel } from '@/components/control/ReverseControlPanel'
 import { ScenarioControlCard } from '@/components/control/ScenarioControlCard'
 import { TrafficLightPanel } from '@/components/feedback/TrafficLightPanel'
@@ -103,6 +105,13 @@ export function IntersectionDetailPage() {
   } = useRealtimeIntersection(intersectionId, {
     preferFastPoll: Boolean(appliedScenarioId),
   })
+
+  // Real SUMO vehicles via Control API WebSocket (independent of KPI HTTP poll)
+  const liveStream = useLiveVehicleStream(true)
+  const showLiveSumo =
+    liveStream.status === 'connected' ||
+    liveStream.frame != null ||
+    liveStream.network != null
 
   // Debounce manual Retry: rapid clicks fire at most one request per second.
   const lastRetryMsRef = useRef(0)
@@ -476,16 +485,20 @@ export function IntersectionDetailPage() {
           />
         </div>
 
-        {/* Center: Live Traffic View (React Konva 2D Canvas) */}
+        {/* Center: Live Traffic View — prefer real SUMO WS stream; fallback to aggregate schematic */}
         <div className="card" style={{ padding: 10 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ color: '#16C7E8' }}>●</span>
             Live Traffic View
             <span
               style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4, fontWeight: 500 }}
-              title="Representative vehicle sprites driven by sensor aggregates — not exact SUMO coordinates"
+              title={
+                showLiveSumo
+                  ? 'Real vehicle positions from the running SUMO TraCI instance via WebSocket'
+                  : 'Fallback schematic sprites from sensor aggregates — start TraCI for live SUMO stream'
+              }
             >
-              (representative)
+              {showLiveSumo ? '(SUMO live)' : '(aggregate fallback)'}
             </span>
             {metricsDelayed && (
               <span style={{ fontSize: 10, color: '#FACC15', marginLeft: 4 }} title="Simulation ticks are sparse; KPIs update when new telemetry arrives">
@@ -493,15 +506,24 @@ export function IntersectionDetailPage() {
               </span>
             )}
           </div>
-          {isLoading ? (
+          {isLoading && !showLiveSumo ? (
             <Skeleton height={520} width="100%" />
+          ) : showLiveSumo ? (
+            <LiveSumoTrafficView
+              intersectionId={intersectionId}
+              status={liveStream.status}
+              frameRef={liveStream.frameRef}
+              frame={liveStream.frame}
+              network={liveStream.network}
+              stats={liveStream.stats}
+              simulationTime={liveStream.simulationTime}
+            />
           ) : (
             <IntersectionScene
               sensors={sensors}
               lights={lights}
               currentPhase={currentPhase}
               simulationRunId={metadata?.simulationRunId}
-              // Keep animation running — only freeze decorative view on hard API failure.
               stale={freshnessState === 'error'}
             />
           )}

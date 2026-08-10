@@ -316,6 +316,9 @@ class ParameterRegistry:
             "causal_inference": copy.deepcopy(self._raw.get("causal_inference") or {}),
             "local_overlay_types": copy.deepcopy(self._raw.get("local_overlay_types") or {}),
             "demo_profile": copy.deepcopy(self._raw.get("demo_profile") or {}),
+            "incident_staging": copy.deepcopy(self._raw.get("incident_staging") or {}),
+            "incident_markers": copy.deepcopy(self._raw.get("incident_markers") or {}),
+            "incident_bypass": copy.deepcopy(self._raw.get("incident_bypass") or {}),
             "network": {
                 "network_id": network.get("network_id"),
                 "network_version": network.get("network_version"),
@@ -495,7 +498,7 @@ class ParameterRegistry:
                     raise ValueError(
                         f"driver_behavior.vn_urban_chaos.{tier}.{key} must be in [0,1], got {f}"
                     )
-                if key in ("minGap", "minGapLat", "tau", "jmDriveAfterRedTime", "jmTimegapMinor"):
+                if key in ("minGap", "minGapLat", "tau", "jmDriveAfterRedTime", "jmTimegapMinor", "jmAdvance", "jmExtraGap"):
                     if f < 0:
                         raise ValueError(
                             f"driver_behavior.vn_urban_chaos.{tier}.{key} must be >= 0"
