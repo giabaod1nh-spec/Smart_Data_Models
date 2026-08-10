@@ -104,20 +104,10 @@ def apply_node_scenario(
 
         elif scenario == "incident":
             direction = cfg.incident_approach_direction(node_id)
-            crash_lane = runtime.incident.crash_lane_id(node_id, direction)
-            # Stage vehicles before lane patch — overlay blocks depart on same lane.
+            # Physical blockers only — do NOT setDisallowed the whole crash lane
+            # so upstream traffic can still use the middle lane until the red zone.
             vids = runtime.incident.stage(traci_module, node_id, direction, sim_t)
             result["incidentVehicles"] = vids
-            ov = runtime.add_overlay(
-                traci_module,
-                overlay_type="accident",
-                intersection_id=node_id,
-                direction=direction,
-                segment_role="incoming_approach",
-                target_lanes=[crash_lane],
-                sim_t=sim_t,
-            )
-            result["overlayIds"].append(ov.get("overlay_id"))
             runtime.set_demand_profile("peak", target_intersection=node_id)
             result["demandProfileChanged"] = True
             nstate = runtime.state.nodes.get(node_id)
