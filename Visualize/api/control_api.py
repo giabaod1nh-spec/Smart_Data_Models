@@ -205,7 +205,7 @@ def set_orion_publish(req: OrionPublishRequest):
 @app.get("/scenario")
 def get_scenario():
     eng = _require_engine()
-    available = [{"id": s, "description": s} for s in cfg.SCENARIO_IDS]
+    available = [{"id": s, "description": s} for s in cfg.CANONICAL_SCENARIO_IDS]
     net = eng.get_network_state() if eng._started else {}
     return {
         "current": eng.current_scenario,
@@ -243,16 +243,25 @@ def set_scenario(req: ScenarioRequest):
     eng = _require_engine()
     if not cfg.is_known_scenario_id(req.scenario):
         raise HTTPException(400, f"Unknown scenario '{req.scenario}'")
+    if not req.target_intersection:
+        raise HTTPException(400, "target_intersection is required")
     scenario = cfg.normalize_scenario_id(req.scenario)
-    if req.target_intersection and req.target_intersection not in eng.publish_nodes:
+    if scenario not in cfg.CANONICAL_SCENARIO_IDS:
+        raise HTTPException(400, f"Unknown scenario '{req.scenario}'")
+    if req.target_intersection not in eng.publish_nodes:
         raise HTTPException(400, f"Unknown intersection '{req.target_intersection}'")
-    result = _enqueue_wait(
-        eng,
-        "set_scenario",
-        scenario=scenario,
-        target_intersection=req.target_intersection,
-        target_direction=req.target_direction,
-    )
+    try:
+        result = _enqueue_wait(
+            eng,
+            "set_scenario",
+            scenario=scenario,
+            target_intersection=req.target_intersection,
+            target_direction=req.target_direction,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(502, str(e)) from e
     if req.node_overrides:
         for node_id, sc in req.node_overrides.items():
             if node_id not in eng.publish_nodes:
@@ -266,12 +275,11 @@ def set_scenario(req: ScenarioRequest):
                 target_intersection=node_id,
                 target_direction=None,
             )
-    # applied=true: TraCI has already executed set_scenario (not merely queued).
     return {
         "queued": False,
         "applied": True,
-        "current": req.scenario,
-        "result": result if isinstance(result, dict) else {"scenarioId": req.scenario},
+        "current": scenario,
+        "result": result if isinstance(result, dict) else {"scenarioId": scenario},
     }
 
 

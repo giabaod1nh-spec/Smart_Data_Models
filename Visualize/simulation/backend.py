@@ -67,7 +67,7 @@ class SumoBackend:
         self.snapshot_provider = self.snapshots[self.publish_node]
 
         self.current_scenario = "normal"
-        self.per_node_scenario: Dict[str, str] = {}
+        self.per_node_scenario: Dict[str, str] = {n: "normal" for n in self.publish_nodes}
         self.trip_records: list = self.trips.records
         self.last_spawn_count = 0
         self.simulation_time_sec = 0.0
@@ -517,86 +517,32 @@ class SumoBackend:
         target_intersection: Optional[str] = None,
         target_direction: Optional[str] = None,
     ) -> dict:
-        """Compat facade: map legacy scenario id → demand profile and/or overlay."""
+        """Apply canonical scenario at target_intersection only (physical-first)."""
         self._require_started()
-        node = target_intersection or self.publish_node
+        if not target_intersection:
+            raise ValueError("target_intersection is required")
+        node = target_intersection
         self._assert_node(node)
         scenario = cfg.normalize_scenario_id(scenario)
-        self.scenarios[node].set_scenario(self._traci, scenario, target_direction)
-        self.current_scenario = scenario
+        if scenario not in cfg.CANONICAL_SCENARIO_IDS:
+            raise ValueError(f"Unknown scenario '{scenario}'")
+
+        result = self.runtime.apply_node_scenario(
+            self._traci, node, scenario, self.simulation_time_sec
+        )
+        direction = cfg.incident_approach_direction(node) if scenario == "incident" else target_direction
+        self.scenarios[node].set_scenario(self._traci, scenario, direction)
         self.per_node_scenario[node] = scenario
-
-        result = {
-            "scenarioId": scenario,
-            "affectedIntersections": [node],
-            "demandProfileChanged": False,
-            "overlayIds": [],
-            "resourcesPatched": [],
-            "preemptionModeChanged": False,
-            "emergencyInsertion": False,
-            "pendingOperations": [],
-            "failures": [],
-        }
-
-        demand_ids = cfg.DEMAND_PROFILE_IDS
-        if scenario in demand_ids:
-            # Per-intersection demand: only boundary sources touching this node.
-            self.runtime.set_demand_profile(scenario, target_intersection=node)
-            result["demandProfileChanged"] = True
-            result["affectedIntersections"] = [node]
-        elif scenario in ("accident", "blocked_intersection"):
-            ov = self.runtime.add_overlay(
-                self._traci,
-                overlay_type=scenario,
-                intersection_id=node,
-                direction=target_direction or "North",
-                segment_role="incoming_approach",
-                sim_t=self.simulation_time_sec,
-            )
-            result["overlayIds"].append(ov.get("overlay_id"))
-            # Local demand surge so queues/speed collapse form for RF ACCIDENT.
-            self.runtime.set_demand_profile("oversaturated", target_intersection=node)
-            result["demandProfileChanged"] = True
-        elif scenario == "spillback":
-            ov = self.runtime.add_overlay(
-                self._traci,
-                overlay_type="downstream_restriction",
-                intersection_id=node,
-                direction=target_direction or "West",
-                segment_role="downstream_exit",
-                sim_t=self.simulation_time_sec,
-            )
-            result["overlayIds"].append(ov.get("overlay_id"))
-            self.runtime.set_demand_profile("heavy_traffic", target_intersection=node)
-            result["demandProfileChanged"] = True
-        elif scenario in ("rain", "heavy_rain"):
-            ov = self.runtime.add_overlay(
-                self._traci,
-                overlay_type="heavy_rain",
-                intersection_id=node,
-                direction=target_direction,
-                sim_t=self.simulation_time_sec,
-            )
-            result["overlayIds"].append(ov.get("overlay_id"))
-        elif scenario == "emergency":
-            self.set_control_mode("PREEMPTION_ENABLED")
-            result["preemptionModeChanged"] = True
-            ov = self.runtime.add_overlay(
-                self._traci,
-                overlay_type="emergency",
-                intersection_id=node,
-                direction=target_direction,
-                sim_t=self.simulation_time_sec,
-            )
-            result["overlayIds"].append(ov.get("overlay_id"))
-            result["emergencyInsertion"] = True
-        else:
-            result["failures"].append(f"NOT_SUPPORTED:{scenario}")
+        self.current_scenario = self._scenario_summary()
         self._invalidate_caches()
-        # Push scenarioId into Orion/Kafka on the next TraCI tick (not after
-        # a full publish_interval), so Spring realtime matches /health after reload.
         self.request_publish_asap()
         return result
+
+    def _scenario_summary(self) -> str:
+        vals = set(self.per_node_scenario.values())
+        if len(vals) == 1:
+            return next(iter(vals))
+        return "mixed"
 
     def set_demand_profile(
         self,

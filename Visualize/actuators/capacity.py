@@ -101,14 +101,13 @@ class ScenarioCapacityActuator:
             return target_edge, lanes, []
 
         if overlay_type == "heavy_rain":
-            edges = ["J3J4", "J4J3"]
-            if direction in ("North", "South") or intersection_id in ("A", "B"):
-                # default C–D corridor unless NS requested
-                if intersection_id in ("A", "B") and direction in ("North", "South"):
-                    edges = ["J1J3", "J3J1"] if intersection_id in ("A", "C") else ["J2J4", "J4J2"]
-            lanes: List[str] = []
-            for e in edges:
-                lanes.extend([f"{e}_{i}" for i in range(cfg.LANES_PER_APPROACH)])
+            tls = cfg.NODE_TO_TLS[intersection_id]
+            edges: List[str] = []
+            lanes = []
+            for direction in cfg.DIRECTIONS:
+                edge = cfg.APPROACH_EDGES[tls][direction]
+                edges.append(edge)
+                lanes.extend([f"{edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)])
             return None, lanes, edges
 
         if not direction:
@@ -244,6 +243,18 @@ class ScenarioCapacityActuator:
         inst.state = OverlayLifecycle.REMOVED
         log.info("Overlay REMOVED %s", overlay_id)
         return True
+
+    def remove_overlays_for_intersection(self, traci_module, intersection_id: str) -> List[str]:
+        """Remove all active overlays scoped to intersection_id; restore lane speeds."""
+        removed: List[str] = []
+        for oid, inst in list(self.overlays.items()):
+            if inst.state != OverlayLifecycle.ACTIVE:
+                continue
+            if inst.intersection_id != intersection_id:
+                continue
+            if self.remove_overlay(traci_module, oid):
+                removed.append(oid)
+        return removed
 
     def tick_expiry(self, traci_module, sim_t: float) -> List[str]:
         expired = []

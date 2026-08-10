@@ -79,6 +79,8 @@ class NodeRuntimeState:
 @dataclass
 class NetworkRuntimeState:
     demand_profile_id: str = "normal"
+    per_node_scenarios: Dict[str, str] = field(default_factory=dict)
+    per_node_demand_profiles: Dict[str, str] = field(default_factory=dict)
     control_mode: str = "FIXED"
     nodes: Dict[str, NodeRuntimeState] = field(default_factory=dict)
     overlays: List[Dict[str, Any]] = field(default_factory=list)
@@ -108,6 +110,8 @@ class NetworkRuntimeState:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "demand_profile_id": self.demand_profile_id,
+            "per_node_scenarios": dict(self.per_node_scenarios),
+            "per_node_demand_profiles": dict(self.per_node_demand_profiles),
             "control_mode": self.control_mode,
             "overlays": list(self.overlays),
             "nodes": {k: v.to_dict() for k, v in self.nodes.items()},

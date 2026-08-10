@@ -495,7 +495,7 @@ class ParameterRegistry:
                     raise ValueError(
                         f"driver_behavior.vn_urban_chaos.{tier}.{key} must be in [0,1], got {f}"
                     )
-                if key in ("minGap", "minGapLat", "tau", "jmDriveAfterRedTime", "jmTimegapMinor"):
+                if key in ("minGap", "minGapLat", "tau", "jmDriveAfterRedTime", "jmTimegapMinor", "jmAdvance", "jmExtraGap"):
                     if f < 0:
                         raise ValueError(
                             f"driver_behavior.vn_urban_chaos.{tier}.{key} must be >= 0"

@@ -22,10 +22,10 @@ describe('controlApi intersection id normalization', () => {
   })
 
   it('maps Orion URN to SUMO id for setScenario', async () => {
-    await setScenario('heavy_traffic', 'urn:ngsi-ld:Intersection:A')
+    await setScenario('peak', 'urn:ngsi-ld:Intersection:A')
 
     expect(httpClient.post).toHaveBeenCalledWith('/api/control/scenario', {
-      scenario: 'heavy_traffic',
+      scenario: 'peak',
       target_intersection: 'A',
     })
   })
