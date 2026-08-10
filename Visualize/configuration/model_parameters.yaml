@@ -325,7 +325,7 @@ driver_behavior:
       impatience: 0.85
       minGap: 0.25
       minGapLat: 0.2
-      tau: 0.8
+      tau: 0.65
       lcCooperative: 0.0
       lcPushy: 0.85
       lcPushyGap: 0.4
@@ -335,11 +335,13 @@ driver_behavior:
       jmIgnoreJunctionFoeProb: 0.35
       jmSigmaMinor: 0.6
       jmDriveAfterRedTime: 1.5
-      jmTimegapMinor: 0.8
+      jmTimegapMinor: 0.65
+      jmAdvance: 3.5
+      jmExtraGap: 0.15
     car:
-      impatience: 0.65
-      minGap: 1.8
-      tau: 1.0
+      impatience: 0.75
+      minGap: 1.5
+      tau: 0.60
       lcCooperative: 0.2
       lcPushy: 0.55
       lcPushyGap: 0.6
@@ -348,7 +350,9 @@ driver_behavior:
       jmIgnoreJunctionFoeProb: 0.22
       jmSigmaMinor: 0.45
       jmDriveAfterRedTime: 1.0
-      jmTimegapMinor: 1.0
+      jmTimegapMinor: 0.60
+      jmAdvance: 3.0
+      jmExtraGap: 0.35
 
 composition:
   profile_id: synthetic_moto_dominant_profile
