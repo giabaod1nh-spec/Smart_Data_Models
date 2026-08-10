@@ -9,10 +9,13 @@ import {
   type IntersectionListStatus,
 } from '@/utils/intersectionListStatus'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { useRuntimeAlignment } from '@/hooks/useRuntimeAlignment'
 
 export const INTERSECTION_LIST_KEY = ['intersections'] as const
 
 export function useIntersectionList() {
+  const { alignment, isRunMismatch } = useRuntimeAlignment()
+
   const query = useQuery({
     queryKey: INTERSECTION_LIST_KEY,
     queryFn: async (): Promise<IntersectionResponse[]> => {
@@ -34,18 +37,21 @@ export function useIntersectionList() {
     query.isError,
     query.error,
     query.data,
+    alignment,
   )
 
   const statusMessage = query.isError
-    ? apiErrorMessage(query.error, intersectionListStatusMessage(status))
-    : intersectionListStatusMessage(status)
+    ? apiErrorMessage(query.error, intersectionListStatusMessage(status, alignment))
+    : intersectionListStatusMessage(status, alignment)
 
   return {
     ...query,
     intersections: query.data,
+    alignment,
+    isRunMismatch,
     status,
     statusMessage,
-    isEmpty: status === 'empty',
+    isEmpty: status === 'empty' || status === 'run_mismatch',
     isSuccessWithData: status === 'success',
     isUnavailable: status === 'unavailable' || status === 'network_error' || status === 'error',
   }

@@ -149,3 +149,22 @@ export interface SystemHealthResponse {
   server?: string
   [key: string]: unknown
 }
+
+/** RuntimeAlignmentResponse — TraCI vs Projector run identity */
+export interface RuntimeAlignmentResponse {
+  projectorRunId: string | null
+  producerRunId: string | null
+  orionSampleRunId: string | null
+  aligned: boolean | null
+  reason: string | null
+}
+
+/** SystemHealthDetailsResponse — admin health/details envelope */
+export interface SystemHealthDetailsResponse {
+  status: SystemHealthResponse
+  orionHealthUrl?: string | null
+  orionApiBaseUrl?: string | null
+  contextProviderHealthUrl?: string | null
+  controlApiBaseUrl?: string | null
+  runtimeAlignment?: RuntimeAlignmentResponse | null
+}

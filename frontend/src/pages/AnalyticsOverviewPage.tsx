@@ -559,8 +559,8 @@ export function AnalyticsOverviewPage() {
             onRetry={() => void refetchIntersections()}
           />
         ) : intEmpty ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0' }}>
-            No intersections exist in Orion for the current run.
+          <p style={{ color: listStatus === 'run_mismatch' ? 'var(--text-secondary)' : 'var(--text-muted)', fontSize: 13, padding: '12px 0' }}>
+            {statusMessage}
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>

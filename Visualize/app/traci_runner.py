@@ -220,6 +220,54 @@ def fanout_publish_cycle(
             )
     return cycle
 
+
+def _run_projector_sync_gate(resolved_run_id: str, projector_base_url: str) -> None:
+    from integration.projector.run_resolver import wait_for_projector_run
+
+    try:
+        ok = wait_for_projector_run(resolved_run_id, projector_base_url)
+        if ok:
+            log.info("Background projector sync aligned run=%s", resolved_run_id)
+        else:
+            log.warning("Background projector sync timed out run=%s", resolved_run_id)
+    except Exception as e:
+        log.warning("Background projector sync failed: %s", e, exc_info=True)
+
+
+def _maybe_sync_projector_after_outbox_publish(
+    *,
+    kafka_outbox,
+    skip_projector_sync: bool,
+    projector_sync_pending: bool,
+    resolved_run_id: str,
+    projector_base_url: str,
+    projector_sync_launched: list[bool],
+) -> bool:
+    """After first successful outbox append_cycle, start background Projector sync."""
+    if not projector_sync_pending or skip_projector_sync or kafka_outbox is None:
+        return projector_sync_pending
+
+    if projector_sync_launched[0]:
+        return False
+
+    from integration.projector.run_resolver import projector_sync_timeout_sec
+
+    projector_sync_launched[0] = True
+    timeout = projector_sync_timeout_sec()
+    log.info(
+        "Projector sync gate started in background (timeout=%.0fs, run=%s)",
+        timeout,
+        resolved_run_id,
+    )
+    threading.Thread(
+        target=_run_projector_sync_gate,
+        args=(resolved_run_id, projector_base_url),
+        daemon=True,
+        name="projector-sync",
+    ).start()
+    return False
+
+
 def start_control_api(
     backend: SumoBackend,
     publisher=None,
@@ -481,11 +529,39 @@ def run(args: argparse.Namespace) -> int:
     if getattr(args, "nodes", None):
         nodes = [n.strip() for n in args.nodes.split(",") if n.strip()]
 
+    from integration.projector.run_resolver import (
+        RunIdConflictError,
+        projector_base_url,
+        resolve_simulation_run_id,
+    )
+
+    try:
+        run_resolution = resolve_simulation_run_id(
+            explicit_id=getattr(args, "simulation_run_id", None),
+            new_run_flag=bool(getattr(args, "new_run", False)),
+            projector_url=projector_base_url(),
+        )
+    except RunIdConflictError as e:
+        log.error("%s", e)
+        return 2
+
+    resolved_run_id = run_resolution.simulation_run_id
+    projector_sync_pending = run_resolution.projector_sync_pending
+    skip_projector_sync = bool(getattr(args, "skip_projector_sync", False))
+    proj_url = projector_base_url()
+
+    log.info(
+        "Resolved simulation_run_id=%s (source=%s projector_sync_pending=%s)",
+        resolved_run_id,
+        run_resolution.source,
+        projector_sync_pending and kafka_outbox is not None and not skip_projector_sync,
+    )
+
     backend = SumoBackend(
         sumo_config=cfg.SUMO_CONFIG,
         use_gui=use_gui,
         publish_nodes=nodes,
-        simulation_run_id=getattr(args, "simulation_run_id", None),
+        simulation_run_id=resolved_run_id,
     )
     if getattr(args, "control_mode", None):
         backend.set_control_mode(args.control_mode)
@@ -499,6 +575,7 @@ def run(args: argparse.Namespace) -> int:
 
     demo = getattr(args, "demo", False)
     demo_applied = False
+    projector_sync_launched = [False]
     last_step_wall = time.perf_counter()
     pace_anchor_wall: Optional[float] = None
     pace_anchor_sim: float = 0.0
@@ -728,6 +805,14 @@ def run(args: argparse.Namespace) -> int:
                                 kafka_producer=kafka_producer,
                                 kafka_outbox=kafka_outbox,
                             )
+                            projector_sync_pending = _maybe_sync_projector_after_outbox_publish(
+                                kafka_outbox=kafka_outbox,
+                                skip_projector_sync=skip_projector_sync,
+                                projector_sync_pending=projector_sync_pending,
+                                resolved_run_id=resolved_run_id,
+                                projector_base_url=proj_url,
+                                projector_sync_launched=projector_sync_launched,
+                            )
                             if _perf_enabled():
                                 log.info(
                                     "capture_block sim_time=%.3f entities=%d duration_ms=%.2f",
@@ -792,6 +877,14 @@ def run(args: argparse.Namespace) -> int:
                             cycle_sequence,
                             kafka_producer=kafka_producer,
                             kafka_outbox=kafka_outbox,
+                        )
+                        projector_sync_pending = _maybe_sync_projector_after_outbox_publish(
+                            kafka_outbox=kafka_outbox,
+                            skip_projector_sync=skip_projector_sync,
+                            projector_sync_pending=projector_sync_pending,
+                            resolved_run_id=resolved_run_id,
+                            projector_base_url=proj_url,
+                            projector_sync_launched=projector_sync_launched,
                         )
                         last_publish_sim_t = cycle.simulation_time
                         backend.clear_publish_asap()
@@ -904,10 +997,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--nodes", default=None, help="Comma list e.g. A,B,C,D")
     p.add_argument("--publish-interval", type=float, default=None)
     p.add_argument("--max-sim-time", type=float, default=None)
-    p.add_argument(
+    run_id_group = p.add_mutually_exclusive_group()
+    run_id_group.add_argument(
         "--simulation-run-id",
         default=None,
-        help="Predeclared run UUID for fenced cutover evidence (default: generated)",
+        help="Explicit run UUID (resume/cutover evidence)",
+    )
+    run_id_group.add_argument(
+        "--new-run",
+        action="store_true",
+        help="Start a fresh simulation run (Projector switches after RunStarted)",
+    )
+    p.add_argument(
+        "--skip-projector-sync",
+        action="store_true",
+        help="Skip polling Projector /current-run after first outbox publish cycle",
     )
     p.add_argument("--realtime", action="store_true")
     p.add_argument("--fast", action="store_true")

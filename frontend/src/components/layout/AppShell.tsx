@@ -20,6 +20,7 @@ import { useAuth } from '@/features/auth/AuthContext'
 import { useIntersectionList } from '@/hooks/useIntersectionList'
 import { useSystemStatus } from '@/hooks/useSystemStatus'
 import { getSystemStatusInfo } from '@/utils/systemStatus'
+import { buildRunMismatchMessage } from '@/utils/intersectionListStatus'
 import {
   appendAnalyticsQuery,
   resolveRealtimeIntersectionRoute,
@@ -66,6 +67,8 @@ export function AppShell() {
     status: listStatus,
     statusMessage,
     isLoading: listLoading,
+    alignment,
+    isRunMismatch,
   } = useIntersectionList()
 
   const { status: sysStatus } = useSystemStatus()
@@ -320,6 +323,21 @@ export function AppShell() {
               <AlertTriangle size={14} />
               {navNotice}
               {listLoading && <span style={{ color: 'var(--text-muted)' }}>(loading…)</span>}
+            </div>
+          )}
+
+          {isRunMismatch && (
+            <div
+              className="flex items-center gap-2 px-4 py-2 text-xs"
+              style={{
+                background: 'rgba(250,204,21,0.1)',
+                borderTop: '1px solid rgba(250,204,21,0.25)',
+                color: '#FACC15',
+              }}
+              role="alert"
+            >
+              <AlertTriangle size={14} />
+              {buildRunMismatchMessage(alignment)}
             </div>
           )}
         </header>

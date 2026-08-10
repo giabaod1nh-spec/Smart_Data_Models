@@ -27,7 +27,7 @@ export type RealtimeRouteResolution =
   | { kind: 'error'; message: string }
 
 export function resolveRealtimeIntersectionRoute(
-  status: 'loading' | 'success' | 'empty' | 'unauthorized' | 'forbidden' | 'unavailable' | 'network_error' | 'error',
+  status: 'loading' | 'success' | 'empty' | 'run_mismatch' | 'unauthorized' | 'forbidden' | 'unavailable' | 'network_error' | 'error',
   intersections: IntersectionResponse[] | undefined,
   preferredId?: string | null,
   errorMessage?: string,
