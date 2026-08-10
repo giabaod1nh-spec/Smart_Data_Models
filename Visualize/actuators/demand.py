@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
+import configuration.config as cfg
 from configuration.model_params import get_registry
 from configuration.turn_routes import to_edge_for_route_key
 
@@ -21,8 +22,9 @@ _DEPART_TRIES = (
 # Higher rank wins when a source feeds multiple intersections with different profiles.
 _PROFILE_SEVERITY = {
     "normal": 0,
-    "morning_peak": 1,
-    "evening_peak": 1,
+    "peak": 2,
+    "morning_peak": 2,
+    "evening_peak": 2,
     "heavy_traffic": 2,
     "oversaturated": 3,
 }
@@ -90,19 +92,24 @@ class ScenarioDemandActuator:
         src: Dict[str, Any],
         profile_targets: Dict[str, Dict[str, float]],
     ) -> Tuple[float, str]:
-        """Return (target_vph, winning_profile_id) for a boundary source."""
-        nodes = [str(n) for n in (src.get("nodes_on_path") or [])]
-        if not nodes:
-            pid = self.default_profile_id
-            return float(profile_targets.get(pid, {}).get(source_id, src["baseline_veh_per_hour"])), pid
+        """
+        Return (target_vph, winning_profile_id) for a boundary source.
 
-        best_pid = self._profile_for_node(nodes[0])
+        Per-intersection profiles apply only when turn_at_tls matches the
+        boosted node (vehicles enter at that intersection's TLS).
+        """
+        base_pid = self.default_profile_id
+        best_pid = base_pid
         best_tgt = float(
-            profile_targets.get(best_pid, {}).get(source_id, src["baseline_veh_per_hour"])
+            profile_targets.get(base_pid, {}).get(source_id, src["baseline_veh_per_hour"])
         )
-        best_sev = _PROFILE_SEVERITY.get(best_pid, 0)
-        for nid in nodes[1:]:
-            pid = self._profile_for_node(nid)
+        best_sev = _PROFILE_SEVERITY.get(base_pid, 0)
+        src_tls = str(src.get("turn_at_tls") or "")
+
+        for node_id, pid in self.node_profiles.items():
+            node_tls = cfg.NODE_TO_TLS.get(str(node_id))
+            if not node_tls or node_tls != src_tls:
+                continue
             tgt = float(profile_targets.get(pid, {}).get(source_id, src["baseline_veh_per_hour"]))
             sev = _PROFILE_SEVERITY.get(pid, 0)
             if sev > best_sev or (sev == best_sev and tgt > best_tgt):

@@ -508,6 +508,22 @@ network_demand_profiles:
       ew_s: 700
       we_n: 700
       ew_n: 700
+  peak:
+    id: peak
+    version: "1.0.0"
+    description: "Visible moderate congestion — 4000 vph/source (~30s to observe queues)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 4000
+      sn_w: 4000
+      ns_e: 4000
+      sn_e: 4000
+      we_s: 4000
+      ew_s: 4000
+      we_n: 4000
+      ew_n: 4000
   morning_peak:
     id: morning_peak
     version: "1.0.0"
@@ -621,6 +637,18 @@ causal_inference:
   propagation_min_delay_s: 5.0
   propagation_max_delay_s: 120.0
   default_cause_confidence: 1.0
+
+incident_staging:
+  source_type: DESIGN_DECISION
+  calibrated: false
+  description: >
+    Staged accident vehicle placement. junction_box = middle of intersection internal lane;
+    stopline = tight pair just before stop line on straight approach.
+  placement: stopline
+  front_offset_from_stopline_m: 3.0
+  rear_bumper_gap_m: 0.2
+  car_length_m: 4.5
+  junction_position_ratio: 0.42
 
 local_overlay_types:
   accident:

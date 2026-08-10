@@ -75,37 +75,24 @@ export interface ControlCommandStatusResponse {
 }
 
 /**
- * Scenario enum values — verified from Visualize/configuration/config.py SCENARIO_IDS.
- * UI labels are presentation transforms; payload must use these exact values.
+ * Canonical scenario IDs — must match Visualize/configuration/config.py CANONICAL_SCENARIO_IDS.
  */
 export const SCENARIO_IDS = [
   'normal',
-  'morning_peak',
-  'evening_peak',
-  'heavy_traffic',
+  'peak',
   'oversaturated',
   'rain',
-  'heavy_rain',
-  'accident',
-  'emergency',
-  'blocked_intersection',
-  'spillback',
+  'incident',
 ] as const
 export type ScenarioId = (typeof SCENARIO_IDS)[number]
 
 /** Scenario display labels — UI presentation transform only */
 export const SCENARIO_LABELS: Record<ScenarioId, string> = {
   normal: 'Normal',
-  morning_peak: 'Morning Peak',
-  evening_peak: 'Evening Peak',
-  heavy_traffic: 'Heavy Traffic',
+  peak: 'Peak',
   oversaturated: 'Oversaturated',
   rain: 'Rain',
-  heavy_rain: 'Heavy Rain',
-  accident: 'Accident',
-  emergency: 'Emergency',
-  blocked_intersection: 'Blocked Intersection',
-  spillback: 'Spillback',
+  incident: 'Incident',
 }
 
 /**

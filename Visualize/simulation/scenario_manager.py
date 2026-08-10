@@ -1,7 +1,7 @@
 """
 Scenario manager — thin per-node metadata + compat facade.
 
-Demand/overlays are owned by NetworkRuntimeController.
+Demand/overlays are owned by NetworkRuntimeController / scenario_runtime.
 This class must NOT call simulation.setScale for demand control.
 """
 from __future__ import annotations
@@ -28,17 +28,21 @@ class SumoScenarioManager:
         scenario: str,
         target_direction: Optional[str] = None,
     ) -> None:
-        """Compat: record metadata only. Physical effects via NetworkRuntimeController."""
+        """Compat: record metadata only. Physical effects via scenario_runtime."""
         scenario = cfg.normalize_scenario_id(scenario)
-        if scenario not in cfg.SCENARIO_IDS:
-            raise ValueError(f"Unknown scenario '{scenario}'")
+        if scenario not in cfg.CANONICAL_SCENARIO_IDS:
+            if scenario not in cfg.SCENARIO_IDS:
+                raise ValueError(f"Unknown scenario '{scenario}'")
         self.current_scenario = scenario
         self.blocked_direction = None
-        # No physical effects here; NetworkRuntimeController owns demand/overlays.
-        if scenario in ("accident", "blocked_intersection"):
-            direction = target_direction or "North"
+        if scenario == "incident":
+            direction = target_direction or cfg.incident_approach_direction(
+                cfg.TLS_TO_NODE.get(self.tls_id, "A")
+            )
             if direction not in cfg.DIRECTIONS:
-                direction = "North"
+                direction = cfg.incident_approach_direction(
+                    cfg.TLS_TO_NODE.get(self.tls_id, "A")
+                )
             self.blocked_direction = direction
             self.incidents.append({
                 "type": "MINOR_ACCIDENT",
@@ -47,8 +51,10 @@ class SumoScenarioManager:
             })
             now = time.time()
             self.incidents = [i for i in self.incidents if now - i["time"] < 3600][-200:]
+        elif scenario == "normal":
+            self.incidents.clear()
         log.info(
-            "Compat scenario metadata=%s on %s (physical effects via NetworkRuntimeController)",
+            "Scenario metadata=%s on %s (physical via scenario_runtime)",
             scenario, self.tls_id,
         )
 
