@@ -225,7 +225,7 @@ describe('Intersection Detail — Acceptance Test Suite (Section XLV)', () => {
   // Test 27-30: Signal Control tabs render separately and remain accessible
   it('27-30. Control tabs and schemas exist and are distinct', () => {
     expect(PHASE_IDS).toHaveLength(4)
-    expect(SCENARIO_IDS).toHaveLength(8)
+    expect(SCENARIO_IDS).toHaveLength(11)
     expect(CONTROL_MODES).toHaveLength(3)
     expect(CONTROL_MODES).toContain('MANUAL')
     expect(GREEN_DURATION_MIN).toBe(10)

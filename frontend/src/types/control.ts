@@ -80,7 +80,10 @@ export interface ControlCommandStatusResponse {
  */
 export const SCENARIO_IDS = [
   'normal',
+  'morning_peak',
+  'evening_peak',
   'heavy_traffic',
+  'oversaturated',
   'rain',
   'heavy_rain',
   'accident',
@@ -93,7 +96,10 @@ export type ScenarioId = (typeof SCENARIO_IDS)[number]
 /** Scenario display labels — UI presentation transform only */
 export const SCENARIO_LABELS: Record<ScenarioId, string> = {
   normal: 'Normal',
+  morning_peak: 'Morning Peak',
+  evening_peak: 'Evening Peak',
   heavy_traffic: 'Heavy Traffic',
+  oversaturated: 'Oversaturated',
   rain: 'Rain',
   heavy_rain: 'Heavy Rain',
   accident: 'Accident',

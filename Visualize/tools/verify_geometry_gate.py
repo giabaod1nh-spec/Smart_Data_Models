@@ -46,8 +46,8 @@ def verify(net_path: Path, nod_path: Path, edg_path: Path) -> list[str]:
         if abs(spacing_x - 500.0) > 1e-6 or abs(spacing_y - 500.0) > 1e-6:
             errors.append(f"center spacing not 500 m: dx={spacing_x} dy={spacing_y}")
         w1 = (float(nodes["W1"].get("x")), float(nodes["W1"].get("y")))
-        if abs(w1[0] - (j1[0] - 300.0)) > 1e-6:
-            errors.append(f"W1 not 300 m west of J1: {w1}")
+        if abs(w1[0] - (j1[0] - 150.0)) > 1e-6:
+            errors.append(f"W1 not 150 m west of J1: {w1}")
     except KeyError as e:
         errors.append(f"node lookup failed: {e}")
 
@@ -94,10 +94,11 @@ def verify(net_path: Path, nod_path: Path, edg_path: Path) -> list[str]:
     if external_lens:
         min_ext = min(external_lens)
         ff_ext = min_ext / SPEED
-        if min_ext < 250.0:
-            errors.append(f"external usable length {min_ext} < 250 m (expected ~285)")
-        if ff_ext < 18.0:
-            errors.append(f"external FF {ff_ext:.2f} s below ~20 s class")
+        # Design external stub 150 m → usable ~136 m after junction geometry.
+        if min_ext < 120.0:
+            errors.append(f"external usable length {min_ext} < 120 m (expected ~136)")
+        if ff_ext < 8.5:
+            errors.append(f"external FF {ff_ext:.2f} s below ~10 s class")
 
     return errors
 

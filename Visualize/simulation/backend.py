@@ -202,7 +202,9 @@ class SumoBackend:
             "set_scenario": lambda scenario, target_intersection=None, target_direction=None: self.set_scenario(
                 scenario, target_intersection, target_direction
             ),
-            "set_demand_profile": lambda profile: self.set_demand_profile(profile),
+            "set_demand_profile": lambda profile, target_intersection=None: self.set_demand_profile(
+                profile, target_intersection=target_intersection
+            ),
             "add_overlay": lambda **kw: self.add_overlay(**kw),
             "remove_overlay": lambda overlay_id: self.remove_overlay(overlay_id),
             "set_control_mode": lambda mode: self.set_control_mode(mode),
@@ -506,15 +508,10 @@ class SumoBackend:
 
         demand_ids = cfg.DEMAND_PROFILE_IDS
         if scenario in demand_ids:
-            self.runtime.set_demand_profile(scenario)
+            # Per-intersection demand: only boundary sources touching this node.
+            self.runtime.set_demand_profile(scenario, target_intersection=node)
             result["demandProfileChanged"] = True
-            # Network-wide demand → label every publish node so Orion/Kafka
-            # cycles stay uniform (PublishCycle requires a single scenarioId).
-            for n in self.publish_nodes:
-                self.per_node_scenario[n] = scenario
-                if n in self.scenarios:
-                    self.scenarios[n].current_scenario = scenario
-            result["affectedIntersections"] = list(self.publish_nodes)
+            result["affectedIntersections"] = [node]
         elif scenario in ("accident", "blocked_intersection"):
             ov = self.runtime.add_overlay(
                 self._traci,
@@ -525,6 +522,9 @@ class SumoBackend:
                 sim_t=self.simulation_time_sec,
             )
             result["overlayIds"].append(ov.get("overlay_id"))
+            # Local demand surge so queues/speed collapse form for RF ACCIDENT.
+            self.runtime.set_demand_profile("oversaturated", target_intersection=node)
+            result["demandProfileChanged"] = True
         elif scenario == "spillback":
             ov = self.runtime.add_overlay(
                 self._traci,
@@ -535,6 +535,8 @@ class SumoBackend:
                 sim_t=self.simulation_time_sec,
             )
             result["overlayIds"].append(ov.get("overlay_id"))
+            self.runtime.set_demand_profile("heavy_traffic", target_intersection=node)
+            result["demandProfileChanged"] = True
         elif scenario in ("rain", "heavy_rain"):
             ov = self.runtime.add_overlay(
                 self._traci,
@@ -564,17 +566,30 @@ class SumoBackend:
         self.request_publish_asap()
         return result
 
-    def set_demand_profile(self, profile: str) -> dict:
+    def set_demand_profile(
+        self,
+        profile: str,
+        target_intersection: Optional[str] = None,
+    ) -> dict:
         self._require_started()
         profile = cfg.normalize_demand_profile_id(profile)
         if profile not in cfg.DEMAND_PROFILE_IDS:
             raise ValueError(f"Unknown demand profile '{profile}'")
-        info = self.runtime.set_demand_profile(profile)
+        node = None
+        if target_intersection:
+            node = target_intersection
+            self._assert_node(node)
+        info = self.runtime.set_demand_profile(profile, target_intersection=node)
         self.current_scenario = profile
-        for n in self.publish_nodes:
-            self.per_node_scenario[n] = profile
-            if n in self.scenarios:
-                self.scenarios[n].current_scenario = profile
+        if node:
+            self.per_node_scenario[node] = profile
+            if node in self.scenarios:
+                self.scenarios[node].current_scenario = profile
+        else:
+            for n in self.publish_nodes:
+                self.per_node_scenario[n] = profile
+                if n in self.scenarios:
+                    self.scenarios[n].current_scenario = profile
         try:
             self._traci.simulation.setScale(1.0)
         except Exception:

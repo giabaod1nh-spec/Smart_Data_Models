@@ -52,10 +52,22 @@ class NetworkRuntimeController:
         with self._event_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
-    def set_demand_profile(self, profile_id: str) -> Dict[str, Any]:
-        info = self.demand.set_profile(profile_id)
+    def set_demand_profile(
+        self,
+        profile_id: str,
+        target_intersection: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        info = self.demand.set_profile(profile_id, target_intersection=target_intersection)
+        # Keep last active profile for health; per-node map lives on the actuator.
         self.state.demand_profile_id = profile_id
-        self._emit("demand_profile", {"profile_id": profile_id, **info})
+        self._emit(
+            "demand_profile",
+            {
+                "profile_id": profile_id,
+                "target_intersection": target_intersection,
+                **info,
+            },
+        )
         return info
 
     def set_control_mode(self, mode: str) -> None:

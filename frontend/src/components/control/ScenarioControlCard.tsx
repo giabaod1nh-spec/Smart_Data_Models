@@ -83,6 +83,9 @@ export function ScenarioControlCard({
           {currentDisplay}
         </span>
       </div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.35 }}>
+        Applies to this intersection only (not the whole network).
+      </div>
 
       {/* Scenario Grid */}
       <div style={{

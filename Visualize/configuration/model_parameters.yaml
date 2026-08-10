@@ -496,39 +496,87 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 300
-      sn_w: 300
-      ns_e: 300
-      sn_e: 300
-      we_s: 300
-      ew_s: 300
-      we_n: 300
-      ew_n: 300
-  heavy_traffic:
-    id: heavy_traffic
+      ns_w: 700
+      sn_w: 700
+      ns_e: 700
+      sn_e: 700
+      we_s: 700
+      ew_s: 700
+      we_n: 700
+      ew_n: 700
+  morning_peak:
+    id: morning_peak
     version: "1.0.0"
-    description: "Symmetric high-demand stress profile (EXPERIMENTAL)."
+    description: "North/West-dominant peak — heavy enough for RF CONGESTION."
     source_type: EXPERIMENTAL
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 720
-      sn_w: 720
-      ns_e: 720
-      sn_e: 720
-      we_s: 720
-      ew_s: 720
-      we_n: 720
-      ew_n: 720
+      ns_w: 2800
+      sn_w: 2400
+      ns_e: 2800
+      sn_e: 2000
+      we_s: 2400
+      ew_s: 900
+      we_n: 2200
+      ew_n: 900
+  evening_peak:
+    id: evening_peak
+    version: "1.0.0"
+    description: "East/South-dominant peak — heavy enough for RF CONGESTION."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 900
+      sn_w: 2400
+      ns_e: 900
+      sn_e: 2800
+      we_s: 900
+      ew_s: 2800
+      we_n: 900
+      ew_n: 2400
+  heavy_traffic:
+    id: heavy_traffic
+    version: "1.0.0"
+    description: "Symmetric congestion stress (EXPERIMENTAL)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 2200
+      sn_w: 2200
+      ns_e: 2200
+      sn_e: 2200
+      we_s: 2200
+      ew_s: 2200
+      we_n: 2200
+      ew_n: 2200
+  oversaturated:
+    id: oversaturated
+    version: "1.0.0"
+    description: "100× normal inflow (700→70000 veh/h/source) for extreme jam demos."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 70000
+      sn_w: 70000
+      ns_e: 70000
+      sn_e: 70000
+      we_s: 70000
+      ew_s: 70000
+      we_n: 70000
+      ew_n: 70000
 
 insertion_policy:
   source_type: DESIGN_DECISION
   calibrated: false
   scheduler: deterministic_bucket
-  max_retries: 3
-  retry_backoff_s: 0.5
-  # Higher cap so oversaturated can keep owed inserts while entry edges clear.
-  max_pending_per_source: 80
+  max_retries: 6
+  retry_backoff_s: 0.25
+  # High cap so 100× oversaturated can keep owed inserts while entry edges clear.
+  max_pending_per_source: 2000
   demand_seed: 42
 
 context_derivation:
@@ -614,7 +662,10 @@ scenarios:
   # Legacy scales kept for compat facade docs only — demand must NOT use setScale.
   traffic_scale:
     normal: 1.0
+    morning_peak: 1.0
+    evening_peak: 1.0
     heavy_traffic: 1.0
+    oversaturated: 1.0
     rain: 1.0
     heavy_rain: 1.0
     accident: 1.0
@@ -623,7 +674,10 @@ scenarios:
     spillback: 1.0
   speed_factor:
     normal: 1.0
+    morning_peak: 1.0
+    evening_peak: 1.0
     heavy_traffic: 1.0
+    oversaturated: 1.0
     rain: 1.0
     heavy_rain: 1.0
     accident: 1.0
@@ -695,7 +749,7 @@ network:
   network_id: intersection_grid_j1_j4
   network_version: "1.8.0-geom"
   center_spacing_m: 500
-  external_stub_m: 300
+  external_stub_m: 150
   net_file: Visualize/intersection.net.xml
   rou_file: Visualize/intersection.rou.xml
   sumocfg_file: Visualize/intersection.sumocfg

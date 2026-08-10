@@ -348,7 +348,10 @@ export function formatPhaseLabel(phase: string | null | undefined): string {
 /** Map scenario IDs to human-readable names */
 export const SCENARIO_DISPLAY_NAMES: Record<string, string> = {
   normal: 'Normal',
+  morning_peak: 'Morning Peak',
+  evening_peak: 'Evening Peak',
   heavy_traffic: 'Heavy Traffic',
+  oversaturated: 'Oversaturated',
   rain: 'Rain',
   heavy_rain: 'Heavy Rain',
   accident: 'Accident',

@@ -66,6 +66,7 @@ class GreenDurationRequest(BaseModel):
 
 class DemandProfileRequest(BaseModel):
     profile: str
+    target_intersection: Optional[str] = None
 
 
 class OverlayRequest(BaseModel):
@@ -276,8 +277,20 @@ def set_demand_profile(req: DemandProfileRequest):
         get_registry().demand_profile(profile)
     except Exception as e:
         raise HTTPException(400, str(e)) from e
-    eng.commands.enqueue("set_demand_profile", profile=profile)
-    return {"queued": True, "profile": profile}
+    target = req.target_intersection
+    if target and target not in eng.publish_nodes:
+        raise HTTPException(400, f"Unknown intersection '{target}'")
+    eng.commands.enqueue(
+        "set_demand_profile",
+        profile=profile,
+        target_intersection=target,
+    )
+    return {
+        "queued": True,
+        "profile": profile,
+        "target_intersection": target,
+        "scope": target or "network",
+    }
 
 
 @app.post("/overlays")
