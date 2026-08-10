@@ -7,6 +7,7 @@ This module remains a compatibility facade for topology / publish / env wiring.
 """
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from types import MappingProxyType
@@ -326,6 +327,7 @@ SCENARIO_IDS = (
     "normal",
     "morning_peak",
     "evening_peak",
+    "heavy_traffic",
     "oversaturated",
     "rain",
     "heavy_rain",
@@ -334,6 +336,26 @@ SCENARIO_IDS = (
     "blocked_intersection",
     "spillback",
 )
+
+DEMAND_PROFILE_IDS = frozenset(
+    {"normal", "morning_peak", "evening_peak", "heavy_traffic", "oversaturated"}
+)
+
+_log = logging.getLogger(__name__)
+
+
+def normalize_demand_profile_id(profile_id: str) -> str:
+    """Pass through known demand profile ids (no silent remapping)."""
+    return profile_id
+
+
+def normalize_scenario_id(scenario_id: str) -> str:
+    """Normalize scenario id (demand profiles pass through unchanged)."""
+    return normalize_demand_profile_id(scenario_id)
+
+
+def is_known_scenario_id(scenario_id: str) -> bool:
+    return scenario_id in SCENARIO_IDS
 
 _sc = _REG.export_effective_config().get("scenarios") or {}
 SCENARIO_TRAFFIC_SCALE: Dict[str, float] = dict(_sc.get("traffic_scale") or {})

@@ -11,14 +11,15 @@
 // AVG SPEED FIX: only uses VehicleSensor.averageSpeed — NEVER trafficStatus/derivedTrafficState
 // OCCUPANCY FIX: formatOccupancyRate scale 0-100 (47.0 → 47.0%, not 4700%)
 // FRIENDLY NAME: getIntersectionDisplayName(id, name) — URN only in tooltip
-// NO OPTIMISTIC CONTROL: UI waits for Realtime state after command
+// Scenario apply (Approach B): HTTP waits for TraCI; badge can update on applied response.
+// Other control actions still wait for Realtime confirmation.
 // COUNTDOWN: live wall-clock countdown, resync on each Realtime response
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, Car, Gauge, MapPin, AlertTriangle,
-  Activity, LayoutGrid, Clock, Calendar,
+  Activity, LayoutGrid, Clock, Calendar, TrendingUp,
 } from 'lucide-react'
 import { useRealtimeIntersection } from '@/hooks/useRealtimeIntersection'
 import { useSimulationPauseDetector } from '@/hooks/useSimulationPauseDetector'
@@ -28,12 +29,18 @@ import {
   mapTrafficLights,
   sumVehicleCount,
   formatAvgSpeed,
+  formatSpeedKmh,
+  formatArrivalFlow,
+  formatDirectionArrivalFlow,
   formatOccupancyRate,
   formatPhaseLabel,
   formatScenarioLabel,
   getFreshnessState,
   formatSimSec,
+  formatLastSeen,
   deriveRealtimePageStatus,
+  formatAnomalyScore,
+  anomalyScoreDot,
 } from '@/transforms/realtimeTransforms'
 import { getIntersectionDisplayName } from '@/utils/intersectionDisplayName'
 import { KpiCard } from '@/components/cards/KpiCard'
@@ -42,7 +49,7 @@ import { ReverseControlPanel } from '@/components/control/ReverseControlPanel'
 import { ScenarioControlCard } from '@/components/control/ScenarioControlCard'
 import { TrafficLightPanel } from '@/components/feedback/TrafficLightPanel'
 import { RealtimeEventFeed } from '@/components/feedback/RealtimeEventFeed'
-import { TrafficStatusBadge } from '@/components/feedback/StatusBadge'
+import { TrafficStatusBadge, AnomalyLabelBadge } from '@/components/feedback/StatusBadge'
 import { SkeletonKpiCard, ErrorState, Skeleton } from '@/components/feedback/LoadingStates'
 import { setStoredSelectedIntersectionId } from '@/utils/navigation'
 import { classifyApiError } from '@/utils/apiErrors'
@@ -55,6 +62,7 @@ const DIR_ARROW: Record<string, string> = { North: '↑', South: '↓', East: '�
 function PageStatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { color: string; bg: string; border: string; pulse: boolean }> = {
     LIVE:    { color: '#22C55E', bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.3)',   pulse: true  },
+    DELAYED: { color: '#FACC15', bg: 'rgba(250,204,21,0.12)',  border: 'rgba(250,204,21,0.3)',  pulse: false },
     PAUSED:  { color: '#FACC15', bg: 'rgba(250,204,21,0.12)',  border: 'rgba(250,204,21,0.3)',  pulse: false },
     STALE:   { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.3)',  pulse: false },
     WAITING: { color: '#71889B', bg: 'rgba(113,136,155,0.1)',  border: 'rgba(113,136,155,0.25)', pulse: false },
@@ -87,7 +95,23 @@ export function IntersectionDetailPage() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
 
-  const { data, isLoading, isError, error, refetch } = useRealtimeIntersection(intersectionId)
+  // TraCI-confirmed scenario until Orion realtime catches up (drives fast poll).
+  const [appliedScenarioId, setAppliedScenarioId] = useState<string | null>(null)
+
+  const {
+    data, isLoading, isError, error, refetch, dataUpdatedAt, requestMetricsRefresh,
+  } = useRealtimeIntersection(intersectionId, {
+    preferFastPoll: Boolean(appliedScenarioId),
+  })
+
+  // Debounce manual Retry: rapid clicks fire at most one request per second.
+  const lastRetryMsRef = useRef(0)
+  const debouncedRefetch = () => {
+    const now = Date.now()
+    if (now - lastRetryMsRef.current < 1000) return
+    lastRetryMsRef.current = now
+    void refetch()
+  }
 
   // Realtime Event Feed Hook
   const { events, addCommandEvent, clearFeed } = useRealtimeEventFeed(data)
@@ -119,6 +143,11 @@ export function IntersectionDetailPage() {
 
   // AVG SPEED FIX: only from averageSpeed numeric values, never traffic status strings
   const avgSpeedDisplay = formatAvgSpeed(sensors)
+  // Arrival flow = Σ approach arrivalRatePcuPerSec × 3600 (PCU/h) — demand-sensitive
+  const arrivalFlowDisplay = useMemo(() => formatArrivalFlow(sensors), [sensors])
+
+  const anomalyScoreDisplay = formatAnomalyScore(intersection?.anomalyScore)
+  const anomalyDot = anomalyScoreDot(intersection?.anomalyScore)
 
   const totalVehicles = useMemo(
     () => intersection?.totalVehicleCount ?? sumVehicleCount(sensors),
@@ -130,12 +159,18 @@ export function IntersectionDetailPage() {
     [metadata, isError],
   )
 
-  // Simulation pause detection (feeds into countdown freeze and animation)
-  const isPaused = useSimulationPauseDetector(metadata?.simulationTime)
+  // Metrics delayed when sim time ticks are sparse — freeze countdown only.
+  // Decorative Live Traffic View keeps animating (representative sprites).
+  const metricsDelayed = useSimulationPauseDetector(metadata?.simulationTime)
 
   const pageStatus = useMemo(
-    () => deriveRealtimePageStatus(freshnessState, isPaused),
-    [freshnessState, isPaused],
+    () => deriveRealtimePageStatus(freshnessState, metricsDelayed),
+    [freshnessState, metricsDelayed],
+  )
+
+  const lastSeenDisplay = useMemo(
+    () => formatLastSeen(dataUpdatedAt, metadata?.freshnessSeconds),
+    [dataUpdatedAt, metadata?.freshnessSeconds, data],
   )
 
   // Friendly display name — URN only in tooltip/technical details
@@ -148,9 +183,17 @@ export function IntersectionDetailPage() {
   // Total queue length (presentation aggregate)
   const totalQueueLength = dirSensors.reduce((acc, s) => acc + (s.queueLength ?? 0), 0)
 
-  // Scenario friendly label
+  // Scenario: prefer TraCI-confirmed apply until realtime feed catches up
   const rawScenario = intersection?.scenarioId ?? metadata?.scenarioId ?? null
-  const scenarioDisplay = formatScenarioLabel(rawScenario)
+  useEffect(() => {
+    if (appliedScenarioId && rawScenario === appliedScenarioId) {
+      setAppliedScenarioId(null)
+    }
+  }, [rawScenario, appliedScenarioId])
+  const effectiveScenario = appliedScenarioId ?? rawScenario
+  const scenarioDisplay = formatScenarioLabel(effectiveScenario)
+  // Local TraCI apply ahead of Orion → burst/fast poll until feed catches up.
+  const metricsCatchingUp = Boolean(appliedScenarioId && appliedScenarioId !== rawScenario)
 
   // Configured green duration from first green light
   const currentConfiguredGreen = lights[0]?.greenDurationCurrent ?? null
@@ -178,7 +221,7 @@ export function IntersectionDetailPage() {
             title={errKind === 'not_found' ? 'Intersection not found' : 'Failed to load intersection'}
             message={(error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Could not load realtime data.'}
             retryable={errKind !== 'not_found' && errKind !== 'forbidden'}
-            onRetry={() => void refetch()}
+            onRetry={debouncedRefetch}
           />
         </div>
       </div>
@@ -235,33 +278,42 @@ export function IntersectionDetailPage() {
         </div>
       </div>
 
-      {/* ── ROW 1: KPI CARDS (6 Cards) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+      {/* ── ROW 1: KPI CARDS ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
         {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => <SkeletonKpiCard key={i} />)
+          Array.from({ length: 9 }).map((_, i) => <SkeletonKpiCard key={i} />)
         ) : (
           <>
             <KpiCard
               id="kpi-detail-vehicles"
-              label="Total Vehicles"
+              label="On Approaches"
               value={totalVehicles !== null && totalVehicles !== undefined ? totalVehicles.toLocaleString() : '—'}
+              subtitle={metricsCatchingUp ? 'Updating metrics…' : 'Vehicles currently on approaches'}
               icon={<Car size={16} color="#16C7E8" />}
               iconBg="rgba(22,199,232,0.15)"
+            />
+            <KpiCard
+              id="kpi-detail-arrival-flow"
+              label="Arrival Flow"
+              value={arrivalFlowDisplay}
+              subtitle={metricsCatchingUp ? 'Updating metrics…' : 'New arrivals → PCU/h (4 approaches)'}
+              icon={<TrendingUp size={16} color="#22C55E" />}
+              iconBg="rgba(34,197,94,0.15)"
             />
             {/* AVG SPEED — strictly numeric km/h from averageSpeed */}
             <KpiCard
               id="kpi-detail-speed"
               label="Average Speed"
               value={avgSpeedDisplay}
-              subtitle="Average across sensors"
-              icon={<Gauge size={16} color="#22C55E" />}
-              iconBg="rgba(34,197,94,0.15)"
+              subtitle={metricsCatchingUp ? 'Updating metrics…' : 'Average across sensors'}
+              icon={<Gauge size={16} color="#F59E0B" />}
+              iconBg="rgba(245,158,11,0.15)"
             />
             <KpiCard
               id="kpi-detail-queue"
               label="Queue Length"
               value={totalQueueLength > 0 ? `${totalQueueLength.toFixed(0)} m` : '—'}
-              subtitle="Aggregated from directional sensors"
+              subtitle={metricsCatchingUp ? 'Updating metrics…' : 'Aggregated from directional sensors'}
               icon={<Activity size={16} color="#F59E0B" />}
               iconBg="rgba(245,158,11,0.15)"
             />
@@ -272,6 +324,36 @@ export function IntersectionDetailPage() {
               subtitle="Overall intersection status"
               icon={<Activity size={16} color="#EF4444" />}
               iconBg="rgba(239,68,68,0.15)"
+            />
+            <KpiCard
+              id="kpi-detail-anomaly-label"
+              label="ML Anomaly"
+              value={<AnomalyLabelBadge label={intersection?.anomalyLabel} />}
+              subtitle={
+                intersection?.anomalyLabel
+                  ? 'Random Forest prediction'
+                  : 'Waiting for RF window…'
+              }
+              icon={<AlertTriangle size={16} color="#F97316" />}
+              iconBg="rgba(249,115,22,0.15)"
+              statusDot={
+                intersection?.anomalyLabel?.toUpperCase() === 'ACCIDENT'
+                  ? 'red'
+                  : intersection?.anomalyLabel?.toUpperCase() === 'CONGESTION'
+                    ? 'orange'
+                    : intersection?.anomalyLabel?.toUpperCase() === 'NORMAL'
+                      ? 'green'
+                      : 'muted'
+              }
+            />
+            <KpiCard
+              id="kpi-detail-anomaly-score"
+              label="Anomaly Score"
+              value={anomalyScoreDisplay}
+              subtitle="1 − P(NORMAL), 0–1"
+              icon={<Activity size={16} color="#EA580C" />}
+              iconBg="rgba(234,88,12,0.15)"
+              statusDot={anomalyDot}
             />
             <KpiCard
               id="kpi-detail-scenario"
@@ -314,15 +396,19 @@ export function IntersectionDetailPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {([
-                  ['Vehicles', totalVehicles ?? '—'],
+                  ['On Approaches', totalVehicles ?? '—'],
+                  ['Arrival Flow', arrivalFlowDisplay],
                   ['Traffic Status', intersection?.overallTrafficStatus ?? '—'],
+                  ['ML Anomaly', intersection?.anomalyLabel ?? '—'],
+                  ['Anomaly Score', anomalyScoreDisplay],
                   ['Derived State', intersection?.derivedTrafficState ?? '—'],
                   ['Spillback', intersection?.hasSpillback ? '⚠ Yes' : 'No'],
                   ['Box Blocked', intersection?.isBoxBlocked ? '⚠ Yes' : 'No'],
                   ['Incident', intersection?.hasActiveIncident ? '⚠ Yes' : 'None'],
                   ['Scenario', scenarioDisplay],
                   ['Simulation Time', formatSimSec(metadata?.simulationTime)],
-                  ['Last Seen', metadata?.freshnessSeconds != null ? `${metadata.freshnessSeconds.toFixed(1)}s ago` : '—'],
+                  ['Last Seen', lastSeenDisplay],
+                  ['Feed', metricsDelayed ? 'Delayed' : freshnessState === 'live' ? 'Live' : freshnessState],
                 ] as [string, string | number][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, gap: 4 }}>
                     <span style={{ color: 'var(--text-muted)' }}>{label}</span>
@@ -338,23 +424,29 @@ export function IntersectionDetailPage() {
             )}
           </div>
 
-          {/* Vehicle count by direction */}
+          {/* Stock + flow by direction */}
           <div className="card">
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
-              Vehicle Count by Direction
+              Vehicles & Flow by Direction
             </div>
             {DIRECTIONS.map((dir) => {
               const s = dirSensors.find((d) => d.direction === dir)
               const count = s?.vehicleCount ?? 0
               const maxCount = Math.max(...dirSensors.map((d) => d.vehicleCount ?? 0), 1)
               const pct = maxCount > 0 ? (count / maxCount) * 100 : 0
+              const flowLabel = formatDirectionArrivalFlow(s?.arrivalRatePcuPerSec)
               return (
                 <div key={dir} style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
                     <span style={{ color: 'var(--text-secondary)' }}>
                       {DIR_ARROW[dir]} {dir}
                     </span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{count}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                      {count}
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 500, marginLeft: 6 }}>
+                        · {flowLabel}
+                      </span>
+                    </span>
                   </div>
                   <div style={{ height: 6, background: 'rgba(24,58,82,0.6)', borderRadius: 3 }}>
                     <div style={{
@@ -371,9 +463,15 @@ export function IntersectionDetailPage() {
           {/* Scenario Control Panel (Left column restoration) */}
           <ScenarioControlCard
             intersectionId={intersectionId ?? ''}
-            currentScenarioId={rawScenario}
+            currentScenarioId={effectiveScenario}
             onCommandApplied={(scenario) => {
-              addCommandEvent(`Scenario command queued: ${scenario}`, 'Awaiting realtime update from SUMO', 'blue')
+              setAppliedScenarioId(scenario)
+              requestMetricsRefresh()
+              addCommandEvent(
+                `Scenario applied: ${scenario}`,
+                'Refreshing realtime KPIs (burst poll)',
+                'blue',
+              )
             }}
           />
         </div>
@@ -383,7 +481,17 @@ export function IntersectionDetailPage() {
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ color: '#16C7E8' }}>●</span>
             Live Traffic View
-            {isPaused && <span style={{ fontSize: 10, color: '#FACC15', marginLeft: 4 }}>PAUSED</span>}
+            <span
+              style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4, fontWeight: 500 }}
+              title="Representative vehicle sprites driven by sensor aggregates — not exact SUMO coordinates"
+            >
+              (representative)
+            </span>
+            {metricsDelayed && (
+              <span style={{ fontSize: 10, color: '#FACC15', marginLeft: 4 }} title="Simulation ticks are sparse; KPIs update when new telemetry arrives">
+                Metrics delayed
+              </span>
+            )}
           </div>
           {isLoading ? (
             <Skeleton height={520} width="100%" />
@@ -393,7 +501,8 @@ export function IntersectionDetailPage() {
               lights={lights}
               currentPhase={currentPhase}
               simulationRunId={metadata?.simulationRunId}
-              stale={freshnessState === 'stale' || freshnessState === 'error' || isPaused}
+              // Keep animation running — only freeze decorative view on hard API failure.
+              stale={freshnessState === 'error'}
             />
           )}
         </div>
@@ -411,7 +520,7 @@ export function IntersectionDetailPage() {
             <TrafficLightPanel
               lights={lightViews}
               freshnessState={freshnessState}
-              isPaused={isPaused}
+              isPaused={metricsDelayed}
               currentPhase={currentPhase}
             />
           )}
@@ -432,7 +541,7 @@ export function IntersectionDetailPage() {
         {/* Center: Signal Control Tabs */}
         <div className="card" style={{ minHeight: 280 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Manual Signal Control
+            Signal Control
           </div>
           <ReverseControlPanel
             intersectionId={intersectionId ?? ''}
@@ -440,11 +549,21 @@ export function IntersectionDetailPage() {
             currentConfiguredGreen={currentConfiguredGreen}
             currentYellowDuration={lights[0]?.yellowDuration ?? 3}
             freshnessState={freshnessState}
-            isPaused={isPaused}
+            isPaused={metricsDelayed}
             currentScenario={rawScenario}
-            currentMode={intersection?.overallTrafficStatus}
+            controlMode={
+              lights[0]?.timingMode === 'MANUAL'
+                ? 'MANUAL'
+                : lights[0]?.timingMode === 'EMERGENCY_PRIORITY'
+                ? 'PREEMPTION_ENABLED'
+                : 'FIXED'
+            }
+            onModeChanged={() => {
+              requestMetricsRefresh()
+            }}
             onCommandApplied={(action) => {
-              addCommandEvent(`Control command queued: ${action}`, 'Awaiting realtime update from SUMO', 'green')
+              requestMetricsRefresh()
+              addCommandEvent(`Control: ${action}`, 'Realtime refresh requested', 'green')
             }}
           />
         </div>
@@ -470,7 +589,7 @@ export function IntersectionDetailPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Direction', 'Left', 'Straight', 'Right', 'Total', 'Avg Speed', 'Queue', 'Waiting', 'Occupancy', 'Status', 'Spillback'].map((h) => (
+                    {['Direction', 'Left', 'Straight', 'Right', 'On Approach', 'Arrival Flow', 'Avg Speed', 'Queue', 'Waiting', 'Occupancy', 'Status', 'Spillback'].map((h) => (
                       <th key={h} style={{ padding: '5px 6px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                         {h}
                       </th>
@@ -487,9 +606,12 @@ export function IntersectionDetailPage() {
                       <td style={{ padding: '6px', color: 'var(--text-secondary)' }}>{s.straightCount ?? '—'}</td>
                       <td style={{ padding: '6px', color: 'var(--text-secondary)' }}>{s.rightTurnCount ?? '—'}</td>
                       <td style={{ padding: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>{s.vehicleCount ?? '—'}</td>
+                      <td style={{ padding: '6px', color: '#22C55E', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {formatDirectionArrivalFlow(s.arrivalRatePcuPerSec)}
+                      </td>
                       {/* AVG SPEED: numeric only */}
                       <td style={{ padding: '6px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        {s.averageSpeed !== null && s.averageSpeed !== undefined ? `${s.averageSpeed.toFixed(1)} km/h` : '—'}
+                        {formatSpeedKmh(s.averageSpeed)}
                       </td>
                       <td style={{ padding: '6px', color: 'var(--text-secondary)' }}>
                         {s.queueLength !== null ? `${s.queueLength.toFixed(0)} m` : '—'}

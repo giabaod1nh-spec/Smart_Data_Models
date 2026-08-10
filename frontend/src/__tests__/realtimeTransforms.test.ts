@@ -6,11 +6,19 @@ import {
   sumVehicleCount,
   avgSpeed,
   formatAvgSpeed,
+  formatSpeedKmh,
+  sumArrivalRatePcuPerSec,
+  arrivalFlowPcuPerHour,
+  formatArrivalFlow,
+  formatDirectionArrivalFlow,
+  formatAnomalyScore,
+  anomalyScoreDot,
   formatOccupancyRate,
   formatPhaseLabel,
   formatScenarioLabel,
   getFreshnessState,
   formatSimSec,
+  formatLastSeen,
   trafficStatusColor,
 } from '@/transforms/realtimeTransforms'
 import type { VehicleSensorResponse, RealtimeMetadata } from '@/types/realtime'
@@ -131,6 +139,16 @@ describe('realtimeTransforms', () => {
     expect(avgSpeed(sampleSensors)).toBe(25)
   })
 
+  it('sums arrival rates and formats hourly flow (PCU/h)', () => {
+    // sampleSensors: 1.2 + 2.5 = 3.7 PCU/s → 13320 PCU/h
+    expect(sumArrivalRatePcuPerSec(sampleSensors)).toBeCloseTo(3.7)
+    expect(arrivalFlowPcuPerHour(sampleSensors)).toBeCloseTo(13320)
+    expect(formatArrivalFlow(sampleSensors)).toBe('13,320 PCU/h')
+    expect(formatDirectionArrivalFlow(1.2)).toBe('4,320 PCU/h')
+    expect(formatArrivalFlow([])).toBe('—')
+    expect(formatDirectionArrivalFlow(null)).toBe('—')
+  })
+
   it('determines freshness state accurately', () => {
     const freshMeta: RealtimeMetadata = {
       simulationRunId: 'run-1',
@@ -160,6 +178,12 @@ describe('realtimeTransforms', () => {
     expect(formatSimSec(125)).toBe('2m 5s')
     expect(formatSimSec(3665)).toBe('1h 1m 5s')
     expect(formatSimSec(null)).toBe('—')
+  })
+
+  it('formats last-seen from wall-clock poll time or freshnessSeconds', () => {
+    expect(formatLastSeen(Date.now() - 1500)).toMatch(/1\.\ds ago/)
+    expect(formatLastSeen(0, 3.2)).toBe('3.2s ago')
+    expect(formatLastSeen(null, null)).toBe('—')
   })
 
   it('maps traffic status string to correct color bucket', () => {
@@ -217,8 +241,31 @@ describe('AVG SPEED — regression against displaying traffic status as speed', 
 
   it('formatAvgSpeed returns km/h formatted number when speed is available', () => {
     const result = formatAvgSpeed([{ ...speedlessSensor, averageSpeed: 35.5 }])
-    expect(result).toBe('35.5 km/h')
+    expect(result).toBe('35.50 km/h')
     expect(result).not.toBe('CONGESTED')
+  })
+
+  it('formatSpeedKmh uses two decimal places by default', () => {
+    expect(formatSpeedKmh(8.234)).toBe('8.23 km/h')
+    expect(formatSpeedKmh(null)).toBe('—')
+    expect(formatSpeedKmh(undefined)).toBe('—')
+  })
+
+  it('formatAnomalyScore and anomalyScoreDot handle RF scores', () => {
+    expect(formatAnomalyScore(0.816)).toBe('0.82')
+    expect(formatAnomalyScore(null)).toBe('—')
+    expect(anomalyScoreDot(0.1)).toBe('green')
+    expect(anomalyScoreDot(0.4)).toBe('yellow')
+    expect(anomalyScoreDot(0.6)).toBe('orange')
+    expect(anomalyScoreDot(0.9)).toBe('red')
+  })
+
+  it('formatAvgSpeed averages sensors with two decimal display', () => {
+    const sensors: VehicleSensorResponse[] = [
+      { ...speedlessSensor, averageSpeed: 8.17 },
+      { ...speedlessSensor, id: 'sensor-2', averageSpeed: 8.23 },
+    ]
+    expect(formatAvgSpeed(sensors)).toBe('8.20 km/h')
   })
 
   it('avgSpeed uses only averageSpeed field, not trafficStatus or derivedTrafficState', () => {
@@ -273,9 +320,9 @@ describe('formatPhaseLabel and formatScenarioLabel', () => {
 
   it('formats scenario IDs to friendly human readable labels', () => {
     expect(formatScenarioLabel('normal')).toBe('Normal')
-    expect(formatScenarioLabel('morning_peak')).toBe('Morning Peak')
-    expect(formatScenarioLabel('evening_peak')).toBe('Evening Peak')
+    expect(formatScenarioLabel('heavy_traffic')).toBe('Heavy Traffic')
     expect(formatScenarioLabel('oversaturated')).toBe('Oversaturated')
+    expect(formatScenarioLabel('morning_peak')).toBe('Morning Peak')
     expect(formatScenarioLabel('rain')).toBe('Rain')
     expect(formatScenarioLabel('heavy_rain')).toBe('Heavy Rain')
     expect(formatScenarioLabel('accident')).toBe('Accident')

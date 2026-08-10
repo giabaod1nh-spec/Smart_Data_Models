@@ -314,6 +314,42 @@ sumo_config:
     calibrated: false
     description: "Python fallback yellow duration."
 
+driver_behavior:
+  vn_urban_chaos:
+    enabled: true
+    source_type: EXPERIMENTAL
+    calibrated: false
+    description: "VN urban gap acceptance — moto aggressive, car moderate, bus/truck unchanged."
+    lateral_resolution_m: 0.45
+    motorcycle:
+      impatience: 0.85
+      minGap: 0.25
+      minGapLat: 0.2
+      tau: 0.8
+      lcCooperative: 0.0
+      lcPushy: 0.85
+      lcPushyGap: 0.4
+      lcSublane: 1.0
+      lcSpeedGain: 1.5
+      jmIgnoreFoeProb: 0.45
+      jmIgnoreJunctionFoeProb: 0.35
+      jmSigmaMinor: 0.6
+      jmDriveAfterRedTime: 1.5
+      jmTimegapMinor: 0.8
+    car:
+      impatience: 0.65
+      minGap: 1.8
+      tau: 1.0
+      lcCooperative: 0.2
+      lcPushy: 0.55
+      lcPushyGap: 0.6
+      lcSpeedGain: 1.2
+      jmIgnoreFoeProb: 0.28
+      jmIgnoreJunctionFoeProb: 0.22
+      jmSigmaMinor: 0.45
+      jmDriveAfterRedTime: 1.0
+      jmTimegapMinor: 1.0
+
 composition:
   profile_id: synthetic_moto_dominant_profile
   source_type: EXPERIMENTAL
@@ -330,7 +366,7 @@ composition:
     firetruck: 0.001
     container: 0.005
   # Legacy key kept for older tools; hybrid baseline uses demand_baselines below.
-  base_trunk_veh_per_hour: 200.0
+  base_trunk_veh_per_hour: 120.0
   diagonal_veh_per_hour: 40.0
   description: "Synthetic demand composition; not a Vietnam standard vehicle mix."
 
@@ -343,7 +379,7 @@ demand_baselines:
     source_type: EXPERIMENTAL
     calibrated: false
     description: "Low continuous floor for hybrid demand (not calibrated)."
-    default_baseline_veh_per_hour: 200.0
+    default_baseline_veh_per_hour: 120.0
     diagonal_veh_per_hour: 40.0
   demand_light_legacy_v1:
     id: demand_light_legacy_v1
@@ -354,55 +390,101 @@ demand_baselines:
     default_baseline_veh_per_hour: 160.0
     diagonal_veh_per_hour: 40.0
 
+turn_demand_mix:
+  default:
+    left: 0.28
+    straight: 0.42
+    right: 0.30
+
 boundary_sources:
   ns_w:
     source_edge: N1J3
+    turn_at_tls: J3
     to_edge: J1S1
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [C, A]
-    route_distribution: { ns_w: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J3J1, to_edge: J1S1, weight: 0.42 }
+      - { movement: left,     turn_edge: J3J4, to_edge: J4E2, weight: 0.28 }
+      - { movement: right,    turn_edge: J3W2, to_edge: J2E1, weight: 0.30 }
+    route_distribution: { ns_w_straight: 0.42, ns_w_left: 0.28, ns_w_right: 0.30 }
   sn_w:
     source_edge: S1J1
+    turn_at_tls: J1
     to_edge: J3N1
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [A, C]
-    route_distribution: { sn_w: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J1J3, to_edge: J3N1, weight: 0.42 }
+      - { movement: left,     turn_edge: J1W1, to_edge: J3W2, weight: 0.28 }
+      - { movement: right,    turn_edge: J1J2, to_edge: J2E1, weight: 0.30 }
+    route_distribution: { sn_w_straight: 0.42, sn_w_left: 0.28, sn_w_right: 0.30 }
   ns_e:
     source_edge: N2J4
+    turn_at_tls: J4
     to_edge: J2S2
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [D, B]
-    route_distribution: { ns_e: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J4J2, to_edge: J2S2, weight: 0.42 }
+      - { movement: left,     turn_edge: J4E2, to_edge: J1W1, weight: 0.28 }
+      - { movement: right,    turn_edge: J4J3, to_edge: J3N1, weight: 0.30 }
+    route_distribution: { ns_e_straight: 0.42, ns_e_left: 0.28, ns_e_right: 0.30 }
   sn_e:
     source_edge: S2J2
+    turn_at_tls: J2
     to_edge: J4N2
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [B, D]
-    route_distribution: { sn_e: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J2J4, to_edge: J4N2, weight: 0.42 }
+      - { movement: left,     turn_edge: J2J1, to_edge: J1W1, weight: 0.28 }
+      - { movement: right,    turn_edge: J2E1, to_edge: J4E2, weight: 0.30 }
+    route_distribution: { sn_e_straight: 0.42, sn_e_left: 0.28, sn_e_right: 0.30 }
   we_s:
     source_edge: W1J1
+    turn_at_tls: J1
     to_edge: J2E1
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [A, B]
-    route_distribution: { we_s: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J1J2, to_edge: J2E1, weight: 0.42 }
+      - { movement: left,     turn_edge: J1J3, to_edge: J3N1, weight: 0.28 }
+      - { movement: right,    turn_edge: J1S1, to_edge: J4N2, weight: 0.30 }
+    route_distribution: { we_s_straight: 0.42, we_s_left: 0.28, we_s_right: 0.30 }
   ew_s:
     source_edge: E1J2
+    turn_at_tls: J2
     to_edge: J1W1
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [B, A]
-    route_distribution: { ew_s: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J2J1, to_edge: J1W1, weight: 0.42 }
+      - { movement: left,     turn_edge: J2S2, to_edge: J1S1, weight: 0.28 }
+      - { movement: right,    turn_edge: J2J4, to_edge: J4N2, weight: 0.30 }
+    route_distribution: { ew_s_straight: 0.42, ew_s_left: 0.28, ew_s_right: 0.30 }
   we_n:
     source_edge: W2J3
+    turn_at_tls: J3
     to_edge: J4E2
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [C, D]
-    route_distribution: { we_n: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J3J4, to_edge: J4E2, weight: 0.42 }
+      - { movement: left,     turn_edge: J3N1, to_edge: J2S2, weight: 0.28 }
+      - { movement: right,    turn_edge: J3J1, to_edge: J1S1, weight: 0.30 }
+    route_distribution: { we_n_straight: 0.42, we_n_left: 0.28, we_n_right: 0.30 }
   ew_n:
     source_edge: E2J4
+    turn_at_tls: J4
     to_edge: J3W2
-    baseline_veh_per_hour: 200
+    baseline_veh_per_hour: 120
     nodes_on_path: [D, C]
-    route_distribution: { ew_n: 1.0 }
+    destinations:
+      - { movement: straight, turn_edge: J4J3, to_edge: J3W2, weight: 0.42 }
+      - { movement: left,     turn_edge: J4J2, to_edge: J2S2, weight: 0.28 }
+      - { movement: right,    turn_edge: J4N2, to_edge: J3N1, weight: 0.30 }
+    route_distribution: { ew_n_straight: 0.42, ew_n_left: 0.28, ew_n_right: 0.30 }
 
 network_demand_profiles:
   active_default: normal
@@ -425,59 +507,76 @@ network_demand_profiles:
   morning_peak:
     id: morning_peak
     version: "1.0.0"
-    description: "North/West-dominant peak (EXPERIMENTAL)."
+    description: "North/West-dominant peak — heavy enough for RF CONGESTION."
     source_type: EXPERIMENTAL
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 1800
-      sn_w: 1600
-      ns_e: 1800
-      sn_e: 1400
-      we_s: 1600
-      ew_s: 700
-      we_n: 1400
-      ew_n: 700
+      ns_w: 2800
+      sn_w: 2400
+      ns_e: 2800
+      sn_e: 2000
+      we_s: 2400
+      ew_s: 900
+      we_n: 2200
+      ew_n: 900
   evening_peak:
     id: evening_peak
     version: "1.0.0"
-    description: "East/South-dominant peak (EXPERIMENTAL)."
+    description: "East/South-dominant peak — heavy enough for RF CONGESTION."
     source_type: EXPERIMENTAL
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 700
-      sn_w: 1600
-      ns_e: 700
-      sn_e: 1800
-      we_s: 700
-      ew_s: 1800
-      we_n: 700
-      ew_n: 1600
+      ns_w: 900
+      sn_w: 2400
+      ns_e: 900
+      sn_e: 2800
+      we_s: 900
+      ew_s: 2800
+      we_n: 900
+      ew_n: 2400
+  heavy_traffic:
+    id: heavy_traffic
+    version: "1.0.0"
+    description: "Symmetric congestion stress (EXPERIMENTAL)."
+    source_type: EXPERIMENTAL
+    calibrated: false
+    created_by: Smart Traffic Team
+    source_targets:
+      ns_w: 2200
+      sn_w: 2200
+      ns_e: 2200
+      sn_e: 2200
+      we_s: 2200
+      ew_s: 2200
+      we_n: 2200
+      ew_n: 2200
   oversaturated:
     id: oversaturated
     version: "1.0.0"
-    description: "All-source overload stress (EXPERIMENTAL)."
+    description: "100× normal inflow (700→70000 veh/h/source) for extreme jam demos."
     source_type: EXPERIMENTAL
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 2400
-      sn_w: 2400
-      ns_e: 2400
-      sn_e: 2400
-      we_s: 2400
-      ew_s: 2400
-      we_n: 2400
-      ew_n: 2400
+      ns_w: 70000
+      sn_w: 70000
+      ns_e: 70000
+      sn_e: 70000
+      we_s: 70000
+      ew_s: 70000
+      we_n: 70000
+      ew_n: 70000
 
 insertion_policy:
   source_type: DESIGN_DECISION
   calibrated: false
   scheduler: deterministic_bucket
-  max_retries: 3
-  retry_backoff_s: 0.5
-  max_pending_per_source: 40
+  max_retries: 6
+  retry_backoff_s: 0.25
+  # High cap so 100× oversaturated can keep owed inserts while entry edges clear.
+  max_pending_per_source: 2000
   demand_seed: 42
 
 context_derivation:
@@ -550,7 +649,7 @@ demo_profile:
   calibrated: false
   auto_sequence:
     - { action: demand_profile, profile: normal, dwell_s: 60 }
-    - { action: demand_profile, profile: morning_peak, dwell_s: 90 }
+    - { action: demand_profile, profile: heavy_traffic, dwell_s: 90 }
     - { action: overlay, type: accident, intersection_id: B, direction: West, segment_role: incoming_approach, dwell_s: 90 }
     - { action: overlay, type: downstream_restriction, intersection_id: B, direction: West, segment_role: downstream_exit, dwell_s: 90 }
     - { action: overlay, type: emergency, intersection_id: C, dwell_s: 90 }
@@ -565,24 +664,26 @@ scenarios:
     normal: 1.0
     morning_peak: 1.0
     evening_peak: 1.0
+    heavy_traffic: 1.0
+    oversaturated: 1.0
     rain: 1.0
     heavy_rain: 1.0
     accident: 1.0
     emergency: 1.0
     blocked_intersection: 1.0
     spillback: 1.0
-    oversaturated: 1.0
   speed_factor:
     normal: 1.0
     morning_peak: 1.0
     evening_peak: 1.0
+    heavy_traffic: 1.0
+    oversaturated: 1.0
     rain: 1.0
     heavy_rain: 1.0
     accident: 1.0
     emergency: 1.0
     blocked_intersection: 1.0
     spillback: 1.0
-    oversaturated: 1.0
   description: "Legacy scenario scale table deprecated for demand; hybrid actuators own effects."
 
 metrics_provenance:
@@ -648,7 +749,7 @@ network:
   network_id: intersection_grid_j1_j4
   network_version: "1.8.0-geom"
   center_spacing_m: 500
-  external_stub_m: 300
+  external_stub_m: 150
   net_file: Visualize/intersection.net.xml
   rou_file: Visualize/intersection.rou.xml
   sumocfg_file: Visualize/intersection.sumocfg

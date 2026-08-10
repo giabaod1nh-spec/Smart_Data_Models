@@ -47,6 +47,8 @@ public class NgsiEntityMapper {
                 .probableCauseType(textOrNull(propertyValue(entity, "probableCauseType")))
                 .affectedBy(relationshipObject(entity, "affectedBy"))
                 .causeDetectedAt(doubleOrNull(propertyValue(entity, "causeDetectedAt")))
+                .anomalyScore(doubleOrNull(propertyValue(entity, "anomalyScore")))
+                .anomalyLabel(textOrNull(propertyValue(entity, "anomalyLabel")))
                 .build();
     }
 

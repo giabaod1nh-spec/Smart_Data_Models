@@ -1,18 +1,21 @@
-// useSimulationPauseDetector.ts — Detect when SUMO simulation is paused.
+// useSimulationPauseDetector.ts — Detect when SUMO simulation time is delayed.
 //
-// Strategy: track the last N values of simulationTime. If simulationTime has
-// not advanced for PAUSE_WINDOW_MS, the simulation is likely paused.
+// Strategy: track simulationTime from realtime metadata. If it has not advanced
+// for PAUSE_WINDOW_MS of wall-clock time, telemetry is DELAYED (sparse ticks).
 //
-// IMPORTANT: This only affects UI presentation (freeze countdown/animation).
-// Source of truth is always the Realtime API response.
+// IMPORTANT: This only freezes metrics countdown / status badges.
+// Decorative Live Traffic View animation MUST keep running — vehicles are
+// representative sprites, not exact SUMO positions. Source of truth for KPI
+// numbers is always the Realtime API response.
 
 import { useRef, useState, useEffect } from 'react'
 
-const PAUSE_WINDOW_MS = 4000     // If simTime unchanged for 4s → PAUSED
+const PAUSE_WINDOW_MS = 4000     // If simTime unchanged for 4s → metrics DELAYED
 const SAMPLE_INTERVAL_MS = 1000  // Check every 1s
 
+/** @returns true when simulationTime has not advanced recently (metrics delayed). */
 export function useSimulationPauseDetector(simulationTime: number | null | undefined): boolean {
-  const [isPaused, setIsPaused] = useState(false)
+  const [metricsDelayed, setMetricsDelayed] = useState(false)
   const lastSimTimeRef = useRef<number | null>(null)
   const lastChangeMs = useRef<number>(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -28,7 +31,7 @@ export function useSimulationPauseDetector(simulationTime: number | null | undef
       if (lastSimTimeRef.current !== simulationTime) {
         lastSimTimeRef.current = simulationTime
         lastChangeMs.current = Date.now()
-        setIsPaused(false)
+        setMetricsDelayed(false)
       }
     }
   }, [simulationTime])
@@ -37,7 +40,7 @@ export function useSimulationPauseDetector(simulationTime: number | null | undef
     timerRef.current = setInterval(() => {
       if (lastSimTimeRef.current === null) return
       const elapsed = Date.now() - lastChangeMs.current
-      setIsPaused(elapsed > PAUSE_WINDOW_MS)
+      setMetricsDelayed(elapsed > PAUSE_WINDOW_MS)
     }, SAMPLE_INTERVAL_MS)
 
     return () => {
@@ -45,5 +48,5 @@ export function useSimulationPauseDetector(simulationTime: number | null | undef
     }
   }, [])
 
-  return isPaused
+  return metricsDelayed
 }

@@ -1,13 +1,8 @@
-// ReverseControlPanel.tsx — Manual Traffic Light Control
-// Direct signal group, state (Green / Yellow / Red), and green duration control.
-// All commands dispatch to Spring Server /api/control/**
+// ReverseControlPanel.tsx — Signal Control (Automatic ↔ Manual / Officer)
 //
-// CLOSED LOOP & PRESENTATION RULES:
-//   - No optimistic UI updates (authoritative Realtime state only)
-//   - Current: Phase name (formatPhaseLabel)
-//   - Time Remaining: Live countdown (ticks & resyncs with SUMO)
-//   - Configured Green: Static configured duration (never counts down)
-//   - Signal States: Green, Yellow (fixed 3s, no slider), Red (mapped to opposite phase, no slider)
+// Automatic (FIXED): TLS program cycles; countdown runs; green duration configurable.
+// Manual (MANUAL): officer holds phase in SUMO; countdown frozen; phase force enabled.
+// All commands dispatch to Spring Server /api/control/**
 
 import { useState, useEffect } from 'react'
 import { Loader2, AlertCircle, CheckCircle2, Clock, Send, Info } from 'lucide-react'
@@ -15,12 +10,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   useSetPhase,
   useSetGreenDuration,
+  useSetControlMode,
   useCommandTracker,
 } from '@/hooks/useControlCommand'
 import {
   GREEN_DURATION_MIN,
   GREEN_DURATION_MAX,
   type PhaseId,
+  type ControlMode,
 } from '@/types/control'
 import { formatPhaseLabel, type TrafficLightView, type FreshnessState } from '@/transforms/realtimeTransforms'
 import { useCountdown } from '@/hooks/useCountdown'
@@ -37,8 +34,10 @@ interface Props {
   freshnessState?: FreshnessState
   isPaused?: boolean
   currentScenario?: string | null
-  currentMode?: string | null
+  /** Authoritative engine mode from realtime timingMode / health */
+  controlMode?: ControlMode | null
   onCommandApplied?: (action: string) => void
+  onModeChanged?: (mode: ControlMode) => void
 }
 
 /** Map SignalGroup and SignalState to valid backend PhaseId */
@@ -76,12 +75,15 @@ export function ReverseControlPanel({
   currentYellowDuration = 3,
   freshnessState = 'live',
   isPaused = false,
+  controlMode = 'FIXED',
   onCommandApplied,
+  onModeChanged,
 }: Props) {
   const queryClient = useQueryClient()
   const tracker = useCommandTracker()
   const phaseMutation = useSetPhase(intersectionId)
   const durationMutation = useSetGreenDuration(intersectionId)
+  const modeMutation = useSetControlMode(intersectionId)
 
   // Local selection state (values the user is preparing to Apply)
   const [selectedGroup, setSelectedGroup] = useState<SignalGroup>('NS')
@@ -95,14 +97,30 @@ export function ReverseControlPanel({
   const [partialError, setPartialError] = useState<string | null>(null)
   const [lastSubmittedPhase, setLastSubmittedPhase] = useState<PhaseId | null>(null)
   const [lastSubmittedDuration, setLastSubmittedDuration] = useState<number | null>(null)
+  const [pendingMode, setPendingMode] = useState<ControlMode | null>(null)
+  const [modeError, setModeError] = useState<string | null>(null)
 
-  // Live countdown hook for active phase
+  const authoritativeMode: ControlMode =
+    controlMode === 'MANUAL' || controlMode === 'PREEMPTION_ENABLED' || controlMode === 'FIXED'
+      ? controlMode
+      : 'FIXED'
+  const displayMode = pendingMode ?? authoritativeMode
+  const isManual = displayMode === 'MANUAL'
+  const isModeSwitching = modeMutation.isPending || (pendingMode !== null && pendingMode !== authoritativeMode)
+
+  useEffect(() => {
+    if (pendingMode && authoritativeMode === pendingMode) {
+      setPendingMode(null)
+    }
+  }, [authoritativeMode, pendingMode])
+
+  // Live countdown hook for active phase (frozen in MANUAL / officer hold)
   const activeLight: TrafficLightView | undefined = currentPhase ? {
     id: `tl-control-active`,
     direction: currentPhase.startsWith('NS') ? 'North' : 'East',
-    currentStatus: currentPhase.includes('GREEN') ? 'GREEN' : 'YELLOW',
+    currentStatus: currentPhase.includes('GREEN') ? 'GREEN' : currentPhase.includes('YELLOW') ? 'YELLOW' : 'RED',
     currentPhase,
-    timingMode: 'FIXED_TIME',
+    timingMode: isManual ? 'MANUAL' : 'FIXED_TIME',
     workingState: 'OK',
     greenDurationCurrent: currentConfiguredGreen ?? null,
     redDurationCurrent: null,
@@ -116,17 +134,36 @@ export function ReverseControlPanel({
     activeLight,
     freshnessState,
     isPaused,
+    { forceFrozen: isManual },
   )
+
+  const handleModeSwitch = async (next: 'FIXED' | 'MANUAL') => {
+    if (next === displayMode || isModeSwitching) return
+    setModeError(null)
+    setPendingMode(next)
+    try {
+      await modeMutation.mutateAsync({ mode: next })
+      onModeChanged?.(next)
+      onCommandApplied?.(next === 'MANUAL' ? 'Control mode → Manual (Officer)' : 'Control mode → Automatic')
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: { message?: string } | string; message?: string } }; message?: string }
+      const detail = err?.response?.data?.detail
+      const detailMsg = typeof detail === 'string' ? detail : detail?.message
+      setModeError(detailMsg ?? err?.response?.data?.message ?? err?.message ?? 'Failed to switch control mode.')
+      setPendingMode(null)
+    }
+  }
 
   // Compute selected PhaseId
   const selectedPhase = toPhaseId(selectedGroup, selectedState)
 
   // Detect changes against authoritative current state
   const phaseChanged = Boolean(currentPhase ? selectedPhase !== currentPhase : selectedPhase)
-  const durationChanged = selectedState === 'GREEN' && typeof currentConfiguredGreen === 'number'
+  const durationChanged = typeof currentConfiguredGreen === 'number'
     ? selectedGreenDuration !== currentConfiguredGreen
-    : false
-  const hasChanges = phaseChanged || durationChanged
+    : true
+  // Officer phase control only in MANUAL; green duration configures the automatic cycle.
+  const hasChanges = isManual ? phaseChanged : durationChanged
 
   const isSubmitting = tracker.state.phase === 'submitting'
 
@@ -154,77 +191,28 @@ export function ReverseControlPanel({
     tracker.setSubmitting()
     setPartialError(null)
 
-    const willChangePhase = phaseChanged
-    const willChangeDuration = durationChanged
-
-    let phaseSuccess = false
-    let durationSuccess = false
-    let phaseErrorMsg: string | null = null
-    let durationErrorMsg: string | null = null
-
-    if (willChangePhase && willChangeDuration) {
-      // CASE 3: Both Phase and Green Duration changed
-      try {
-        await phaseMutation.mutateAsync({ phase: selectedPhase })
-        phaseSuccess = true
-      } catch (e: unknown) {
-        const err = e as { response?: { data?: { detail?: { message?: string }; message?: string } }; message?: string }
-        phaseErrorMsg = err?.response?.data?.detail?.message ?? err?.response?.data?.message ?? err?.message ?? 'Phase command failed.'
-      }
-
-      try {
-        await durationMutation.mutateAsync({ seconds: selectedGreenDuration })
-        durationSuccess = true
-      } catch (e: unknown) {
-        const err = e as { response?: { data?: { detail?: { message?: string }; message?: string } }; message?: string }
-        durationErrorMsg = err?.response?.data?.detail?.message ?? err?.response?.data?.message ?? err?.message ?? 'Duration command failed.'
-      }
-
-      // Always refetch Realtime state to ensure true state is reflected
-      queryClient.invalidateQueries({ queryKey: ['realtime', 'intersection', intersectionId] })
-
-      if (phaseSuccess && durationSuccess) {
-        tracker.setQueued()
-        setLastSubmittedPhase(selectedPhase)
-        setLastSubmittedDuration(selectedGreenDuration)
-        onCommandApplied?.(`Phase -> ${selectedPhase}, Green Duration -> ${selectedGreenDuration}s`)
-      } else if (phaseSuccess && !durationSuccess) {
-        // Partial failure: Phase succeeded, Duration failed
-        tracker.setQueued()
-        setLastSubmittedPhase(selectedPhase)
-        setPartialError(`Phase queued, but Green Duration failed: ${durationErrorMsg}`)
-        onCommandApplied?.(`Phase -> ${selectedPhase} (Duration failed)`)
-      } else if (!phaseSuccess && durationSuccess) {
-        // Partial failure: Duration succeeded, Phase failed
-        tracker.setQueued()
-        setLastSubmittedDuration(selectedGreenDuration)
-        setPartialError(`Green Duration queued, but Phase failed: ${phaseErrorMsg}`)
-        onCommandApplied?.(`Green Duration -> ${selectedGreenDuration}s (Phase failed)`)
-      } else {
-        // Both failed
-        tracker.setFailed(`Failed: Phase (${phaseErrorMsg}), Duration (${durationErrorMsg})`)
-      }
-    } else if (willChangePhase) {
-      // CASE 1: Only Phase changed
+    if (isManual && phaseChanged) {
       try {
         await phaseMutation.mutateAsync({ phase: selectedPhase })
         queryClient.invalidateQueries({ queryKey: ['realtime', 'intersection', intersectionId] })
         tracker.setQueued()
         setLastSubmittedPhase(selectedPhase)
-        onCommandApplied?.(`Phase -> ${selectedPhase}`)
+        onCommandApplied?.(`Officer phase → ${selectedPhase}`)
       } catch (e: unknown) {
         const err = e as { response?: { data?: { detail?: { message?: string }; message?: string } }; message?: string }
         const msg = err?.response?.data?.detail?.message ?? err?.response?.data?.message ?? err?.message ?? 'Failed to apply phase.'
         tracker.setFailed(msg)
       }
-    } else if (willChangeDuration) {
-      // CASE 2: Only Duration changed
+      return
+    }
+
+    if (!isManual && durationChanged) {
       try {
         await durationMutation.mutateAsync({ seconds: selectedGreenDuration })
         queryClient.invalidateQueries({ queryKey: ['realtime', 'intersection', intersectionId] })
         tracker.setQueued()
         setLastSubmittedDuration(selectedGreenDuration)
-        onCommandApplied?.(`Green Duration -> ${selectedGreenDuration}s`)
+        onCommandApplied?.(`Green Duration → ${selectedGreenDuration}s`)
       } catch (e: unknown) {
         const err = e as { response?: { data?: { detail?: { message?: string }; message?: string } }; message?: string }
         const msg = err?.response?.data?.detail?.message ?? err?.response?.data?.message ?? err?.message ?? 'Failed to apply green duration.'
@@ -238,16 +226,78 @@ export function ReverseControlPanel({
   const selectedPhaseDisplay = formatPhaseLabel(selectedPhase)
 
   // Remaining time format
-  const remainingValue = typeof currentRemaining === 'number'
+  const remainingValue = isManual
+    ? null
+    : typeof currentRemaining === 'number'
     ? currentRemaining
     : hookRemainingSec !== null
     ? Math.ceil(hookRemainingSec)
     : null
 
-  const isSyncingState = hookIsSyncing || remainingValue === 0
+  const isSyncingState = !isManual && (hookIsSyncing || remainingValue === 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* ── MODE: Automatic ↔ Manual (Officer) ── */}
+      <div>
+        <div style={SECTION_HEADER}>CONTROL MODE</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button
+            id="control-mode-auto-btn"
+            type="button"
+            onClick={() => void handleModeSwitch('FIXED')}
+            disabled={isModeSwitching}
+            aria-pressed={!isManual}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: !isManual ? 700 : 500,
+              cursor: isModeSwitching ? 'wait' : 'pointer',
+              border: `1.5px solid ${!isManual ? '#168CFF' : 'var(--border)'}`,
+              background: !isManual ? 'rgba(22,140,255,0.2)' : 'rgba(10,26,40,0.4)',
+              color: !isManual ? '#FFFFFF' : 'var(--text-secondary)',
+            }}
+          >
+            Automatic
+          </button>
+          <button
+            id="control-mode-manual-btn"
+            type="button"
+            onClick={() => void handleModeSwitch('MANUAL')}
+            disabled={isModeSwitching}
+            aria-pressed={isManual}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: isManual ? 700 : 500,
+              cursor: isModeSwitching ? 'wait' : 'pointer',
+              border: `1.5px solid ${isManual ? '#F59E0B' : 'var(--border)'}`,
+              background: isManual ? 'rgba(245,158,11,0.2)' : 'rgba(10,26,40,0.4)',
+              color: isManual ? '#FBBF24' : 'var(--text-secondary)',
+            }}
+          >
+            Manual (Officer)
+          </button>
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+          {isManual
+            ? 'Officer mode: countdown stopped — you decide green / red.'
+            : 'Automatic: signal cycles with countdown. Switch to Manual when an officer takes over.'}
+        </div>
+        {isModeSwitching && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#168CFF', marginTop: 6 }}>
+            <Loader2 size={12} className="animate-spin" /> Switching mode in SUMO…
+          </div>
+        )}
+        {modeError && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#EF4444', marginTop: 6 }}>
+            <AlertCircle size={12} /> {modeError}
+          </div>
+        )}
+      </div>
+
       {/* ── SECTION: CURRENT STATE (Authoritative) ── */}
       <div style={{
         background: 'rgba(6,17,31,0.5)',
@@ -266,18 +316,20 @@ export function ReverseControlPanel({
           </div>
         </div>
 
-        {/* Time Remaining (Countdown) */}
+        {/* Time Remaining (Countdown) — Held in MANUAL */}
         <div>
           <div style={MUTED_LABEL}>TIME REMAINING</div>
           <div style={{
             fontSize: 14,
             fontWeight: 700,
-            color: '#16C7E8',
+            color: isManual ? '#F59E0B' : '#16C7E8',
             fontFamily: 'var(--font-mono, monospace)',
             fontVariantNumeric: 'tabular-nums',
             marginTop: 1,
           }}>
-            {remainingValue !== null
+            {isManual
+              ? 'Held (Officer)'
+              : remainingValue !== null
               ? isSyncingState
                 ? '0 s (Syncing…)'
                 : `${remainingValue} s`
@@ -300,8 +352,8 @@ export function ReverseControlPanel({
         </div>
       </div>
 
-      {/* ── SECTION: SELECT SIGNAL GROUP ── */}
-      <div>
+      {/* ── SECTION: SELECT SIGNAL GROUP (officer / MANUAL only) ── */}
+      {isManual && <div>
         <div style={SECTION_HEADER}>SELECT SIGNAL GROUP</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button
@@ -343,10 +395,10 @@ export function ReverseControlPanel({
             East – West
           </button>
         </div>
-      </div>
+      </div>}
 
-      {/* ── SECTION: SET SIGNAL STATE (Green / Yellow / Red) ── */}
-      <div>
+      {/* ── SECTION: SET SIGNAL STATE (officer / MANUAL only) ── */}
+      {isManual && <div>
         <div style={SECTION_HEADER}>SET SIGNAL STATE</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
           <button
@@ -407,10 +459,10 @@ export function ReverseControlPanel({
             Red
           </button>
         </div>
-      </div>
+      </div>}
 
-      {/* ── SECTION: DURATION CONTROLS (Green slider vs Yellow 3s Fixed vs Red State) ── */}
-      {selectedState === 'GREEN' && (
+      {/* ── SECTION: DURATION (Automatic cycle config only) ── */}
+      {!isManual && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <div style={SECTION_HEADER}>GREEN DURATION</div>
@@ -435,7 +487,7 @@ export function ReverseControlPanel({
         </div>
       )}
 
-      {selectedState === 'YELLOW' && (
+      {isManual && selectedState === 'YELLOW' && (
         <div>
           <div style={SECTION_HEADER}>YELLOW DURATION</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
@@ -457,7 +509,7 @@ export function ReverseControlPanel({
         </div>
       )}
 
-      {selectedState === 'RED' && (
+      {isManual && selectedState === 'RED' && (
         <div>
           <div style={SECTION_HEADER}>RED STATE</div>
           <div style={{ fontSize: 11, color: '#EF4444', marginTop: 4, lineHeight: 1.4 }}>
@@ -493,7 +545,7 @@ export function ReverseControlPanel({
           }}
         >
           <Send size={14} />
-          APPLY CHANGES
+          {isManual ? 'APPLY SIGNAL' : 'APPLY GREEN DURATION'}
         </button>
 
         {/* ── STATUS FEEDBACK ── */}
@@ -534,7 +586,11 @@ export function ReverseControlPanel({
         marginTop: -4,
       }}>
         <Info size={11} style={{ flexShrink: 0 }} />
-        <span>Commands are queued — state updates only after SUMO confirmation.</span>
+        <span>
+          {isManual
+            ? 'Manual: SUMO holds the phase until you apply a new signal (yellow-safe).'
+            : 'Automatic: countdown runs with the TLS cycle. Switch to Manual for officer control.'}
+        </span>
       </div>
 
       {/* ── CONFIRMATION MODAL ── */}

@@ -2,11 +2,12 @@
 control_api.py — FastAPI Control API for SumoBackend (ADR-005).
 
 Mutating endpoints enqueue commands; TraCI thread drains via SumoBackend.step().
+Scenario apply waits for TraCI drain (wait=True) so HTTP returns only after apply.
 """
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +18,11 @@ from control.auth import require_internal_token
 from control.command_intake import CommandIntakeError, accept_command
 from control.command_registry import CommandRegistry
 from control.models import ControlCommandEnvelope, ControlCommandStatus
+from runtime.command_queue import QueueFullError
 from uuid import UUID
+
+# Wall-clock wait for TraCI thread to drain a command (slow realtime sims need headroom).
+_TRACI_WAIT_TIMEOUT_SEC = float(os.getenv("CONTROL_TRACI_WAIT_TIMEOUT_SEC", "15"))
 
 app = FastAPI(title="Visualize SUMO Control API", version=cfg.VERSION)
 command_registry = CommandRegistry()
@@ -61,6 +66,7 @@ class GreenDurationRequest(BaseModel):
 
 class DemandProfileRequest(BaseModel):
     profile: str
+    target_intersection: Optional[str] = None
 
 
 class OverlayRequest(BaseModel):
@@ -75,7 +81,7 @@ class OverlayRequest(BaseModel):
 
 
 class ControlModeRequest(BaseModel):
-    mode: str = Field(..., pattern="^(FIXED|PREEMPTION_ENABLED)$")
+    mode: str = Field(..., pattern="^(FIXED|PREEMPTION_ENABLED|MANUAL)$")
 
 
 class OrionPublishRequest(BaseModel):
@@ -121,6 +127,11 @@ def get_command(command_id: UUID) -> ControlCommandStatus:
 @app.get("/health")
 def health():
     eng = engine
+    insertion_stats = None
+    source_stats = None
+    if eng and hasattr(eng, "runtime") and eng.runtime is not None:
+        insertion_stats = dict(getattr(eng.runtime.state, "insertion_stats", {}) or {})
+        source_stats = dict(getattr(eng.runtime.state, "source_stats", {}) or {})
     return {
         "status": "ok" if eng and eng._started else "starting",
         "scenario": eng.current_scenario if eng else None,
@@ -132,6 +143,8 @@ def health():
         "publish_nodes": eng.publish_nodes if eng else cfg.PUBLISH_NODES,
         "simulation_run_id": getattr(eng, "simulation_run_id", None) if eng else None,
         "architecture_profile": str(os.getenv("ARCHITECTURE_PROFILE", "none")),
+        "insertion_stats": insertion_stats,
+        "source_stats": source_stats,
     }
 
 
@@ -198,16 +211,37 @@ def get_scenario():
     }
 
 
+def _enqueue_wait(eng, name: str, **kwargs: Any) -> Any:
+    """Enqueue a command and block until the TraCI thread has executed it."""
+    try:
+        return eng.commands.enqueue(
+            name,
+            wait=True,
+            timeout=_TRACI_WAIT_TIMEOUT_SEC,
+            **kwargs,
+        )
+    except QueueFullError as e:
+        raise HTTPException(503, str(e)) from e
+    except TimeoutError as e:
+        raise HTTPException(
+            504,
+            f"Timed out waiting for TraCI to apply '{name}' "
+            f"(>{_TRACI_WAIT_TIMEOUT_SEC:.0f}s). Is the simulation still stepping?",
+        ) from e
+
+
 @app.post("/scenario")
 def set_scenario(req: ScenarioRequest):
     eng = _require_engine()
-    if req.scenario not in cfg.SCENARIO_IDS:
+    if not cfg.is_known_scenario_id(req.scenario):
         raise HTTPException(400, f"Unknown scenario '{req.scenario}'")
+    scenario = cfg.normalize_scenario_id(req.scenario)
     if req.target_intersection and req.target_intersection not in eng.publish_nodes:
         raise HTTPException(400, f"Unknown intersection '{req.target_intersection}'")
-    eng.commands.enqueue(
+    result = _enqueue_wait(
+        eng,
         "set_scenario",
-        scenario=req.scenario,
+        scenario=scenario,
         target_intersection=req.target_intersection,
         target_direction=req.target_direction,
     )
@@ -215,28 +249,48 @@ def set_scenario(req: ScenarioRequest):
         for node_id, sc in req.node_overrides.items():
             if node_id not in eng.publish_nodes:
                 raise HTTPException(400, f"Unknown intersection '{node_id}'")
-            if sc not in cfg.SCENARIO_IDS:
+            if not cfg.is_known_scenario_id(sc):
                 raise HTTPException(400, f"Unknown scenario '{sc}'")
-            eng.commands.enqueue(
+            _enqueue_wait(
+                eng,
                 "set_scenario",
-                scenario=sc,
+                scenario=cfg.normalize_scenario_id(sc),
                 target_intersection=node_id,
                 target_direction=None,
             )
-    return {"queued": True, "current": req.scenario}
+    # applied=true: TraCI has already executed set_scenario (not merely queued).
+    return {
+        "queued": False,
+        "applied": True,
+        "current": req.scenario,
+        "result": result if isinstance(result, dict) else {"scenarioId": req.scenario},
+    }
 
 
 @app.post("/demand-profile")
 def set_demand_profile(req: DemandProfileRequest):
     eng = _require_engine()
+    profile = cfg.normalize_demand_profile_id(req.profile)
     try:
         from configuration.model_params import get_registry
 
-        get_registry().demand_profile(req.profile)
+        get_registry().demand_profile(profile)
     except Exception as e:
         raise HTTPException(400, str(e)) from e
-    eng.commands.enqueue("set_demand_profile", profile=req.profile)
-    return {"queued": True, "profile": req.profile}
+    target = req.target_intersection
+    if target and target not in eng.publish_nodes:
+        raise HTTPException(400, f"Unknown intersection '{target}'")
+    eng.commands.enqueue(
+        "set_demand_profile",
+        profile=profile,
+        target_intersection=target,
+    )
+    return {
+        "queued": True,
+        "profile": profile,
+        "target_intersection": target,
+        "scope": target or "network",
+    }
 
 
 @app.post("/overlays")
@@ -300,8 +354,8 @@ def link_state(link_id: str):
 @app.post("/control-mode")
 def set_control_mode(req: ControlModeRequest):
     eng = _require_engine()
-    eng.commands.enqueue("set_control_mode", mode=req.mode)
-    return {"queued": True, "mode": req.mode}
+    _enqueue_wait(eng, "set_control_mode", mode=req.mode)
+    return {"queued": False, "applied": True, "mode": req.mode}
 
 
 @app.post("/phase")

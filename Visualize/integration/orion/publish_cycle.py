@@ -65,9 +65,11 @@ def validate_entities_for_capture(
         raise CaptureValidationError(
             f"simulationTime mismatch across entities: {sim_times}"
         )
-    if len(scenarios) != 1 or None in scenarios:
+    # Per-intersection scenarios are allowed (demand/overlays are node-scoped).
+    # Cycle-level scenario_id is a summary label only; each entity keeps its own.
+    if not scenarios or None in scenarios:
         raise CaptureValidationError(
-            f"scenarioId mismatch across entities: {scenarios}"
+            f"scenarioId missing on one or more entities: {scenarios}"
         )
 
     if expected_node_count is not None:
@@ -80,7 +82,10 @@ def validate_entities_for_capture(
                 expected_node_count,
             )
 
-    return str(next(iter(run_ids))), float(next(iter(sim_times))), str(next(iter(scenarios)))
+    scenario_summary = (
+        str(next(iter(scenarios))) if len(scenarios) == 1 else "mixed"
+    )
+    return str(next(iter(run_ids))), float(next(iter(sim_times))), scenario_summary
 
 
 @dataclass(frozen=True)

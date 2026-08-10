@@ -109,15 +109,16 @@ def _legacy_enqueue_name(env: ControlCommandEnvelope) -> Tuple[str, dict]:
         return "set_green_duration", {"node_id": iid, "seconds": seconds}
     if t == CommandType.SET_SCENARIO:
         scenario = payload.get("scenario")
-        if scenario not in cfg.SCENARIO_IDS:
+        if not cfg.is_known_scenario_id(scenario):
             raise CommandIntakeError(http_status=400, code="INVALID_SCENARIO", message="invalid scenario")
         return "set_scenario", {
-            "scenario": scenario,
+            "scenario": cfg.normalize_scenario_id(scenario),
             "target_intersection": target.intersectionId,
             "target_direction": target.direction,
         }
     if t == CommandType.SET_DEMAND_PROFILE:
-        return "set_demand_profile", {"profile": payload.get("profile")}
+        profile = cfg.normalize_demand_profile_id(payload.get("profile") or "")
+        return "set_demand_profile", {"profile": profile}
     if t == CommandType.ADD_OVERLAY:
         return "add_overlay", {
             "overlay_type": payload.get("overlayType"),

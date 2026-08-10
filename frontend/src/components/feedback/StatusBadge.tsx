@@ -101,4 +101,14 @@ export function TrafficStatusBadge({ status }: { status: string | null | undefin
   return <StatusBadge label={status} variant="muted" />
 }
 
+/** Random Forest anomaly label badge (NORMAL / CONGESTION / ACCIDENT). */
+export function AnomalyLabelBadge({ label }: { label: string | null | undefined }) {
+  if (!label) return <StatusBadge label="—" variant="muted" />
+  const s = label.toUpperCase()
+  if (s === 'NORMAL') return <StatusBadge label="NORMAL" variant="green" dot />
+  if (s === 'CONGESTION') return <StatusBadge label="CONGESTION" variant="orange" dot />
+  if (s === 'ACCIDENT') return <StatusBadge label="ACCIDENT" variant="red" dot />
+  return <StatusBadge label={label} variant="muted" />
+}
+
 export { CheckCircle2, AlertTriangle, XCircle, Info, Clock, Wifi, WifiOff }

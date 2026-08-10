@@ -42,4 +42,8 @@ public class IntersectionResponse {
     private String probableCauseType;
     private String affectedBy;
     private Double causeDetectedAt;
+
+    /** Optional Random Forest anomaly fields from SUMO TraCI ML runtime. */
+    private Double anomalyScore;
+    private String anomalyLabel;
 }

@@ -13,18 +13,18 @@
     <laneAreaDetector id="E2_J1_E_1" lane="J2J1_1" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
     <inductionLoop id="E1_J1_E_2" lane="J2J1_2" pos="452.80" freq="1" file="NUL"/>
     <laneAreaDetector id="E2_J1_E_2" lane="J2J1_2" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J1_S_0" lane="S1J1_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J1_S_0" lane="S1J1_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J1_S_1" lane="S1J1_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J1_S_1" lane="S1J1_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J1_S_2" lane="S1J1_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J1_S_2" lane="S1J1_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J1_W_0" lane="W1J1_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J1_W_0" lane="W1J1_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J1_W_1" lane="W1J1_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J1_W_1" lane="W1J1_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J1_W_2" lane="W1J1_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J1_W_2" lane="W1J1_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J1_S_0" lane="S1J1_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J1_S_0" lane="S1J1_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J1_S_1" lane="S1J1_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J1_S_1" lane="S1J1_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J1_S_2" lane="S1J1_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J1_S_2" lane="S1J1_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J1_W_0" lane="W1J1_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J1_W_0" lane="W1J1_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J1_W_1" lane="W1J1_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J1_W_1" lane="W1J1_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J1_W_2" lane="W1J1_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J1_W_2" lane="W1J1_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J1_J1J2_0" lane="J1J2_0" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J1_J1J2_1" lane="J1J2_1" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J1_J1J2_2" lane="J1J2_2" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
@@ -43,18 +43,18 @@
     <laneAreaDetector id="E2_J2_N_1" lane="J4J2_1" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
     <inductionLoop id="E1_J2_N_2" lane="J4J2_2" pos="452.80" freq="1" file="NUL"/>
     <laneAreaDetector id="E2_J2_N_2" lane="J4J2_2" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J2_E_0" lane="E1J2_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J2_E_0" lane="E1J2_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J2_E_1" lane="E1J2_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J2_E_1" lane="E1J2_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J2_E_2" lane="E1J2_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J2_E_2" lane="E1J2_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J2_S_0" lane="S2J2_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J2_S_0" lane="S2J2_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J2_S_1" lane="S2J2_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J2_S_1" lane="S2J2_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J2_S_2" lane="S2J2_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J2_S_2" lane="S2J2_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J2_E_0" lane="E1J2_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J2_E_0" lane="E1J2_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J2_E_1" lane="E1J2_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J2_E_1" lane="E1J2_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J2_E_2" lane="E1J2_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J2_E_2" lane="E1J2_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J2_S_0" lane="S2J2_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J2_S_0" lane="S2J2_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J2_S_1" lane="S2J2_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J2_S_1" lane="S2J2_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J2_S_2" lane="S2J2_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J2_S_2" lane="S2J2_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
     <inductionLoop id="E1_J2_W_0" lane="J1J2_0" pos="452.80" freq="1" file="NUL"/>
     <laneAreaDetector id="E2_J2_W_0" lane="J1J2_0" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
     <inductionLoop id="E1_J2_W_1" lane="J1J2_1" pos="452.80" freq="1" file="NUL"/>
@@ -73,12 +73,12 @@
     <laneAreaDetector id="E2OUT_J2_J2S2_0" lane="J2S2_0" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J2_J2S2_1" lane="J2S2_1" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J2_J2S2_2" lane="J2S2_2" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J3_N_0" lane="N1J3_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J3_N_0" lane="N1J3_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J3_N_1" lane="N1J3_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J3_N_1" lane="N1J3_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J3_N_2" lane="N1J3_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J3_N_2" lane="N1J3_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J3_N_0" lane="N1J3_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J3_N_0" lane="N1J3_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J3_N_1" lane="N1J3_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J3_N_1" lane="N1J3_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J3_N_2" lane="N1J3_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J3_N_2" lane="N1J3_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
     <inductionLoop id="E1_J3_E_0" lane="J4J3_0" pos="452.80" freq="1" file="NUL"/>
     <laneAreaDetector id="E2_J3_E_0" lane="J4J3_0" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
     <inductionLoop id="E1_J3_E_1" lane="J4J3_1" pos="452.80" freq="1" file="NUL"/>
@@ -91,12 +91,12 @@
     <laneAreaDetector id="E2_J3_S_1" lane="J1J3_1" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
     <inductionLoop id="E1_J3_S_2" lane="J1J3_2" pos="452.80" freq="1" file="NUL"/>
     <laneAreaDetector id="E2_J3_S_2" lane="J1J3_2" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J3_W_0" lane="W2J3_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J3_W_0" lane="W2J3_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J3_W_1" lane="W2J3_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J3_W_1" lane="W2J3_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J3_W_2" lane="W2J3_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J3_W_2" lane="W2J3_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J3_W_0" lane="W2J3_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J3_W_0" lane="W2J3_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J3_W_1" lane="W2J3_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J3_W_1" lane="W2J3_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J3_W_2" lane="W2J3_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J3_W_2" lane="W2J3_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J3_J3J1_0" lane="J3J1_0" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J3_J3J1_1" lane="J3J1_1" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J3_J3J1_2" lane="J3J1_2" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
@@ -109,18 +109,18 @@
     <laneAreaDetector id="E2OUT_J3_J3W2_0" lane="J3W2_0" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J3_J3W2_1" lane="J3W2_1" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
     <laneAreaDetector id="E2OUT_J3_J3W2_2" lane="J3W2_2" pos="5.00" endPos="35.00" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J4_N_0" lane="N2J4_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J4_N_0" lane="N2J4_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J4_N_1" lane="N2J4_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J4_N_1" lane="N2J4_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J4_N_2" lane="N2J4_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J4_N_2" lane="N2J4_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J4_E_0" lane="E2J4_0" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J4_E_0" lane="E2J4_0" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J4_E_1" lane="E2J4_1" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J4_E_1" lane="E2J4_1" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
-    <inductionLoop id="E1_J4_E_2" lane="E2J4_2" pos="266.40" freq="1" file="NUL"/>
-    <laneAreaDetector id="E2_J4_E_2" lane="E2J4_2" pos="186.40" endPos="286.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J4_N_0" lane="N2J4_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J4_N_0" lane="N2J4_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J4_N_1" lane="N2J4_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J4_N_1" lane="N2J4_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J4_N_2" lane="N2J4_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J4_N_2" lane="N2J4_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J4_E_0" lane="E2J4_0" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J4_E_0" lane="E2J4_0" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J4_E_1" lane="E2J4_1" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J4_E_1" lane="E2J4_1" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
+    <inductionLoop id="E1_J4_E_2" lane="E2J4_2" pos="116.40" freq="1" file="NUL"/>
+    <laneAreaDetector id="E2_J4_E_2" lane="E2J4_2" pos="36.40" endPos="136.40" freq="1" file="NUL"/>
     <inductionLoop id="E1_J4_S_0" lane="J2J4_0" pos="452.80" freq="1" file="NUL"/>
     <laneAreaDetector id="E2_J4_S_0" lane="J2J4_0" pos="372.80" endPos="472.80" freq="1" file="NUL"/>
     <inductionLoop id="E1_J4_S_1" lane="J2J4_1" pos="452.80" freq="1" file="NUL"/>

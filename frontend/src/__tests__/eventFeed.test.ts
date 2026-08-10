@@ -146,17 +146,17 @@ describe('useRealtimeEventFeed', () => {
     let currentData = makeRealtime()
     const { result, rerender } = renderHook(() => useRealtimeEventFeed(currentData))
 
-    // Change scenario to morning_peak
+    // Change scenario to heavy_traffic
     currentData = makeRealtime({
       intersection: {
         ...currentData.intersection!,
-        scenarioId: 'morning_peak',
+        scenarioId: 'heavy_traffic',
       },
     })
     rerender()
 
     const scenarioEvent = result.current.events.find((e) =>
-      e.title.includes('Scenario changed') && e.title.includes('Morning Peak'),
+      e.title.includes('Scenario changed') && e.title.includes('Heavy Traffic'),
     )
     expect(scenarioEvent).toBeDefined()
     expect(scenarioEvent?.severity).toBe('blue')

@@ -32,6 +32,13 @@ from observation.metrics_derivation import (
 )
 
 
+def mean_moving_speed_kmh(speeds_kmh: List[float]) -> float:
+    """Mean speed (km/h) of vehicles above HALTING threshold only; full float precision."""
+    if not speeds_kmh:
+        return 0.0
+    return sum(speeds_kmh) / len(speeds_kmh)
+
+
 def density_label(pcu_equivalent: float) -> str:
     """
     Traffic Load Class from approach PCU count — SEMANTIC legacy dual-write (Strategy C).
@@ -211,7 +218,8 @@ class SumoSnapshotProvider:
             occupancy = round(sum(occ_vals) / len(occ_vals), 1) if occ_vals else 0.0
 
         queue_m = max(queue_by_movement.values()) if any(queue_by_movement.values()) else 0.0
-        avg_speed = round(sum(speeds_kmh) / len(speeds_kmh), 1) if speeds_kmh else 0.0
+        # Moving-vehicles-only mean; precision preserved for publish — UI rounds for display.
+        avg_speed = mean_moving_speed_kmh(speeds_kmh)
         pcu_equivalent = round(pcu_sum, 2)
         dens = density_label(pcu_equivalent)
 

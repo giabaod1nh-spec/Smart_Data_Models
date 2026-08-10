@@ -24,6 +24,8 @@ export interface DirectionSensorView {
   derivedTrafficState: string | null
   spillbackRisk: boolean | null
   sensorId: string | null
+  /** Instantaneous arrival rate on this approach (PCU/s). */
+  arrivalRatePcuPerSec: number | null
 }
 
 /** Normalize the NGSI direction vocabulary to the four labels used by the UI. */
@@ -62,12 +64,62 @@ export function mapSensorsToDirections(
     derivedTrafficState: s.derivedTrafficState,
     spillbackRisk: s.spillbackRisk,
     sensorId: s.id,
+    arrivalRatePcuPerSec: s.arrivalRatePcuPerSec,
   }))
 }
 
 /** Sum totalVehicleCount across sensors (presentation aggregate) */
 export function sumVehicleCount(sensors: VehicleSensorResponse[]): number {
   return sensors.reduce((acc, s) => acc + (s.vehicleCount ?? 0), 0)
+}
+
+/**
+ * Format a single speed value for display (km/h).
+ * CRITICAL: NEVER use trafficStatus or derivedTrafficState as speed.
+ * @returns "XX.XX km/h" or "—"
+ */
+export function formatSpeedKmh(
+  value: number | null | undefined,
+  decimals = 2,
+): string {
+  if (value === null || value === undefined) return '—'
+  return `${value.toFixed(decimals)} km/h`
+}
+
+/**
+ * Sum instantaneous arrival rates (PCU/s) across approach sensors.
+ * Source: VehicleSensor.arrivalRatePcuPerSec from SUMO TraCI new-on-approach counting.
+ */
+export function sumArrivalRatePcuPerSec(sensors: VehicleSensorResponse[]): number | null {
+  const rates = sensors
+    .map((s) => s.arrivalRatePcuPerSec)
+    .filter((r): r is number => r !== null && r !== undefined && Number.isFinite(r))
+  if (rates.length === 0) return null
+  return rates.reduce((acc, r) => acc + r, 0)
+}
+
+/** Convert approach arrival rate (PCU/s) to hourly flow (PCU/h). */
+export function arrivalFlowPcuPerHour(sensors: VehicleSensorResponse[]): number | null {
+  const rate = sumArrivalRatePcuPerSec(sensors)
+  if (rate === null) return null
+  return rate * 3600
+}
+
+/**
+ * Format intersection arrival flow for KPI display.
+ * @returns "1,240 PCU/h" or "—"
+ */
+export function formatArrivalFlow(sensors: VehicleSensorResponse[]): string {
+  const flow = arrivalFlowPcuPerHour(sensors)
+  if (flow === null) return '—'
+  return `${Math.round(flow).toLocaleString('en-US')} PCU/h`
+}
+
+/** Format a single approach arrival rate as PCU/h (or "—"). */
+export function formatDirectionArrivalFlow(arrivalRatePcuPerSec: number | null | undefined): string {
+  if (arrivalRatePcuPerSec === null || arrivalRatePcuPerSec === undefined) return '—'
+  if (!Number.isFinite(arrivalRatePcuPerSec)) return '—'
+  return `${Math.round(arrivalRatePcuPerSec * 3600).toLocaleString('en-US')} PCU/h`
 }
 
 /**
@@ -86,12 +138,10 @@ export function avgSpeed(sensors: VehicleSensorResponse[]): number | null {
 /**
  * Format average speed for display.
  * CRITICAL: NEVER use trafficStatus or derivedTrafficState as speed.
- * @returns "XX.X km/h" or "—"
+ * @returns "XX.XX km/h" or "—"
  */
 export function formatAvgSpeed(sensors: VehicleSensorResponse[]): string {
-  const val = avgSpeed(sensors)
-  if (val === null) return '—'
-  return `${val.toFixed(1)} km/h`
+  return formatSpeedKmh(avgSpeed(sensors))
 }
 
 export interface TrafficLightView {
@@ -148,9 +198,20 @@ export function getFreshnessState(
  * Derive a single primary realtime status for the page header.
  * Sources:
  *   - freshnessState from metadata
- *   - simulationTimeSeries to detect PAUSED (simulationTime not advancing)
+ *   - simulationTimeSeries to detect DELAYED (simulationTime not advancing)
+ *
+ * DELAYED (not PAUSED): telemetry still arrives but sim ticks are sparse.
+ * Decorative canvas keeps animating; only metrics/countdown treat this as frozen.
  */
-export type RealtimePageStatus = 'LIVE' | 'PAUSED' | 'STALE' | 'WAITING' | 'OFFLINE' | 'ERROR' | 'UNKNOWN'
+export type RealtimePageStatus =
+  | 'LIVE'
+  | 'DELAYED'
+  | 'PAUSED' // legacy alias kept for older callers; prefer DELAYED
+  | 'STALE'
+  | 'WAITING'
+  | 'OFFLINE'
+  | 'ERROR'
+  | 'UNKNOWN'
 
 export function deriveRealtimePageStatus(
   freshnessState: FreshnessState,
@@ -160,8 +221,25 @@ export function deriveRealtimePageStatus(
   if (freshnessState === 'stale') return 'STALE'
   if (freshnessState === 'idle') return 'WAITING'
   // freshnessState === 'live'
-  if (simulationTimePaused) return 'PAUSED'
+  if (simulationTimePaused) return 'DELAYED'
   return 'LIVE'
+}
+
+/** Wall-clock age of the last successful realtime poll, for Summary "Last Seen". */
+export function formatLastSeen(
+  dataUpdatedAtMs: number | null | undefined,
+  freshnessSeconds?: number | null,
+): string {
+  if (dataUpdatedAtMs != null && dataUpdatedAtMs > 0) {
+    const ageSec = Math.max(0, (Date.now() - dataUpdatedAtMs) / 1000)
+    if (ageSec < 60) return `${ageSec.toFixed(1)}s ago`
+    if (ageSec < 3600) return `${Math.floor(ageSec / 60)}m ${Math.floor(ageSec % 60)}s ago`
+    return `${Math.floor(ageSec / 3600)}h ago`
+  }
+  if (freshnessSeconds != null && Number.isFinite(freshnessSeconds)) {
+    return `${freshnessSeconds.toFixed(1)}s ago`
+  }
+  return '—'
 }
 
 /**
@@ -272,6 +350,7 @@ export const SCENARIO_DISPLAY_NAMES: Record<string, string> = {
   normal: 'Normal',
   morning_peak: 'Morning Peak',
   evening_peak: 'Evening Peak',
+  heavy_traffic: 'Heavy Traffic',
   oversaturated: 'Oversaturated',
   rain: 'Rain',
   heavy_rain: 'Heavy Rain',
@@ -284,6 +363,23 @@ export const SCENARIO_DISPLAY_NAMES: Record<string, string> = {
 export function formatScenarioLabel(scenario: string | null | undefined): string {
   if (!scenario) return '—'
   return SCENARIO_DISPLAY_NAMES[scenario] ?? scenario
+}
+
+/** Format RF anomaly score (0–1) for KPI display. */
+export function formatAnomalyScore(score: number | null | undefined): string {
+  if (score === null || score === undefined || !Number.isFinite(score)) return '—'
+  return score.toFixed(2)
+}
+
+/** Status-dot color for anomaly score severity. */
+export function anomalyScoreDot(
+  score: number | null | undefined,
+): 'green' | 'yellow' | 'orange' | 'red' | 'muted' {
+  if (score === null || score === undefined || !Number.isFinite(score)) return 'muted'
+  if (score < 0.25) return 'green'
+  if (score < 0.5) return 'yellow'
+  if (score < 0.75) return 'orange'
+  return 'red'
 }
 
 /** Map IntersectionResponse to schematic node for map display */

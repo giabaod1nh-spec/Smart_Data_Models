@@ -1,12 +1,11 @@
 // ScenarioControlCard.tsx — Dedicated Scenario Control panel for Left Column
-// CLOSED LOOP RULE:
-//   - No optimistic updates
-//   - Queued response means accepted in queue only
-//   - Current Scenario updates only after Realtime reflects backend SUMO change
-//   - Confirmation modal required before dispatch
+// Approach B (scenario):
+//   - POST waits for TraCI; success { applied: true } → show Applied immediately
+//   - Parent may update badge from onCommandApplied before realtime catches up
+//   - Confirmation modal still required before dispatch
 
 import { useState } from 'react'
-import { Activity, Send, CheckCircle2, AlertCircle, Clock, Loader2 } from 'lucide-react'
+import { Activity, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { useSetScenario, useCommandTracker } from '@/hooks/useControlCommand'
 import { SCENARIO_IDS, SCENARIO_LABELS, type ScenarioId } from '@/types/control'
 import { formatScenarioLabel } from '@/transforms/realtimeTransforms'
@@ -41,17 +40,24 @@ export function ScenarioControlCard({
     tracker.setSubmitting()
 
     try {
-      await mutation.mutateAsync({
+      const res = await mutation.mutateAsync({
         scenario: selectedScenario,
         target: intersectionId,
       })
-      tracker.setQueued()
+      // Approach B: HTTP returns only after TraCI applied the scenario.
+      if (res?.applied === true || res?.queued === false) {
+        tracker.setApplied()
+      } else {
+        tracker.setQueued()
+      }
       if (onCommandApplied) {
         onCommandApplied(selectedScenario)
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: { message?: string }; message?: string } }; message?: string }
-      tracker.setFailed(err?.response?.data?.detail?.message ?? err?.response?.data?.message ?? err?.message ?? 'Failed to queue scenario.')
+      const err = e as { response?: { data?: { detail?: { message?: string } | string; message?: string } }; message?: string }
+      const detail = err?.response?.data?.detail
+      const detailMsg = typeof detail === 'string' ? detail : detail?.message
+      tracker.setFailed(detailMsg ?? err?.response?.data?.message ?? err?.message ?? 'Failed to apply scenario.')
     }
   }
 
@@ -76,6 +82,9 @@ export function ScenarioControlCard({
         }}>
           {currentDisplay}
         </span>
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.35 }}>
+        Applies to this intersection only (not the whole network).
       </div>
 
       {/* Scenario Grid */}
@@ -145,17 +154,17 @@ export function ScenarioControlCard({
         {/* Status notice */}
         {tracker.state.phase === 'submitting' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#168CFF', marginTop: 2 }}>
-            <Loader2 size={12} className="animate-spin" /> Submitting command…
+            <Loader2 size={12} className="animate-spin" /> Applying in SUMO…
           </div>
         )}
         {tracker.state.phase === 'queued' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#FACC15', marginTop: 2 }}>
-            <Clock size={12} /> Queued — awaiting SUMO realtime state…
+            Queued — awaiting engine confirmation…
           </div>
         )}
         {tracker.state.phase === 'applied' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#22C55E', marginTop: 2 }}>
-            <CheckCircle2 size={12} /> Realtime scenario updated.
+            <CheckCircle2 size={12} /> Scenario applied in SUMO.
           </div>
         )}
         {tracker.state.phase === 'failed' && (
@@ -189,7 +198,7 @@ export function ScenarioControlCard({
             <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 18, lineHeight: 1.5 }}>
               Change intersection scenario from <strong>{currentDisplay}</strong> to <strong>{formatScenarioLabel(selectedScenario)}</strong>?
               <div style={{ marginTop: 8, fontSize: 11, color: '#71889B' }}>
-                UI will only update once the backend confirms the scenario change in the realtime data feed.
+                The request waits until SUMO applies the scenario, then the UI updates immediately.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -216,7 +225,7 @@ export function ScenarioControlCard({
                 }}
                 autoFocus
               >
-                Confirm & Queue
+                Confirm & Apply
               </button>
             </div>
           </div>

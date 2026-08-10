@@ -11,7 +11,13 @@ import type {
   PhaseId,
   ControlMode,
 } from '@/types/control'
+import { toGoldIntersectionId } from '@/utils/analyticsIntersectionId'
 import { httpClient } from './httpClient'
+
+/** Python Control API expects SUMO node ids (A/B/C/D), not Orion URNs. */
+function toControlIntersectionId(intersectionId: string): string {
+  return toGoldIntersectionId(intersectionId)
+}
 
 // ──────────────────────────────────────────────────────
 // Proxy read endpoints (proxied from FastAPI via Spring)
@@ -37,8 +43,9 @@ export async function getNetworkState(): Promise<unknown> {
  * GET /api/control/intersections/{id}/state — intersection engine state.
  */
 export async function getIntersectionState(intersectionId: string): Promise<unknown> {
+  const controlId = toControlIntersectionId(intersectionId)
   const res = await httpClient.get<unknown>(
-    `/api/control/intersections/${encodeURIComponent(intersectionId)}/state`,
+    `/api/control/intersections/${encodeURIComponent(controlId)}/state`,
   )
   return res.data
 }
@@ -47,8 +54,9 @@ export async function getIntersectionState(intersectionId: string): Promise<unkn
  * GET /api/control/snapshot/{id} — intersection snapshot from engine.
  */
 export async function getSnapshot(intersectionId: string): Promise<unknown> {
+  const controlId = toControlIntersectionId(intersectionId)
   const res = await httpClient.get<unknown>(
-    `/api/control/snapshot/${encodeURIComponent(intersectionId)}`,
+    `/api/control/snapshot/${encodeURIComponent(controlId)}`,
   )
   return res.data
 }
@@ -63,16 +71,19 @@ export async function getSnapshot(intersectionId: string): Promise<unknown> {
  * POST /api/control/scenario
  * Body: { scenario: ScenarioId, target_intersection?: string, ... }
  *
- * IMPORTANT: queued:true means queue acceptance only, NOT SUMO application.
+ * Approach B: Python waits for TraCI drain. Success returns
+ * { queued: false, applied: true, current } — safe to show Applied immediately.
+ * Other control endpoints may still return queued-only acceptance.
  */
 export async function setScenario(
   scenario: ScenarioId,
   target_intersection?: string,
 ): Promise<ControlProxyQueuedResponse> {
-  const res = await httpClient.post<ControlProxyQueuedResponse>('/api/control/scenario', {
-    scenario,
-    target_intersection,
-  })
+  const body: { scenario: ScenarioId; target_intersection?: string } = { scenario }
+  if (target_intersection) {
+    body.target_intersection = toControlIntersectionId(target_intersection)
+  }
+  const res = await httpClient.post<ControlProxyQueuedResponse>('/api/control/scenario', body)
   return res.data
 }
 
@@ -86,7 +97,7 @@ export async function setPhase(
   phase: PhaseId,
 ): Promise<ControlProxyQueuedResponse> {
   const res = await httpClient.post<ControlProxyQueuedResponse>('/api/control/phase', {
-    intersection_id: intersectionId,
+    intersection_id: toControlIntersectionId(intersectionId),
     phase,
   })
   return res.data
@@ -101,7 +112,7 @@ export async function setGreenDuration(
   seconds: number,
 ): Promise<ControlProxyQueuedResponse> {
   const res = await httpClient.post<ControlProxyQueuedResponse>('/api/control/green-duration', {
-    intersection_id: intersectionId,
+    intersection_id: toControlIntersectionId(intersectionId),
     seconds,
   })
   return res.data

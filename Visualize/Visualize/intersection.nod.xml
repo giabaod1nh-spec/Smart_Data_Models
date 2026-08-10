@@ -1,17 +1,17 @@
 <nodes>
-    <!-- Phase 3.8: 2×2 traffic-light grid, 500 m center spacing; external stubs 300 m -->
+    <!-- Phase 3.8: 2×2 traffic-light grid, 500 m center spacing; external stubs 150 m -->
     <node id="J1" x="0"   y="0"   type="traffic_light"/>  <!-- Southwest -->
     <node id="J2" x="500" y="0"   type="traffic_light"/>  <!-- Southeast -->
     <node id="J3" x="0"   y="500" type="traffic_light"/>  <!-- Northwest -->
     <node id="J4" x="500" y="500" type="traffic_light"/>  <!-- Northeast -->
 
-    <!-- External stubs: 300 m from nearest junction -->
-    <node id="N1" x="0"   y="800"/>
-    <node id="N2" x="500" y="800"/>
-    <node id="S1" x="0"   y="-300"/>
-    <node id="S2" x="500" y="-300"/>
-    <node id="W1" x="-300" y="0"/>
-    <node id="W2" x="-300" y="500"/>
-    <node id="E1" x="800" y="0"/>
-    <node id="E2" x="800" y="500"/>
+    <!-- External stubs: 150 m from nearest junction (half of prior 300 m) -->
+    <node id="N1" x="0"   y="650"/>
+    <node id="N2" x="500" y="650"/>
+    <node id="S1" x="0"   y="-150"/>
+    <node id="S2" x="500" y="-150"/>
+    <node id="W1" x="-150" y="0"/>
+    <node id="W2" x="-150" y="500"/>
+    <node id="E1" x="650" y="0"/>
+    <node id="E2" x="650" y="500"/>
 </nodes>
