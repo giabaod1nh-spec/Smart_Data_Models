@@ -51,6 +51,15 @@ MOTO_FRONT_ZONE_START_RATIO = float(_REG.threshold("moto_front_zone_start_ratio"
 
 CONTROL_API_PORT = int(os.getenv("CONTROL_API_PORT", "9090"))
 
+# Live TraCI → WebSocket vehicle stream (Control API /ws/live)
+LIVE_STREAM_ENABLED = os.getenv("LIVE_STREAM_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+LIVE_STREAM_HZ = float(os.getenv("LIVE_STREAM_HZ", "10"))
+LIVE_STREAM_QUEUE_SIZE = int(os.getenv("LIVE_STREAM_QUEUE_SIZE", "3"))
+
 # ── DetectorParameters (from registry detector profile) ───────────
 _DET = _REG.detector_meta()
 E1_OFFSET_FROM_END_M = float(_DET["e1_offset_from_end_m"]["value"])

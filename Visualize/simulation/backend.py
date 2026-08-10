@@ -179,6 +179,20 @@ class SumoBackend:
         self._runtime_state = SimulationRuntimeState.RUNNING
         self.simulation_time_sec = float(traci.simulation.getTime())
         self.runtime.on_start(traci)
+        # Live WebSocket stream (additive — does not affect Orion/demand/TLS control)
+        try:
+            from streaming.live_vehicle_stream import init_live_stream
+
+            net_xml = Path(config_path).resolve().parent / "intersection.net.xml"
+            if not net_xml.is_file():
+                net_xml = cfg.SUMO_ASSET_ROOT / "intersection.net.xml"
+            init_live_stream(
+                net_xml=net_xml,
+                signals=self.signals,
+                publish_nodes=self.publish_nodes,
+            )
+        except Exception as e:
+            log.warning("live stream init skipped: %s", e)
         log.info(
             "SUMO started. nodes=%s primary=%s/%s",
             self.publish_nodes, self.publish_node, self.tls_id,
@@ -232,6 +246,24 @@ class SumoBackend:
         if tracker is not None:
             tracker.tick(self)
         self.simulation_time_sec = float(traci.simulation.getTime())
+
+        # --- live vehicle stream (throttled; never blocks TraCI on WS I/O) ---
+        if cfg.LIVE_STREAM_ENABLED:
+            try:
+                from streaming.live_vehicle_stream import (
+                    get_live_stream_hub,
+                    get_vehicle_stream_collector,
+                )
+
+                collector = get_vehicle_stream_collector(
+                    signals=self.signals,
+                    publish_nodes=self.publish_nodes,
+                )
+                frame = collector.maybe_collect(traci, self.simulation_time_sec)
+                if frame is not None:
+                    get_live_stream_hub().publish(frame)
+            except Exception as e:
+                log.debug("live stream tick: %s", e)
 
         # --- post_step bookkeeping (every TraCI step) ---
         self.trips.on_step(traci, self.simulation_time_sec)

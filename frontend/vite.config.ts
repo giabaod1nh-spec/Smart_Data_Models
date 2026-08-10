@@ -24,6 +24,17 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
       },
+      // Live TraCI vehicle stream (Control API on :9090) — HTTP + WebSocket.
+      '/live': {
+        target: 'http://127.0.0.1:9090',
+        changeOrigin: true,
+        ws: true,
+      },
+      '/ws': {
+        target: 'http://127.0.0.1:9090',
+        ws: true,
+        changeOrigin: true,
+      },
     },
   },
 })

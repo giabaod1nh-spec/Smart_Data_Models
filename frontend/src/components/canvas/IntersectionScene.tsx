@@ -19,6 +19,7 @@ import { Stage, Layer, Rect, Line, Text, Group, Circle } from 'react-konva'
 import type { VehicleSensorResponse, TrafficLightResponse } from '@/types/realtime'
 import {
   useVehicleAnimation,
+  signalColorForDirection,
   type Direction,
   type SensorInput,
 } from './useVehicleAnimation'
@@ -429,14 +430,18 @@ export function IntersectionScene({
         </Layer>
 
         {/* ── 7. TRAFFIC LIGHT CLUSTERS AT STOPLINES ── */}
+        {/* Bulbs follow currentPhase (same source as vehicle stop logic), not stale per-light status. */}
         <Layer listening={false}>
           {DIRS.map((dir) => {
-            const light = getLight(lights, dir)
             const pos = tlPositions[dir]
-            const status = (light?.currentStatus ?? '').toUpperCase()
-            const isGreen = status.includes('GREEN')
-            const isYellow = status.includes('YELLOW')
-            const isRed = status.includes('RED')
+            // Prefer phase; fall back to entity status only when phase is missing
+            const phaseColor = currentPhase
+              ? signalColorForDirection(dir, currentPhase)
+              : null
+            const fallback = (getLight(lights, dir)?.currentStatus ?? '').toUpperCase()
+            const isGreen = phaseColor ? phaseColor === 'GREEN' : fallback.includes('GREEN')
+            const isYellow = phaseColor ? phaseColor === 'YELLOW' : fallback.includes('YELLOW')
+            const isRed = phaseColor ? phaseColor === 'RED' : fallback.includes('RED') || (!isGreen && !isYellow)
 
             const isVert = dir === 'North' || dir === 'South'
             const boxW = isVert ? 16 : 42
@@ -444,7 +449,6 @@ export function IntersectionScene({
 
             return (
               <Group key={dir} x={pos.x} y={pos.y}>
-                {/* Housing */}
                 <Rect
                   x={0} y={0}
                   width={boxW} height={boxH}
@@ -455,7 +459,6 @@ export function IntersectionScene({
                   shadowColor="rgba(0,0,0,0.5)"
                   shadowBlur={6}
                 />
-                {/* Red Light */}
                 <Circle
                   x={isVert ? 8 : 8}
                   y={isVert ? 8 : 8}
@@ -464,7 +467,6 @@ export function IntersectionScene({
                   shadowColor={isRed ? '#EF4444' : 'transparent'}
                   shadowBlur={isRed ? 10 : 0}
                 />
-                {/* Yellow Light */}
                 <Circle
                   x={isVert ? 8 : 21}
                   y={isVert ? 21 : 8}
@@ -473,7 +475,6 @@ export function IntersectionScene({
                   shadowColor={isYellow ? '#FACC15' : 'transparent'}
                   shadowBlur={isYellow ? 10 : 0}
                 />
-                {/* Green Light */}
                 <Circle
                   x={isVert ? 8 : 34}
                   y={isVert ? 34 : 8}
@@ -491,16 +492,16 @@ export function IntersectionScene({
         <Layer listening={false}>
           {sprites.map((sprite) => {
             const pos = getSpritePixel(sprite.dir, sprite.progress, sprite.lane)
-            const sensor = getSensor(sensors, sprite.dir)
-            const vStatus = (sensor?.trafficStatus ?? '').toUpperCase()
-            const isCongested = vStatus.includes('HIGH') || vStatus.includes('CONGEST') || vStatus.includes('JAM')
-            const isStopped = sprite.queued || pos.y === 0
-
-            const carColor = isStopped
-              ? C.carBodyStopped
-              : isCongested
-              ? C.carBodySlow
-              : C.carBodyNormal
+            const cat = sprite.animCategory
+            const isStopped = sprite.queued || cat === 'STOPPED'
+            const carColor =
+              cat === 'STOPPED' || isStopped
+                ? C.carBodyStopped
+                : cat === 'CRAWL' || cat === 'SLOW'
+                ? C.carBodySlow
+                : cat === 'FAST'
+                ? C.carBodyFree
+                : C.carBodyNormal
 
             const vW = Math.max(9, ARM_W * 0.12)
             const vH = vW * 1.85
@@ -514,7 +515,6 @@ export function IntersectionScene({
                 offsetX={vW / 2}
                 offsetY={vH / 2}
               >
-                {/* Vehicle Main Body */}
                 <Rect
                   x={0} y={0}
                   width={vW} height={vH}
@@ -523,21 +523,18 @@ export function IntersectionScene({
                   strokeWidth={0.8}
                   cornerRadius={vW * 0.3}
                 />
-                {/* Windshield Marker */}
                 <Rect
                   x={vW * 0.12} y={vH * 0.22}
                   width={vW * 0.76} height={vH * 0.22}
                   fill={C.windshield}
                   cornerRadius={2}
                 />
-                {/* Rear Window */}
                 <Rect
                   x={vW * 0.15} y={vH * 0.65}
                   width={vW * 0.7} height={vH * 0.14}
                   fill="rgba(22,140,255,0.3)"
                   cornerRadius={1}
                 />
-                {/* Front Headlights */}
                 <Circle
                   x={vW * 0.22} y={vH * 0.05}
                   radius={1.5}
@@ -548,7 +545,6 @@ export function IntersectionScene({
                   radius={1.5}
                   fill={isStopped ? C.headlightDim : C.headlightOn}
                 />
-                {/* Rear Taillights */}
                 <Circle
                   x={vW * 0.2} y={vH * 0.95}
                   radius={1.2}
