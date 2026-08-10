@@ -4,5 +4,5 @@
     <background backgroundColor="white"/>
     <!-- scheme="real world" equivalent settings -->
         <vehicles vehicleMode="3" vehicleQuality="3" vehicleExaggeration="1.0" vehicleName_show="0"/>
-    <polygons polygonMode="0"/>
+    <polygons polygonMode="1"/>
 </viewsettings>
