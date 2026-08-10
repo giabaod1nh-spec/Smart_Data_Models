@@ -694,7 +694,14 @@ def run(args: argparse.Namespace) -> int:
                 or kafka_outbox is not None
                 or kafka_producer is not None
             )
-            if publish_active and (sim_t - last_publish_sim_t) >= publish_interval:
+            publish_asap = backend.should_publish_asap()
+            publish_due = publish_asap or (sim_t - last_publish_sim_t) >= publish_interval
+            if publish_active and publish_due:
+                if publish_asap:
+                    log.info(
+                        "publish_asap requested (scenario/demand change) sim_t=%.3f",
+                        sim_t,
+                    )
                 if use_async and publisher is not None:
                     from integration.orion.publish_gate import is_orion_publish_enabled
 
@@ -705,6 +712,7 @@ def run(args: argparse.Namespace) -> int:
                         if publisher.try_enqueue(pending_cycle):
                             last_publish_sim_t = pending_cycle.simulation_time
                             pending_cycle = None
+                            backend.clear_publish_asap()
                             publisher.metrics.update(
                                 enqueue_duration_ms=(time.perf_counter() - enq_t0) * 1000.0
                             )
@@ -730,6 +738,7 @@ def run(args: argparse.Namespace) -> int:
                             if orion_on:
                                 if publisher.try_enqueue(cycle):
                                     last_publish_sim_t = cycle.simulation_time
+                                    backend.clear_publish_asap()
                                     publisher.metrics.update(
                                         enqueue_duration_ms=(
                                             time.perf_counter() - enq_t0
@@ -744,6 +753,8 @@ def run(args: argparse.Namespace) -> int:
                                         )
                                 else:
                                     pending_cycle = cycle
+                                    # Cycle already captured new scenarioId; Kafka may have fanout.
+                                    backend.clear_publish_asap()
                                     log.warning(
                                         "Queue full — holding pending cycle seq=%d sim_t=%.3f",
                                         cycle.sequence_number,
@@ -752,6 +763,7 @@ def run(args: argparse.Namespace) -> int:
                             else:
                                 # Kafka/outbox already fanout; Orion skipped
                                 last_publish_sim_t = cycle.simulation_time
+                                backend.clear_publish_asap()
                         except Exception as e:
                             from integration.orion.publish_cycle import CaptureValidationError
                             from integration.kafka.outbox_store import OutboxAppendError
@@ -782,6 +794,7 @@ def run(args: argparse.Namespace) -> int:
                             kafka_outbox=kafka_outbox,
                         )
                         last_publish_sim_t = cycle.simulation_time
+                        backend.clear_publish_asap()
                     except Exception as e:
                         from integration.kafka.outbox_store import OutboxAppendError
 
@@ -795,6 +808,7 @@ def run(args: argparse.Namespace) -> int:
                     pub_t0 = time.perf_counter()
                     if is_orion_publish_enabled():
                         publish_once(backend, upsert_entity, build_all_entities)
+                        backend.clear_publish_asap()
                     if _perf_enabled():
                         log.info(
                             "publish_block sim_time=%.3f block_ms=%.2f mode=sync",
@@ -802,6 +816,13 @@ def run(args: argparse.Namespace) -> int:
                             (time.perf_counter() - pub_t0) * 1000.0,
                         )
                     last_publish_sim_t = sim_t
+            elif publish_asap and not publish_active:
+                log.warning(
+                    "publish_asap set but no Orion/Kafka publish path is active "
+                    "(--no-orion and Kafka outbox/producer disabled); "
+                    "Orion scenarioId will stay stale until a publish path is enabled"
+                )
+                backend.clear_publish_asap()
 
             if args.max_sim_time and sim_t >= args.max_sim_time:
                 log.info("Reached max_sim_time=%.1f — stopping.", args.max_sim_time)
@@ -894,9 +915,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--demo", action="store_true", help="Apply demo_profile after t>=5s")
     p.add_argument(
         "--control-mode",
-        choices=["FIXED", "PREEMPTION_ENABLED"],
+        choices=["FIXED", "PREEMPTION_ENABLED", "MANUAL"],
         default=None,
-        help="TLS control mode (default FIXED)",
+        help="TLS control mode: FIXED=auto, MANUAL=officer hold, PREEMPTION_ENABLED=EV",
     )
     pub = p.add_mutually_exclusive_group()
     pub.add_argument(

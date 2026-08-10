@@ -252,15 +252,15 @@ export function IntersectionScene({
       role="img"
       aria-label="Live aggregate intersection digital twin showing road layout, signals, vehicle movements, and queues"
     >
-      {/* Top right status badge */}
+      {/* Top right status badge — only when API feed is hard-failed */}
       {stale && (
         <div style={{
           position: 'absolute', top: 10, right: 10, zIndex: 20,
           padding: '3px 10px', borderRadius: 6,
-          background: 'rgba(250,204,21,0.18)', border: '1px solid rgba(250,204,21,0.4)',
-          color: '#FACC15', fontSize: 11, fontWeight: 700,
+          background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.4)',
+          color: '#EF4444', fontSize: 11, fontWeight: 700,
         }}>
-          Stale / Paused
+          Offline
         </div>
       )}
 

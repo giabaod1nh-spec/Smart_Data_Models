@@ -71,7 +71,9 @@ export async function getSnapshot(intersectionId: string): Promise<unknown> {
  * POST /api/control/scenario
  * Body: { scenario: ScenarioId, target_intersection?: string, ... }
  *
- * IMPORTANT: queued:true means queue acceptance only, NOT SUMO application.
+ * Approach B: Python waits for TraCI drain. Success returns
+ * { queued: false, applied: true, current } — safe to show Applied immediately.
+ * Other control endpoints may still return queued-only acceptance.
  */
 export async function setScenario(
   scenario: ScenarioId,

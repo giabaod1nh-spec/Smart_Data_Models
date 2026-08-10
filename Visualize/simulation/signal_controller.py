@@ -10,6 +10,10 @@ import configuration.config as cfg
 
 log = logging.getLogger(__name__)
 
+# Officer / MANUAL mode: keep TraCI from advancing the TLS program.
+_MANUAL_HOLD_SEC = 3600.0
+_MANUAL_HOLD_REFRESH_BELOW_SEC = 60
+
 
 class SumoSignalController:
     """Controls one TLS with safe yellow transitions and emergency preemption."""
@@ -21,6 +25,43 @@ class SumoSignalController:
         self.preemption_active: bool = False
         self._preempt_restore: Optional[str] = None
         self.preemption_enabled: bool = True  # FIXED mode sets False
+        self.manual_mode: bool = False
+
+    def set_manual_mode(self, traci_module, enabled: bool) -> None:
+        """Enter/leave traffic-officer MANUAL hold (countdown stops until force_phase)."""
+        self.manual_mode = bool(enabled)
+        if enabled:
+            self.preemption_enabled = False
+            self.preemption_active = False
+            self.apply_manual_hold(traci_module)
+            log.info("TLS %s entered MANUAL hold", self.tls_id)
+        else:
+            self._restore_cycle_duration(traci_module)
+            log.info("TLS %s left MANUAL — cycle timing restored", self.tls_id)
+
+    def apply_manual_hold(self, traci_module) -> None:
+        """Re-extend current phase so SUMO does not auto-advance (officer holds)."""
+        if not self.manual_mode:
+            return
+        current = self.current_phase_name(traci_module)
+        # Let yellow-safe transitions finish under tick_pending.
+        if "YELLOW" in current and self._pending_target:
+            return
+        remaining = self.phase_remaining_seconds(traci_module)
+        if remaining >= _MANUAL_HOLD_REFRESH_BELOW_SEC:
+            return
+        try:
+            traci_module.trafficlight.setPhaseDuration(self.tls_id, _MANUAL_HOLD_SEC)
+        except Exception as e:
+            log.debug("manual hold setPhaseDuration failed on %s: %s", self.tls_id, e)
+
+    def _restore_cycle_duration(self, traci_module) -> None:
+        name = self.current_phase_name(traci_module)
+        dur = self.yellow_duration(traci_module) if "YELLOW" in name else self.green_duration(traci_module)
+        try:
+            traci_module.trafficlight.setPhaseDuration(self.tls_id, float(max(1, int(dur))))
+        except Exception as e:
+            log.debug("restore cycle duration failed on %s: %s", self.tls_id, e)
 
     def current_phase_name(self, traci_module) -> str:
         idx = int(traci_module.trafficlight.getPhase(self.tls_id))
@@ -89,6 +130,8 @@ class SumoSignalController:
         current = self.current_phase_name(traci_module)
         if current == self._pending_target:
             self._pending_target = None
+            if self.manual_mode:
+                self.apply_manual_hold(traci_module)
             return
         # Stay on yellow until it expires; then apply the pending green.
         if "YELLOW" in current:
@@ -101,6 +144,8 @@ class SumoSignalController:
                 traci_module.trafficlight.setPhase(self.tls_id, target_idx)
                 log.info("Applied pending phase %s on %s after yellow", self._pending_target, self.tls_id)
             self._pending_target = None
+            if self.manual_mode:
+                self.apply_manual_hold(traci_module)
             return
         # Not yellow and not yet on target — apply immediately
         target_idx = cfg.PHASE_NAME_TO_INDEX.get(self._pending_target)
@@ -108,6 +153,8 @@ class SumoSignalController:
             traci_module.trafficlight.setPhase(self.tls_id, target_idx)
             log.info("Applied pending phase %s on %s", self._pending_target, self.tls_id)
         self._pending_target = None
+        if self.manual_mode:
+            self.apply_manual_hold(traci_module)
 
     def update_preemption(self, traci_module) -> None:
         """Detect emergency vehicles on approaches; force green axis yellow-safely."""
@@ -167,6 +214,8 @@ class SumoSignalController:
         # Already there
         if current == phase_name:
             self._pending_target = None
+            if self.manual_mode:
+                self.apply_manual_hold(traci_module)
             return
 
         # From yellow: finish yellow-safe path.
@@ -198,6 +247,8 @@ class SumoSignalController:
             traci_module.trafficlight.setPhase(self.tls_id, target_idx)
             self._pending_target = None
             log.info("force_phase %s → %s on %s", current, phase_name, self.tls_id)
+            if self.manual_mode and "YELLOW" not in phase_name:
+                self.apply_manual_hold(traci_module)
             return
 
         # Cross-axis from green: insert yellow of current axis first
@@ -220,6 +271,8 @@ class SumoSignalController:
             traci_module.trafficlight.setPhase(self.tls_id, target_idx)
             self._pending_target = None
             log.info("force_phase %s → %s on %s", current, phase_name, self.tls_id)
+            if self.manual_mode:
+                self.apply_manual_hold(traci_module)
 
     def set_green_duration(self, traci_module, seconds: int) -> None:
         """Set custom green duration (clamped 10–120) for green phases."""

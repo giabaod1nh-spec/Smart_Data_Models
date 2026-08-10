@@ -144,8 +144,8 @@ describe('deriveRealtimePageStatus', () => {
     expect(deriveRealtimePageStatus('live', false)).toBe('LIVE')
   })
 
-  it('returns PAUSED when fresh but simulation time not advancing', () => {
-    expect(deriveRealtimePageStatus('live', true)).toBe('PAUSED')
+  it('returns DELAYED when fresh but simulation time not advancing', () => {
+    expect(deriveRealtimePageStatus('live', true)).toBe('DELAYED')
   })
 
   it('returns STALE when freshness is stale', () => {

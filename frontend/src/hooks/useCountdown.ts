@@ -9,8 +9,10 @@
 //
 // FREEZE conditions:
 //   - freshnessState === 'stale' | 'error'
-//   - isPaused (simulationTime not advancing)
+//   - isPaused / metricsDelayed (simulationTime not advancing)
 //   - document.hidden
+//   - timingMode === 'MANUAL' (traffic officer holds phase — no countdown)
+// Decorative canvas animation is independent and must NOT use this freeze flag.
 //
 // RESYNC: Pure, immediate derivation from computeCountdownSec(light, nowMs).
 //
@@ -38,9 +40,15 @@ export function useCountdown(
   light: TrafficLightView | null | undefined,
   freshnessState: FreshnessState,
   isPaused: boolean,
+  options?: { forceFrozen?: boolean },
 ): CountdownState {
   const [nowMs, setNowMs] = useState(() => Date.now())
-  const isFrozen = freshnessState === 'stale' || freshnessState === 'error' || isPaused
+  const manualHold = light?.timingMode === 'MANUAL' || Boolean(options?.forceFrozen)
+  const isFrozen =
+    freshnessState === 'stale'
+    || freshnessState === 'error'
+    || isPaused
+    || manualHold
 
   // 1-second wall-clock timer
   useEffect(() => {
@@ -56,10 +64,11 @@ export function useCountdown(
   // Pure derivation of remaining seconds from authoritative formula
   const remainingSec = useMemo(() => {
     if (!light) return null
+    if (manualHold) return null
     return computeCountdownSec(light, nowMs)
-  }, [light, nowMs])
+  }, [light, nowMs, manualHold])
 
-  const isSyncing = remainingSec !== null && remainingSec === 0
+  const isSyncing = !manualHold && remainingSec !== null && remainingSec === 0
 
   // Configured duration for display
   const configuredDuration: number | null = useMemo(() => {

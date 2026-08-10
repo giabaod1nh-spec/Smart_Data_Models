@@ -139,6 +139,14 @@ def build_intersection(node_id: str, snapshot: dict) -> dict:
         "@context": CONTEXT,
     }
     entity.update(_sim_meta_props(snapshot))
+    # Optional Random Forest anomaly fields (Visualize/ml)
+    if snapshot.get("anomaly_score") is not None:
+        try:
+            entity["anomalyScore"] = _prop(float(snapshot["anomaly_score"]))
+        except (TypeError, ValueError):
+            pass
+    if snapshot.get("anomaly_label"):
+        entity["anomalyLabel"] = _prop(str(snapshot["anomaly_label"]))
     if primary:
         entity["probableCauseType"] = _prop(primary.get("type"))
         src = primary.get("source_node")
@@ -166,7 +174,7 @@ def build_traffic_light(node_id: str, direction: str, snapshot: dict) -> dict:
         "location": _geoprop(float(meta["lng"]), float(meta["lat"])),
         "currentStatus": _prop(status),
         "currentPhase": _current_phase_prop(snapshot),
-        "timingMode": _prop("FIXED_TIME"),
+        "timingMode": _prop(snapshot.get("timing_mode") or "FIXED_TIME"),
         "workingState": _prop("OK"),
         "trafficDirection": _prop(traffic_dir),
         # Configured cycle lengths (seconds), NOT remaining time — RT-DE Contract v1.

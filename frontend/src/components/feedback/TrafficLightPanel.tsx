@@ -142,13 +142,19 @@ function TrafficLightCard({
           <span style={{
             fontSize: 9,
             fontWeight: 600,
-            color: '#FACC15',
-            background: 'rgba(250,204,21,0.12)',
+            color: effectiveLight?.timingMode === 'MANUAL' ? '#F59E0B' : '#FACC15',
+            background: effectiveLight?.timingMode === 'MANUAL'
+              ? 'rgba(245,158,11,0.12)'
+              : 'rgba(250,204,21,0.12)',
             padding: '1px 5px',
             borderRadius: 3,
             textTransform: 'uppercase',
           }}>
-            {isPaused ? 'Paused' : 'Stale'}
+            {effectiveLight?.timingMode === 'MANUAL'
+              ? 'Manual'
+              : isPaused
+              ? 'Delayed'
+              : 'Stale'}
           </span>
         )}
       </div>
