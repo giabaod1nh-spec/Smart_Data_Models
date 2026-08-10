@@ -101,11 +101,12 @@ export function ReverseControlPanel({
   const [modeError, setModeError] = useState<string | null>(null)
 
   const authoritativeMode: ControlMode =
-    controlMode === 'MANUAL' || controlMode === 'PREEMPTION_ENABLED' || controlMode === 'FIXED'
+    controlMode === 'MANUAL' || controlMode === 'PREEMPTION_ENABLED' || controlMode === 'FIXED' || controlMode === 'ADAPTIVE'
       ? controlMode
       : 'FIXED'
   const displayMode = pendingMode ?? authoritativeMode
   const isManual = displayMode === 'MANUAL'
+  const isAdaptive = displayMode === 'ADAPTIVE'
   const isModeSwitching = modeMutation.isPending || (pendingMode !== null && pendingMode !== authoritativeMode)
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export function ReverseControlPanel({
     direction: currentPhase.startsWith('NS') ? 'North' : 'East',
     currentStatus: currentPhase.includes('GREEN') ? 'GREEN' : currentPhase.includes('YELLOW') ? 'YELLOW' : 'RED',
     currentPhase,
-    timingMode: isManual ? 'MANUAL' : 'FIXED_TIME',
+    timingMode: isManual ? 'MANUAL' : isAdaptive ? 'ADAPTIVE' : 'FIXED_TIME',
     workingState: 'OK',
     greenDurationCurrent: currentConfiguredGreen ?? null,
     redDurationCurrent: null,
@@ -134,17 +135,23 @@ export function ReverseControlPanel({
     activeLight,
     freshnessState,
     isPaused,
-    { forceFrozen: isManual },
+    { forceFrozen: isManual || isAdaptive },
   )
 
-  const handleModeSwitch = async (next: 'FIXED' | 'MANUAL') => {
+  const handleModeSwitch = async (next: 'FIXED' | 'MANUAL' | 'ADAPTIVE') => {
     if (next === displayMode || isModeSwitching) return
     setModeError(null)
     setPendingMode(next)
     try {
       await modeMutation.mutateAsync({ mode: next })
       onModeChanged?.(next)
-      onCommandApplied?.(next === 'MANUAL' ? 'Control mode → Manual (Officer)' : 'Control mode → Automatic')
+      onCommandApplied?.(
+        next === 'MANUAL'
+          ? 'Control mode → Manual (Officer)'
+          : next === 'ADAPTIVE'
+          ? 'Control mode → DQN Agent (AI)'
+          : 'Control mode → Automatic',
+      )
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: { message?: string } | string; message?: string } }; message?: string }
       const detail = err?.response?.data?.detail
@@ -162,8 +169,9 @@ export function ReverseControlPanel({
   const durationChanged = typeof currentConfiguredGreen === 'number'
     ? selectedGreenDuration !== currentConfiguredGreen
     : true
-  // Officer phase control only in MANUAL; green duration configures the automatic cycle.
-  const hasChanges = isManual ? phaseChanged : durationChanged
+  // Officer phase control only in MANUAL; green duration configures the automatic
+  // cycle; DQN Agent mode has nothing to apply (agents decide autonomously).
+  const hasChanges = isAdaptive ? false : isManual ? phaseChanged : durationChanged
 
   const isSubmitting = tracker.state.phase === 'submitting'
 
@@ -226,7 +234,7 @@ export function ReverseControlPanel({
   const selectedPhaseDisplay = formatPhaseLabel(selectedPhase)
 
   // Remaining time format
-  const remainingValue = isManual
+  const remainingValue = isManual || isAdaptive
     ? null
     : typeof currentRemaining === 'number'
     ? currentRemaining
@@ -234,29 +242,29 @@ export function ReverseControlPanel({
     ? Math.ceil(hookRemainingSec)
     : null
 
-  const isSyncingState = !isManual && (hookIsSyncing || remainingValue === 0)
+  const isSyncingState = !isManual && !isAdaptive && (hookIsSyncing || remainingValue === 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* ── MODE: Automatic ↔ Manual (Officer) ── */}
       <div>
         <div style={SECTION_HEADER}>CONTROL MODE</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           <button
             id="control-mode-auto-btn"
             type="button"
             onClick={() => void handleModeSwitch('FIXED')}
             disabled={isModeSwitching}
-            aria-pressed={!isManual}
+            aria-pressed={displayMode === 'FIXED'}
             style={{
-              padding: '8px 12px',
+              padding: '8px 10px',
               borderRadius: 6,
               fontSize: 12,
-              fontWeight: !isManual ? 700 : 500,
+              fontWeight: displayMode === 'FIXED' ? 700 : 500,
               cursor: isModeSwitching ? 'wait' : 'pointer',
-              border: `1.5px solid ${!isManual ? '#168CFF' : 'var(--border)'}`,
-              background: !isManual ? 'rgba(22,140,255,0.2)' : 'rgba(10,26,40,0.4)',
-              color: !isManual ? '#FFFFFF' : 'var(--text-secondary)',
+              border: `1.5px solid ${displayMode === 'FIXED' ? '#168CFF' : 'var(--border)'}`,
+              background: displayMode === 'FIXED' ? 'rgba(22,140,255,0.2)' : 'rgba(10,26,40,0.4)',
+              color: displayMode === 'FIXED' ? '#FFFFFF' : 'var(--text-secondary)',
             }}
           >
             Automatic
@@ -268,7 +276,7 @@ export function ReverseControlPanel({
             disabled={isModeSwitching}
             aria-pressed={isManual}
             style={{
-              padding: '8px 12px',
+              padding: '8px 10px',
               borderRadius: 6,
               fontSize: 12,
               fontWeight: isManual ? 700 : 500,
@@ -280,10 +288,31 @@ export function ReverseControlPanel({
           >
             Manual (Officer)
           </button>
+          <button
+            id="control-mode-dqn-btn"
+            type="button"
+            onClick={() => void handleModeSwitch('ADAPTIVE')}
+            disabled={isModeSwitching}
+            aria-pressed={isAdaptive}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: isAdaptive ? 700 : 500,
+              cursor: isModeSwitching ? 'wait' : 'pointer',
+              border: `1.5px solid ${isAdaptive ? '#16C7E8' : 'var(--border)'}`,
+              background: isAdaptive ? 'rgba(22,199,232,0.18)' : 'rgba(10,26,40,0.4)',
+              color: isAdaptive ? '#16C7E8' : 'var(--text-secondary)',
+            }}
+          >
+            DQN Agent
+          </button>
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
           {isManual
             ? 'Officer mode: countdown stopped — you decide green / red.'
+            : isAdaptive
+            ? 'DQN Agent: cooperative AI agents (A–D) control all signals every 5s decision cycle.'
             : 'Automatic: signal cycles with countdown. Switch to Manual when an officer takes over.'}
         </div>
         {isModeSwitching && (
@@ -329,6 +358,8 @@ export function ReverseControlPanel({
           }}>
             {isManual
               ? 'Held (Officer)'
+              : isAdaptive
+              ? 'AI controlled'
               : remainingValue !== null
               ? isSyncingState
                 ? '0 s (Syncing…)'
@@ -462,7 +493,7 @@ export function ReverseControlPanel({
       </div>}
 
       {/* ── SECTION: DURATION (Automatic cycle config only) ── */}
-      {!isManual && (
+      {!isManual && !isAdaptive && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <div style={SECTION_HEADER}>GREEN DURATION</div>
@@ -518,8 +549,8 @@ export function ReverseControlPanel({
         </div>
       )}
 
-      {/* ── SECTION: APPLY CHANGES BUTTON ── */}
-      <div>
+      {/* ── SECTION: APPLY CHANGES BUTTON (not applicable in DQN mode) ── */}
+      {!isAdaptive && <div>
         <button
           id="apply-changes-btn"
           type="button"
@@ -574,7 +605,7 @@ export function ReverseControlPanel({
             <AlertCircle size={13} /> {tracker.state.message}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Info notice about closed loop */}
       <div style={{
@@ -589,6 +620,8 @@ export function ReverseControlPanel({
         <span>
           {isManual
             ? 'Manual: SUMO holds the phase until you apply a new signal (yellow-safe).'
+            : isAdaptive
+            ? 'DQN: agents observe queues and choose KEEP / SWITCH / EXTEND actions (yellow-safe).'
             : 'Automatic: countdown runs with the TLS cycle. Switch to Manual for officer control.'}
         </span>
       </div>

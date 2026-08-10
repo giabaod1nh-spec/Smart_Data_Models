@@ -80,8 +80,10 @@ class NetworkRuntimeController:
         return info
 
     def set_control_mode(self, mode: str) -> None:
-        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL"):
-            raise ValueError("control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL")
+        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL", "ADAPTIVE"):
+            raise ValueError(
+                "control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL|ADAPTIVE"
+            )
         self.state.control_mode = mode
         self._emit("control", {"control_mode": mode})
 

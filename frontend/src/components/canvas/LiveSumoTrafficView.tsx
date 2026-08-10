@@ -9,15 +9,18 @@
  * quadrant of the 2×2 grid so the detail page shows only that intersection.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Stage, Layer, Line, Rect, Circle, Text, Group } from 'react-konva'
+import { Stage, Layer, Rect, Circle, Text, Group } from 'react-konva'
 import type {
+  LiveAgentStatus,
   LiveFrame,
+  LiveGlobalMetrics,
   LiveNetworkGeometry,
   LiveStatistics,
   LiveVehicle,
   LiveWsStatus,
 } from '@/types/liveTraffic'
 import { toGoldIntersectionId } from '@/utils/analyticsIntersectionId'
+import { AgentStatusPanel } from '@/components/ai/AgentStatusPanel'
 import { SumoVehicleSprite, resolveVehicleDims, useVehicleSprites } from '@/components/canvas/liveVehicleRender'
 import { SumoRoadLayer } from '@/components/canvas/sumoRoadLayer'
 import { INTERSECTION_APPROACH_M, mpx, WORLD } from '@/utils/canvasWorldScale'
@@ -83,6 +86,9 @@ interface LiveSumoTrafficViewProps {
   network: LiveNetworkGeometry | null
   stats: LiveStatistics | null
   simulationTime: number | null
+  /** Cooperative DQN agents — shown when ADAPTIVE mode is on */
+  agents?: LiveAgentStatus[]
+  globalMetrics?: LiveGlobalMetrics
   width?: number
   height?: number
 }
@@ -308,6 +314,8 @@ export function LiveSumoTrafficView({
   network,
   stats,
   simulationTime,
+  agents,
+  globalMetrics,
   width: propW,
   height: propH,
 }: LiveSumoTrafficViewProps) {
@@ -664,6 +672,8 @@ export function LiveSumoTrafficView({
           </div>
         </div>
       </div>
+
+      <AgentStatusPanel agents={agents} globalMetrics={globalMetrics} />
 
       <Stage
         key={`stage-${focusLetter || 'all'}-${network ? 'geo' : 'nogeo'}`}

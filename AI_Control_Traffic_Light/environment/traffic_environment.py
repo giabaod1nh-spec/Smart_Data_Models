@@ -58,10 +58,23 @@ class TrafficEnvironment:
         self.steps_per_decision = max(
             1, int(self.config.decision_interval_sec / cfg.SUMO_STEP_LENGTH)
         )
-        self.backend.set_scenario(scenario)
+        self._apply_scenario(scenario)
         if self.mode != "fixed":
             self.action_exec.enter_adaptive_mode(self.backend.signals, self.backend._traci)
         self.manager.reset_episode()
+
+    def _apply_scenario(self, scenario: str) -> None:
+        """Network-wide demand profiles apply globally; per-node scenarios
+        (rain/incident) apply at every intersection — backend.set_scenario
+        requires an explicit target_intersection."""
+        import configuration.config as cfg
+
+        profile = cfg.normalize_demand_profile_id(cfg.normalize_scenario_id(scenario))
+        if profile in ("normal", "peak", "oversaturated"):
+            self.backend.set_demand_profile(profile)
+            return
+        for nid in ALL_NODES:
+            self.backend.set_scenario(scenario, target_intersection=nid)
 
     def step_once(self, *, train: bool = False) -> bool:
         """One decision cycle: decide+act, then advance SUMO. Returns False when episode ends."""

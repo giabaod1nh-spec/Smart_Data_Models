@@ -12,6 +12,7 @@
 //   - isPaused / metricsDelayed (simulationTime not advancing)
 //   - document.hidden
 //   - timingMode === 'MANUAL' (traffic officer holds phase — no countdown)
+//   - timingMode === 'ADAPTIVE' (DQN agents hold / decide — no fixed countdown)
 // Decorative canvas animation is independent and must NOT use this freeze flag.
 //
 // RESYNC: Pure, immediate derivation from computeCountdownSec(light, nowMs).
@@ -43,7 +44,10 @@ export function useCountdown(
   options?: { forceFrozen?: boolean },
 ): CountdownState {
   const [nowMs, setNowMs] = useState(() => Date.now())
-  const manualHold = light?.timingMode === 'MANUAL' || Boolean(options?.forceFrozen)
+  const manualHold =
+    light?.timingMode === 'MANUAL'
+    || light?.timingMode === 'ADAPTIVE'
+    || Boolean(options?.forceFrozen)
   const isFrozen =
     freshnessState === 'stale'
     || freshnessState === 'error'

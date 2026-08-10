@@ -15,11 +15,12 @@ from typing import Any, Dict, List, Optional, Set
 log = logging.getLogger(__name__)
 
 # TraCI subscription variable codes (avoid importing traci at module load).
+# Values must match traci.constants — see sumo/tools/traci/constants.py.
 _VAR_POSITION = 0x42
 _VAR_SPEED = 0x40
 _VAR_ANGLE = 0x43
-_VAR_LANEPOSITION = 0x44
-_VAR_LENGTH = 0x45
+_VAR_LANEPOSITION = 0x56
+_VAR_LENGTH = 0x44
 _VAR_ROAD_ID = 0x50
 _VAR_LANE_ID = 0x51
 _VAR_TYPE = 0x4F
@@ -223,15 +224,9 @@ class VehicleStreamCollector:
                 self._subscribed.add(vid)
             except Exception:
                 pass
-        # Drop departed
-        for vid in list(self._subscribed):
-            if vid in vehicle_ids:
-                continue
-            try:
-                traci_module.vehicle.unsubscribe(vid)
-            except Exception:
-                pass
-            self._subscribed.discard(vid)
+        # Drop departed — SUMO removes their subscriptions automatically, so an
+        # explicit unsubscribe would only spam "subscription to remove not found".
+        self._subscribed.intersection_update(vehicle_ids)
 
     def _build_frame(self, traci_module, sim_t: float) -> Dict[str, Any]:
         try:
@@ -277,7 +272,8 @@ class VehicleStreamCollector:
                     lane_pos = float(traci_module.vehicle.getLanePosition(vid))
                     length = float(traci_module.vehicle.getLength(vid))
                     width = float(traci_module.vehicle.getWidth(vid))
-            except Exception:
+            except Exception as e:
+                log.debug("live frame: vehicle %s skipped: %s", vid, e)
                 continue
 
             vehicles.append(

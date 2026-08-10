@@ -48,7 +48,7 @@ describe('Signal Control — Automatic / Manual (Officer)', () => {
     mockSetControlMode.mockResolvedValue({ queued: false, applied: true, mode: 'MANUAL' })
   })
 
-  it('renders Automatic / Manual mode toggle', () => {
+  it('renders Automatic / Manual / DQN mode toggle', () => {
     renderWithClient(
       <ReverseControlPanel
         intersectionId="urn:ngsi-ld:Intersection:C"
@@ -59,6 +59,37 @@ describe('Signal Control — Automatic / Manual (Officer)', () => {
     )
     expect(screen.getByRole('button', { name: /Automatic/i })).toBeDefined()
     expect(screen.getByRole('button', { name: /Manual \(Officer\)/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /DQN Agent/i })).toBeDefined()
+  })
+
+  it('clicking DQN Agent calls setControlMode(ADAPTIVE)', async () => {
+    mockSetControlMode.mockResolvedValue({ queued: false, applied: true, mode: 'ADAPTIVE' })
+    renderWithClient(
+      <ReverseControlPanel
+        intersectionId="urn:ngsi-ld:Intersection:C"
+        currentPhase="NS_GREEN"
+        currentConfiguredGreen={42}
+        controlMode="FIXED"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /DQN Agent/i }))
+    await waitFor(() => {
+      expect(mockSetControlMode).toHaveBeenCalledWith('ADAPTIVE')
+    })
+  })
+
+  it('DQN Agent mode: hides green duration and officer signal buttons', () => {
+    renderWithClient(
+      <ReverseControlPanel
+        intersectionId="urn:ngsi-ld:Intersection:C"
+        currentPhase="NS_GREEN"
+        currentConfiguredGreen={42}
+        controlMode="ADAPTIVE"
+      />,
+    )
+    expect(screen.queryByLabelText(/Green duration:/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Green$/i })).toBeNull()
+    expect(screen.getByText(/DQN Agent: cooperative AI agents/i)).toBeDefined()
   })
 
   it('Automatic: shows green duration, hides officer signal buttons, countdown visible', () => {

@@ -35,6 +35,11 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+      // DQN agent status (Control API, read-only)
+      '/rl': {
+        target: 'http://127.0.0.1:9090',
+        changeOrigin: true,
+      },
     },
   },
 })

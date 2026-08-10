@@ -88,6 +88,9 @@ class SumoBackend:
         self.run_manifest: Optional[dict] = None
         self.runtime = NetworkRuntimeController(self.publish_nodes)
         self.control_mode = "FIXED"
+        # Cooperative DQN controller (AI_Control_Traffic_Light) — lazy-loaded on
+        # first switch to ADAPTIVE because it pulls in TensorFlow.
+        self._rl_controller = None
         self.runtime.set_control_mode("FIXED")
         for sig in self.signals.values():
             sig.preemption_enabled = False
@@ -247,6 +250,10 @@ class SumoBackend:
             tracker.tick(self)
         self.simulation_time_sec = float(traci.simulation.getTime())
 
+        # --- ADAPTIVE mode: DQN agents decide every decision_interval_sec ---
+        if self.control_mode == "ADAPTIVE" and self._rl_controller is not None:
+            self._rl_controller.maybe_tick(self)
+
         # --- live vehicle stream (throttled; never blocks TraCI on WS I/O) ---
         if cfg.LIVE_STREAM_ENABLED:
             try:
@@ -358,6 +365,8 @@ class SumoBackend:
             out["timing_mode"] = "MANUAL"
         elif self.control_mode == "PREEMPTION_ENABLED":
             out["timing_mode"] = "EMERGENCY_PRIORITY"
+        elif self.control_mode == "ADAPTIVE":
+            out["timing_mode"] = "ADAPTIVE"
         else:
             out["timing_mode"] = "FIXED_TIME"
         return out
@@ -610,10 +619,32 @@ class SumoBackend:
         return ok if ok else True  # idempotent success when overlay missing
 
     def set_control_mode(self, mode: str) -> None:
-        """FIXED=auto cycle, MANUAL=officer hold, PREEMPTION_ENABLED=EV override."""
-        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL"):
-            raise ValueError("control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL")
+        """FIXED=auto cycle, MANUAL=officer hold, PREEMPTION_ENABLED=EV override,
+        ADAPTIVE=cooperative DQN agents (AI_Control_Traffic_Light)."""
+        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL", "ADAPTIVE"):
+            raise ValueError(
+                "control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL|ADAPTIVE"
+            )
         self._require_started()
+
+        if mode == "ADAPTIVE":
+            controller = self._get_rl_controller()
+            self.runtime.set_control_mode(mode)
+            self.control_mode = mode
+            # Agents hold phases via the manual-hold machinery and act each
+            # decision interval from backend.step().
+            controller.enable(self)
+            self._invalidate_caches()
+            self.request_publish_asap()
+            return
+
+        # Leaving ADAPTIVE: release the agent hold before applying the new mode.
+        if self.control_mode == "ADAPTIVE" and self._rl_controller is not None:
+            try:
+                self._rl_controller.disable(self)
+            except Exception as e:
+                log.warning("RL controller disable failed: %s", e)
+
         self.runtime.set_control_mode(mode)
         self.control_mode = mode
         for sig in self.signals.values():
@@ -628,6 +659,27 @@ class SumoBackend:
                 sig.preemption_active = False
         self._invalidate_caches()
         self.request_publish_asap()
+
+    def _get_rl_controller(self):
+        """Lazy import — TensorFlow only loads when ADAPTIVE is first enabled."""
+        if self._rl_controller is None:
+            import sys
+
+            repo_root = str(Path(__file__).resolve().parents[2])
+            if repo_root not in sys.path:
+                sys.path.insert(0, repo_root)
+            try:
+                from AI_Control_Traffic_Light.runtime.multi_agent_controller import (
+                    get_multi_agent_controller,
+                )
+                self._rl_controller = get_multi_agent_controller()
+            except ImportError as e:
+                raise RuntimeError(
+                    "DQN controller unavailable — install AI module deps "
+                    "(pip install -r AI_Control_Traffic_Light/requirements.txt): "
+                    f"{e}"
+                ) from e
+        return self._rl_controller
 
     def get_network_state(self) -> dict:
         return self.runtime.network_state()
