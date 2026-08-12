@@ -1,0 +1,34 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Liệt kê task
+    cmds:
+      - task --list
+
+  spring:
+    desc: Spring Server — profiles local,analytics, port 8081
+    dir: server
+    interactive: true
+    cmds:
+      - cmd /c mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local,analytics" "-Dspring-boot.run.arguments=--server.port=8081"
+
+  sumo:
+    desc: SUMO TraCI runner (set env README §7 trước khi chạy)
+    dir: Visualize
+    interactive: true
+    cmds:
+      - ./.venv/Scripts/python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D --realtime --log-level INFO
+
+  fe:
+    desc: React Dashboard — Vite dev server (http://localhost:5173)
+    dir: frontend
+    interactive: true
+    cmds:
+      - cmd /c npm run dev
+
+  check:
+    desc: Runtime health — Orion, ClickHouse, Raw/Projector/Gold ready, Spring
+    cmds:
+      - cmd /c powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-stack.ps1
+    platforms: [windows]

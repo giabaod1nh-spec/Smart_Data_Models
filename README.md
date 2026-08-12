@@ -310,6 +310,15 @@ docker compose down chỉ xóa container/network, không xóa named volume nếu
 
 ## 13. Tóm tắt lệnh theo thứ tự
 
+Shortcut với [Task](https://taskfile.dev) (từ root repo, sau `winget install Task.Task`):
+
+~~~powershell
+task spring   # cd server + mvnw
+task sumo     # cd Visualize + traci_runner (set env §7 trước)
+task fe       # cd frontend + npm run dev
+task check    # ping health URLs (mục 10.1)
+~~~
+
 ~~~powershell
 # Terminal 1 — hạ tầng
 docker compose up -d --build
