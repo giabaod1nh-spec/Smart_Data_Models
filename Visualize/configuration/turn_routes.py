@@ -81,7 +81,10 @@ def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
 
     movements = []
     weight_sum = 0.0
-    from_edge = str(src["source_edge"])
+    # A boundary source can be several edges upstream of the controlled turn.
+    # Keep the spawn edge at the network fringe and validate movement semantics
+    # against the actual approach edge at the TLS.
+    from_edge = str(src.get("turn_from_edge") or src["source_edge"])
     allowed = set(OUTGOING_EDGES[tls])
 
     for d in destinations:

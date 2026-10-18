@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import configuration.config as cfg
 from configuration.model_params import get_registry
-from configuration.turn_routes import to_edge_for_route_key
+from configuration.turn_routes import to_edge_for_route_key, turn_edge_for_route_key
 
 log = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class ScenarioDemandActuator:
             "source_profile_winners": winning,
         }
 
-    def _pick_route_vtype(self, source_id: str, n: int) -> Tuple[str, str, str, str]:
+    def _pick_route_vtype(self, source_id: str, n: int) -> Tuple[str, str, str, str, str]:
         reg = get_registry()
         src = reg.boundary_sources()[source_id]
         comp = reg.export_effective_config().get("composition") or {}
@@ -201,7 +201,13 @@ class ScenarioDemandActuator:
             if r2 <= cum:
                 vtype = k
                 break
-        return route_key, src["source_edge"], to_edge_for_route_key(source_id, route_key, src), vtype
+        return (
+            route_key,
+            src["source_edge"],
+            turn_edge_for_route_key(source_id, route_key, src),
+            to_edge_for_route_key(source_id, route_key, src),
+            vtype,
+        )
 
     def tick(self, traci_module, dt: float) -> int:
         if not self.enabled or dt <= 0:
@@ -252,14 +258,17 @@ class ScenarioDemandActuator:
 
     def _try_insert(self, traci_module, source_id: str, bucket: SourceBucket) -> bool:
         self._seq += 1
-        route_key, fr, to, vtype = self._pick_route_vtype(source_id, self._seq)
+        route_key, fr, via, to, vtype = self._pick_route_vtype(source_id, self._seq)
         rid = f"r_{source_id}_{self._seq}"
         vid = f"d_{source_id}_{self._seq}"
         edges = [fr, to]
         try:
-            found = traci_module.simulation.findRoute(fr, to)
-            if found and getattr(found, "edges", None):
-                edges = list(found.edges)
+            first_leg = traci_module.simulation.findRoute(fr, via, vtype)
+            second_leg = traci_module.simulation.findRoute(via, to, vtype)
+            first_edges = list(getattr(first_leg, "edges", ()) or ())
+            second_edges = list(getattr(second_leg, "edges", ()) or ())
+            if first_edges and second_edges:
+                edges = first_edges + second_edges[1:]
         except Exception:
             pass
         try:

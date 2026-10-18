@@ -38,8 +38,14 @@ def _vtype_block(vtype_id: str, attrs: dict, params: dict | None = None) -> list
     return [f'    <vType id="{vtype_id}" {_attrs(attrs)}/>']
 
 
-def _scaled_vph(vph: int, weight: float) -> int:
-    return max(0, int(round(vph * weight)))
+def _scaled_vph(vph: int, weight: float) -> float:
+    """Preserve low-volume classes when distributing them across turns.
+
+    Rounding to an integer made truck/container/emergency flows disappear
+    because their per-turn demand is below 1 veh/h. SUMO accepts fractional
+    vehsPerHour values, so retain three decimals here.
+    """
+    return max(0.0, round(vph * weight, 3))
 
 
 def main() -> None:
@@ -72,6 +78,7 @@ def main() -> None:
         for dest in src["destinations"]:
             mov = dest["movement"]
             to = dest["to_edge"]
+            via = dest["turn_edge"]
             weight = float(dest["weight"])
             for vtype, vph in trunk.items():
                 scaled = _scaled_vph(vph, weight)
@@ -80,7 +87,7 @@ def main() -> None:
                 flow_id = f"{source_id}_{mov}_{vtype}"
                 lines.append(
                     f'    <flow id="{flow_id}" type="{vtype}" from="{fr}" to="{to}" '
-                    f'begin="0" end="3600" vehsPerHour="{scaled}"/>'
+                    f'via="{via}" begin="0" end="3600" vehsPerHour="{scaled:g}"/>'
                 )
         lines.append("")
 
