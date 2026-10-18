@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class SumoScenarioManager:
-    def __init__(self, tls_id: str = "J1"):
+    def __init__(self, tls_id: str = "411926415"):
         self.tls_id = tls_id
         self.current_scenario: str = "normal"
         self.blocked_direction: Optional[str] = None

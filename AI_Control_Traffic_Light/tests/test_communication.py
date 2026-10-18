@@ -10,8 +10,8 @@ from AI_Control_Traffic_Light.environment.state_builder import StateBuilder
 from AI_Control_Traffic_Light.environment.topology import NEIGHBOR_GRAPH
 
 
-def test_neighbor_graph_four_nodes():
-    assert set(NEIGHBOR_GRAPH.keys()) == {"A", "B", "C", "D"}
+def test_neighbor_graph_selected_nodes():
+    assert set(NEIGHBOR_GRAPH.keys()) == {"A", "B", "C", "D", "M"}
     assert "B" in NEIGHBOR_GRAPH["A"]
     assert "A" in NEIGHBOR_GRAPH["B"]
 

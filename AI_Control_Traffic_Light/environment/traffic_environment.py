@@ -11,7 +11,7 @@ from AI_Control_Traffic_Light.utils.path_setup import ensure_paths
 
 log = logging.getLogger(__name__)
 
-ALL_NODES = ["A", "B", "C", "D"]
+ALL_NODES = ["A", "B", "C", "D", "M"]
 
 
 class TrafficEnvironment:

@@ -1,30 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Canonical synchronized TLS programs for J1–J4 (Phase 3.8).
-     programID=0, offset=0 (synchronized baseline), cycle 90 s = 42/3/42/3.
-     Re-applied after netconvert via tools/reapply_tls.py. -->
+<!-- Canonical programs for the four large OSM signals. A and D are selected
+     agents; the split B/C/M clusters keep their native 3-phase programs and
+     are synchronized virtually by simulation/signal_controller.py. -->
 <additional>
-    <tlLogic id="J1" type="static" programID="0" offset="0">
-        <phase duration="42" state="GGGGgrrrrrGGGGgrrrrr"/>
-        <phase duration="3"  state="yyyyyrrrrryyyyyrrrrr"/>
-        <phase duration="42" state="rrrrrGGGGgrrrrrGGGGg"/>
-        <phase duration="3"  state="rrrrryyyyyrrrrryyyyy"/>
+    <tlLogic id="411926415" type="static" programID="0" offset="0">
+        <phase duration="39" state="GGgrrrrrGgg"/>
+        <phase duration="6" state="yyyrrrrryyy"/>
+        <phase duration="39" state="rrrGGGGGrrr"/>
+        <phase duration="6" state="rrryyyyyrrr"/>
     </tlLogic>
-    <tlLogic id="J2" type="static" programID="0" offset="0">
-        <phase duration="42" state="GGGGgrrrrrGGGGgrrrrr"/>
-        <phase duration="3"  state="yyyyyrrrrryyyyyrrrrr"/>
-        <phase duration="42" state="rrrrrGGGGgrrrrrGGGGg"/>
-        <phase duration="3"  state="rrrrryyyyyrrrrryyyyy"/>
+    <tlLogic id="411926403" type="static" programID="0" offset="0">
+        <phase duration="40" state="GGgrrrrrGgg"/>
+        <phase duration="5" state="yyyrrrrryyy"/>
+        <phase duration="40" state="rrrGGGGGrrr"/>
+        <phase duration="5" state="rrryyyyyrrr"/>
     </tlLogic>
-    <tlLogic id="J3" type="static" programID="0" offset="0">
-        <phase duration="42" state="GGGGgrrrrrGGGGgrrrrr"/>
-        <phase duration="3"  state="yyyyyrrrrryyyyyrrrrr"/>
-        <phase duration="42" state="rrrrrGGGGgrrrrrGGGGg"/>
-        <phase duration="3"  state="rrrrryyyyyrrrrryyyyy"/>
+    <tlLogic id="411926496" type="static" programID="0" offset="0">
+        <phase duration="40" state="rrrrrGggGGg"/>
+        <phase duration="5" state="rrrrryyyyyy"/>
+        <phase duration="40" state="GGGGGrrrrrr"/>
+        <phase duration="5" state="yyyyyrrrrrr"/>
     </tlLogic>
-    <tlLogic id="J4" type="static" programID="0" offset="0">
-        <phase duration="42" state="GGGGgrrrrrGGGGgrrrrr"/>
-        <phase duration="3"  state="yyyyyrrrrryyyyyrrrrr"/>
-        <phase duration="42" state="rrrrrGGGGgrrrrrGGGGg"/>
-        <phase duration="3"  state="rrrrryyyyyrrrrryyyyy"/>
+    <tlLogic id="411925926" type="static" programID="0" offset="0">
+        <phase duration="40" state="rrrrrGggGGg"/>
+        <phase duration="5" state="rrrrryyyyyy"/>
+        <phase duration="40" state="GGGGGrrrrrr"/>
+        <phase duration="5" state="yyyyyrrrrrr"/>
     </tlLogic>
 </additional>

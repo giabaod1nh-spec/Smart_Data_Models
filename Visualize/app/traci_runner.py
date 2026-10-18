@@ -901,7 +901,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-gui", action="store_true")
     p.add_argument("--no-orion", action="store_true")
     p.add_argument("--no-api", action="store_true", help="Do not start Control API")
-    p.add_argument("--nodes", default=None, help="Comma list e.g. A,B,C,D")
+    p.add_argument("--nodes", default=None, help="Comma list e.g. A,B,C,D,M")
     p.add_argument("--publish-interval", type=float, default=None)
     p.add_argument("--max-sim-time", type=float, default=None)
     p.add_argument(

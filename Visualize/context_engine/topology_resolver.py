@@ -29,52 +29,16 @@ class TopologyResolver:
                 return {"id": lid, **link}
         known = {
             ("A", "B"): {
-                "id": "A_E_to_B_W",
-                "edge": "J1J2",
-                "upstream_dir": "East",
-                "downstream_dir": "West",
-            },
-            ("B", "A"): {
-                "id": "B_W_to_A_E",
-                "edge": "J2J1",
-                "upstream_dir": "West",
-                "downstream_dir": "East",
-            },
-            ("A", "C"): {
-                "id": "A_N_to_C_S",
-                "edge": "J1J3",
+                "id": "A_N_to_B_S",
+                "edge": "408246393#7",
                 "upstream_dir": "North",
                 "downstream_dir": "South",
-            },
-            ("C", "A"): {
-                "id": "C_S_to_A_N",
-                "edge": "J3J1",
-                "upstream_dir": "South",
-                "downstream_dir": "North",
-            },
-            ("B", "D"): {
-                "id": "B_N_to_D_S",
-                "edge": "J2J4",
-                "upstream_dir": "North",
-                "downstream_dir": "South",
-            },
-            ("D", "B"): {
-                "id": "D_S_to_B_N",
-                "edge": "J4J2",
-                "upstream_dir": "South",
-                "downstream_dir": "North",
             },
             ("C", "D"): {
-                "id": "C_E_to_D_W",
-                "edge": "J3J4",
-                "upstream_dir": "East",
-                "downstream_dir": "West",
-            },
-            ("D", "C"): {
-                "id": "D_W_to_C_E",
-                "edge": "J4J3",
-                "upstream_dir": "West",
-                "downstream_dir": "East",
+                "id": "C_S_to_D_N",
+                "edge": "1267138238#1",
+                "upstream_dir": "South",
+                "downstream_dir": "North",
             },
         }
         return known.get((upstream, downstream))

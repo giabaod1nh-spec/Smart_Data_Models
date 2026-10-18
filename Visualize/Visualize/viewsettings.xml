@@ -1,6 +1,6 @@
 <viewsettings>
-    <!-- Phase 3.8: 500 m centers; netOffset shifts coords so center ~ (550, 550) -->
-    <viewport zoom="35" x="550" y="550"/>
+    <!-- OSM crop center (748.74 m x 731.28 m). -->
+    <viewport zoom="55" x="374" y="366"/>
     <background backgroundColor="white"/>
     <!-- scheme="real world" equivalent settings -->
         <vehicles vehicleMode="3" vehicleQuality="3" vehicleExaggeration="1.0" vehicleName_show="0"/>

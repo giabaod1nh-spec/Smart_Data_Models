@@ -59,7 +59,7 @@ def greenshields_speed_kmh(v_free_kmh: float, density_pcu_per_km: float) -> floa
 
 
 class SumoSnapshotProvider:
-    def __init__(self, tls_id: str = "J1", node_id: str = "A"):
+    def __init__(self, tls_id: str = "411926415", node_id: str = "A"):
         self.tls_id = tls_id
         self.node_id = node_id
         self.detectors = DetectorManager(tls_id)
@@ -156,7 +156,7 @@ class SumoSnapshotProvider:
         left_n = straight_n = right_n = 0
         queue_by_movement = {"straight": 0.0, "left": 0.0, "right": 0.0}
         near_stop: List[str] = []
-        approach_edge = cfg.APPROACH_EDGES[self.tls_id][direction]
+        approach_edge = cfg.APPROACH_EDGES.get(self.tls_id, {}).get(direction)
 
         for vid in unique_ids:
             try:
@@ -338,11 +338,11 @@ class SumoSnapshotProvider:
             "nominal_storage_pcu_geometric": nominal,
         }
 
-    def _infer_movement(self, traci_module, vid: str, approach_edge: str) -> str:
+    def _infer_movement(self, traci_module, vid: str, approach_edge: Optional[str]) -> str:
         try:
             route = list(traci_module.vehicle.getRoute(vid))
             idx = int(traci_module.vehicle.getRouteIndex(vid))
-            if approach_edge in route:
+            if approach_edge and approach_edge in route:
                 ai = route.index(approach_edge)
                 if ai + 1 < len(route):
                     return cfg.TURN_BY_OD.get((approach_edge, route[ai + 1]), "straight")
@@ -368,8 +368,7 @@ class SumoSnapshotProvider:
             any_full = False
             for edge in cfg.OUTGOING_EDGES.get(self.tls_id, []):
                 occs = []
-                for lane_idx in range(cfg.LANES_PER_APPROACH):
-                    lid = f"{edge}_{lane_idx}"
+                for lid in cfg.edge_lane_ids(edge):
                     try:
                         o = float(traci_module.lane.getLastStepOccupancy(lid))
                         if o > 1.0:

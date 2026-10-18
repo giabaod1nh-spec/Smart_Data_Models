@@ -40,12 +40,12 @@ class EmergencyActuator:
         vtype = str(meta.get("insert_vtype", "ambulance"))
         if not force and sim_t - self._last_insert_s < interval:
             return None
-        # Routes that pass through C: ns_w (C→A), sn_w (A→C), we_n (C→D), ew_n (D→C)
+        # OSM corridors through the four AI-controlled signals.
         routes = {
-            "C": [("N1J3", "J1S1"), ("S1J1", "J3N1"), ("W2J3", "J4E2"), ("E2J4", "J3W2")],
-            "A": [("W1J1", "J2E1"), ("S1J1", "J3N1")],
-            "B": [("W1J1", "J2E1"), ("E1J2", "J1W1")],
-            "D": [("N2J4", "J2S2"), ("E2J4", "J3W2")],
+            "A": [("408246393#6", "408246393#8")],
+            "B": [("408246393#6", "408246393#8")],
+            "C": [("1184372243", "326771005#1")],
+            "D": [("1184372243", "326771005#1")],
         }
         pairs = routes.get(target_intersection) or routes["C"]
         fr, to = pairs[0]

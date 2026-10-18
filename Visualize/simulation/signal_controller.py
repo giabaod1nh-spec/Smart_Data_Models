@@ -4,7 +4,7 @@ SUMO TLS signal controller — maps TraCI phase index ↔ simulator vocabulary.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 import configuration.config as cfg
 
@@ -16,16 +16,67 @@ _MANUAL_HOLD_REFRESH_BELOW_SEC = 60
 
 
 class SumoSignalController:
-    """Controls one TLS with safe yellow transitions and emergency preemption."""
+    """Controls one TLS or one synchronized group of OSM TLS controllers."""
 
-    def __init__(self, tls_id: str = "J1"):
+    def __init__(
+        self,
+        tls_id: str = "411926415",
+        *,
+        node_id: Optional[str] = None,
+        tls_ids: Optional[Sequence[str]] = None,
+        grouped_axes: Optional[Dict[str, Sequence[str]]] = None,
+    ):
         self.tls_id = tls_id
+        self.node_id = node_id or cfg.TLS_TO_NODE.get(tls_id)
+        self.tls_ids = tuple(tls_ids or (tls_id,))
+        self.grouped_axes = {
+            axis: tuple(ids) for axis, ids in (grouped_axes or {}).items()
+        }
+        self._grouped = len(self.tls_ids) > 1
+        self._group_phase_name = "NS_GREEN"
+        self._group_next_switch = 0.0
         self._custom_green_sec: Optional[int] = None
         self._pending_target: Optional[str] = None
         self.preemption_active: bool = False
         self._preempt_restore: Optional[str] = None
         self.preemption_enabled: bool = True  # FIXED mode sets False
         self.manual_mode: bool = False
+
+    def initialize(self, traci_module) -> None:
+        """Synchronize a split OSM intersection immediately after TraCI starts."""
+        if self._grouped:
+            self._set_group_phase(traci_module, self._group_phase_name)
+
+    def _group_phase_duration(self, traci_module, phase_name: str) -> int:
+        if "YELLOW" in phase_name:
+            return self._duration_for_kind(traci_module, "YELLOW")
+        return self._duration_for_kind(traci_module, "GREEN")
+
+    def _set_group_phase(
+        self,
+        traci_module,
+        phase_name: str,
+        duration: Optional[float] = None,
+    ) -> None:
+        """Map the virtual four-phase state onto each physical 3-phase TLS."""
+        active_axis = "NS" if phase_name.startswith("NS") else "EW"
+        is_yellow = "YELLOW" in phase_name
+        axis_by_tls = {
+            tls: axis
+            for axis, tls_ids in self.grouped_axes.items()
+            for tls in tls_ids
+        }
+        hold = float(duration or self._group_phase_duration(traci_module, phase_name))
+        for tls_id in self.tls_ids:
+            axis = axis_by_tls.get(tls_id, "NS")
+            physical_phase = 2  # all red
+            if axis == active_axis:
+                physical_phase = 1 if is_yellow else 0
+            traci_module.trafficlight.setPhase(tls_id, physical_phase)
+            traci_module.trafficlight.setPhaseDuration(tls_id, hold)
+        self._group_phase_name = phase_name
+        now = float(traci_module.simulation.getTime())
+        self._group_next_switch = now + hold
 
     def set_manual_mode(self, traci_module, enabled: bool) -> None:
         """Enter/leave traffic-officer MANUAL hold (countdown stops until force_phase)."""
@@ -51,7 +102,12 @@ class SumoSignalController:
         if remaining >= _MANUAL_HOLD_REFRESH_BELOW_SEC:
             return
         try:
-            traci_module.trafficlight.setPhaseDuration(self.tls_id, _MANUAL_HOLD_SEC)
+            if self._grouped:
+                self._set_group_phase(
+                    traci_module, self._group_phase_name, _MANUAL_HOLD_SEC
+                )
+            else:
+                traci_module.trafficlight.setPhaseDuration(self.tls_id, _MANUAL_HOLD_SEC)
         except Exception as e:
             log.debug("manual hold setPhaseDuration failed on %s: %s", self.tls_id, e)
 
@@ -59,11 +115,16 @@ class SumoSignalController:
         name = self.current_phase_name(traci_module)
         dur = self.yellow_duration(traci_module) if "YELLOW" in name else self.green_duration(traci_module)
         try:
-            traci_module.trafficlight.setPhaseDuration(self.tls_id, float(max(1, int(dur))))
+            if self._grouped:
+                self._set_group_phase(traci_module, name, float(max(1, int(dur))))
+            else:
+                traci_module.trafficlight.setPhaseDuration(self.tls_id, float(max(1, int(dur))))
         except Exception as e:
             log.debug("restore cycle duration failed on %s: %s", self.tls_id, e)
 
     def current_phase_name(self, traci_module) -> str:
+        if self._grouped:
+            return self._group_phase_name
         idx = int(traci_module.trafficlight.getPhase(self.tls_id))
         return cfg.PHASE_INDEX_TO_NAME.get(idx, "NS_GREEN")
 
@@ -76,6 +137,9 @@ class SumoSignalController:
         return seq[(i + 1) % len(seq)]
 
     def phase_remaining_seconds(self, traci_module) -> int:
+        if self._grouped:
+            now = float(traci_module.simulation.getTime())
+            return max(0, int(self._group_next_switch - now))
         try:
             next_switch = float(traci_module.trafficlight.getNextSwitch(self.tls_id))
             now = float(traci_module.simulation.getTime())
@@ -90,6 +154,13 @@ class SumoSignalController:
             if not logics:
                 return {"GREEN": cfg.GREEN_DURATION_FALLBACK, "YELLOW": cfg.YELLOW_DURATION_FALLBACK, "RED": cfg.GREEN_DURATION_FALLBACK}.get(kind, cfg.GREEN_DURATION_FALLBACK)
             logic = logics[0]
+            if self._grouped:
+                if kind == "YELLOW" and len(logic.phases) > 1:
+                    return int(logic.phases[1].duration)
+                if kind in ("GREEN", "RED") and logic.phases:
+                    if kind == "GREEN" and self._custom_green_sec:
+                        return self._custom_green_sec
+                    return int(logic.phases[0].duration)
             for i, ph in enumerate(logic.phases):
                 name = cfg.PHASE_INDEX_TO_NAME.get(i, "")
                 if kind == "GREEN" and "GREEN" in name:
@@ -125,6 +196,21 @@ class SumoSignalController:
         return dict(cfg.PHASE_COLORS.get(name, cfg.PHASE_COLORS["NS_GREEN"]))
 
     def tick_pending(self, traci_module) -> None:
+        if self._grouped:
+            now = float(traci_module.simulation.getTime())
+            if self._pending_target:
+                if now >= self._group_next_switch:
+                    target = self._pending_target
+                    self._pending_target = None
+                    self._set_group_phase(traci_module, target)
+                    if self.manual_mode and "YELLOW" not in target:
+                        self.apply_manual_hold(traci_module)
+                return
+            if not self.manual_mode and now >= self._group_next_switch:
+                seq = cfg.PHASE_SEQUENCE
+                idx = seq.index(self._group_phase_name)
+                self._set_group_phase(traci_module, seq[(idx + 1) % len(seq)])
+            return
         if not self._pending_target:
             return
         current = self.current_phase_name(traci_module)
@@ -203,6 +289,22 @@ class SumoSignalController:
         if phase_name not in cfg.PHASE_NAME_TO_INDEX:
             raise ValueError(f"Unknown phase '{phase_name}'. Expected one of {list(cfg.PHASE_NAME_TO_INDEX)}")
 
+        if self._grouped:
+            current = self._group_phase_name
+            if current == phase_name:
+                self._pending_target = None
+                return
+            same_axis = current[:2] == phase_name[:2]
+            if "GREEN" in current and "GREEN" in phase_name and not same_axis:
+                via_yellow = cfg.FORCE_VIA_YELLOW.get(current)
+                if via_yellow:
+                    self._pending_target = phase_name
+                    self._set_group_phase(traci_module, via_yellow)
+                    return
+            self._pending_target = None
+            self._set_group_phase(traci_module, phase_name)
+            return
+
         current = self.current_phase_name(traci_module)
         target_idx = cfg.PHASE_NAME_TO_INDEX[phase_name]
 
@@ -278,6 +380,10 @@ class SumoSignalController:
         """Set custom green duration (clamped 10–120) for green phases."""
         seconds = max(10, min(120, int(seconds)))
         self._custom_green_sec = seconds
+        if self._grouped:
+            if "GREEN" in self._group_phase_name:
+                self._set_group_phase(traci_module, self._group_phase_name, seconds)
+            return
         try:
             logics = traci_module.trafficlight.getAllProgramLogics(self.tls_id)
             if not logics:

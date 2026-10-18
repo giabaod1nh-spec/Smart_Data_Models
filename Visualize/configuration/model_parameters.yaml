@@ -238,7 +238,7 @@ detectors:
   created_at: "2026-07-22"
   network_id: intersection_grid_j1_j4
   network_version: "1.8.0-geom"
-  expected_network_hash: "BDC620D966302B1595C5688AD6013A0579639F662A865127D9E6CA3ADA381C5D"
+  expected_network_hash: "5F351B5BC56FE24BF50195C1DBD6944EF9EB5270B97C1A924921DDE4E1489935"
   e1_offset_from_end_m:
     value: 20.0
     unit: m
@@ -401,94 +401,50 @@ turn_demand_mix:
     right: 0.30
 
 boundary_sources:
-  ns_w:
-    source_edge: N1J3
-    turn_at_tls: J3
-    to_edge: J1S1
-    baseline_veh_per_hour: 120
-    nodes_on_path: [C, A]
-    destinations:
-      - { movement: straight, turn_edge: J3J1, to_edge: J1S1, weight: 0.42 }
-      - { movement: left,     turn_edge: J3J4, to_edge: J4E2, weight: 0.28 }
-      - { movement: right,    turn_edge: J3W2, to_edge: J2E1, weight: 0.30 }
-    route_distribution: { ns_w_straight: 0.42, ns_w_left: 0.28, ns_w_right: 0.30 }
-  sn_w:
-    source_edge: S1J1
-    turn_at_tls: J1
-    to_edge: J3N1
-    baseline_veh_per_hour: 120
-    nodes_on_path: [A, C]
-    destinations:
-      - { movement: straight, turn_edge: J1J3, to_edge: J3N1, weight: 0.42 }
-      - { movement: left,     turn_edge: J1W1, to_edge: J3W2, weight: 0.28 }
-      - { movement: right,    turn_edge: J1J2, to_edge: J2E1, weight: 0.30 }
-    route_distribution: { sn_w_straight: 0.42, sn_w_left: 0.28, sn_w_right: 0.30 }
-  ns_e:
-    source_edge: N2J4
-    turn_at_tls: J4
-    to_edge: J2S2
-    baseline_veh_per_hour: 120
-    nodes_on_path: [D, B]
-    destinations:
-      - { movement: straight, turn_edge: J4J2, to_edge: J2S2, weight: 0.42 }
-      - { movement: left,     turn_edge: J4E2, to_edge: J1W1, weight: 0.28 }
-      - { movement: right,    turn_edge: J4J3, to_edge: J3N1, weight: 0.30 }
-    route_distribution: { ns_e_straight: 0.42, ns_e_left: 0.28, ns_e_right: 0.30 }
-  sn_e:
-    source_edge: S2J2
-    turn_at_tls: J2
-    to_edge: J4N2
-    baseline_veh_per_hour: 120
-    nodes_on_path: [B, D]
-    destinations:
-      - { movement: straight, turn_edge: J2J4, to_edge: J4N2, weight: 0.42 }
-      - { movement: left,     turn_edge: J2J1, to_edge: J1W1, weight: 0.28 }
-      - { movement: right,    turn_edge: J2E1, to_edge: J4E2, weight: 0.30 }
-    route_distribution: { sn_e_straight: 0.42, sn_e_left: 0.28, sn_e_right: 0.30 }
-  we_s:
-    source_edge: W1J1
-    turn_at_tls: J1
-    to_edge: J2E1
+  a_main:
+    source_edge: 408246393#6
+    turn_at_tls: "411926415"
+    to_edge: 408246393#8
     baseline_veh_per_hour: 120
     nodes_on_path: [A, B]
     destinations:
-      - { movement: straight, turn_edge: J1J2, to_edge: J2E1, weight: 0.42 }
-      - { movement: left,     turn_edge: J1J3, to_edge: J3N1, weight: 0.28 }
-      - { movement: right,    turn_edge: J1S1, to_edge: J4N2, weight: 0.30 }
-    route_distribution: { we_s_straight: 0.42, we_s_left: 0.28, we_s_right: 0.30 }
-  ew_s:
-    source_edge: E1J2
-    turn_at_tls: J2
-    to_edge: J1W1
+      - { movement: straight, turn_edge: 408246393#7, to_edge: 408246393#8, weight: 0.42 }
+      - { movement: left,     turn_edge: -35114553#3, to_edge: -35114553#2, weight: 0.28 }
+      - { movement: right,    turn_edge: 694973742#0, to_edge: 694973742#1, weight: 0.30 }
+    route_distribution: { a_main_straight: 0.42, a_main_left: 0.28, a_main_right: 0.30 }
+  b_main:
+    source_edge: 408246393#7
+    turn_at_tls: "411926403"
+    to_edge: 408246393#8
     baseline_veh_per_hour: 120
-    nodes_on_path: [B, A]
+    nodes_on_path: [B]
     destinations:
-      - { movement: straight, turn_edge: J2J1, to_edge: J1W1, weight: 0.42 }
-      - { movement: left,     turn_edge: J2S2, to_edge: J1S1, weight: 0.28 }
-      - { movement: right,    turn_edge: J2J4, to_edge: J4N2, weight: 0.30 }
-    route_distribution: { ew_s_straight: 0.42, ew_s_left: 0.28, ew_s_right: 0.30 }
-  we_n:
-    source_edge: W2J3
-    turn_at_tls: J3
-    to_edge: J4E2
+      - { movement: straight, turn_edge: 408246393#8, to_edge: 408246393#8, weight: 0.42 }
+      - { movement: left,     turn_edge: 658328100#6, to_edge: 658328100#6, weight: 0.28 }
+      - { movement: right,    turn_edge: -658328100#5, to_edge: -658328100#4, weight: 0.30 }
+    route_distribution: { b_main_straight: 0.42, b_main_left: 0.28, b_main_right: 0.30 }
+  c_main:
+    source_edge: "1184372243"
+    turn_at_tls: "411926496"
+    to_edge: 1267138238#1
     baseline_veh_per_hour: 120
     nodes_on_path: [C, D]
     destinations:
-      - { movement: straight, turn_edge: J3J4, to_edge: J4E2, weight: 0.42 }
-      - { movement: left,     turn_edge: J3N1, to_edge: J2S2, weight: 0.28 }
-      - { movement: right,    turn_edge: J3J1, to_edge: J1S1, weight: 0.30 }
-    route_distribution: { we_n_straight: 0.42, we_n_left: 0.28, we_n_right: 0.30 }
-  ew_n:
-    source_edge: E2J4
-    turn_at_tls: J4
-    to_edge: J3W2
+      - { movement: straight, turn_edge: 1267138238#0, to_edge: 1267138238#1, weight: 0.42 }
+      - { movement: left,     turn_edge: -1184372244#1, to_edge: -1184372244#1, weight: 0.28 }
+      - { movement: right,    turn_edge: 658328100#0, to_edge: 658328100#1, weight: 0.30 }
+    route_distribution: { c_main_straight: 0.42, c_main_left: 0.28, c_main_right: 0.30 }
+  d_main:
+    source_edge: 1267138238#1
+    turn_at_tls: "411925926"
+    to_edge: 326771005#1
     baseline_veh_per_hour: 120
-    nodes_on_path: [D, C]
+    nodes_on_path: [D]
     destinations:
-      - { movement: straight, turn_edge: J4J3, to_edge: J3W2, weight: 0.42 }
-      - { movement: left,     turn_edge: J4J2, to_edge: J2S2, weight: 0.28 }
-      - { movement: right,    turn_edge: J4N2, to_edge: J3N1, weight: 0.30 }
-    route_distribution: { ew_n_straight: 0.42, ew_n_left: 0.28, ew_n_right: 0.30 }
+      - { movement: straight, turn_edge: 326771005#0, to_edge: 326771005#1, weight: 0.42 }
+      - { movement: left,     turn_edge: 694942823, to_edge: 35114207#5, weight: 0.28 }
+      - { movement: right,    turn_edge: -694973742#5, to_edge: -694973742#4, weight: 0.30 }
+    route_distribution: { d_main_straight: 0.42, d_main_left: 0.28, d_main_right: 0.30 }
 
 network_demand_profiles:
   active_default: normal
@@ -500,14 +456,10 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 700
-      sn_w: 700
-      ns_e: 700
-      sn_e: 700
-      we_s: 700
-      ew_s: 700
-      we_n: 700
-      ew_n: 700
+      a_main: 700
+      b_main: 700
+      c_main: 700
+      d_main: 700
   peak:
     id: peak
     version: "1.0.0"
@@ -516,14 +468,10 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 4000
-      sn_w: 4000
-      ns_e: 4000
-      sn_e: 4000
-      we_s: 4000
-      ew_s: 4000
-      we_n: 4000
-      ew_n: 4000
+      a_main: 4000
+      b_main: 4000
+      c_main: 4000
+      d_main: 4000
   morning_peak:
     id: morning_peak
     version: "1.0.0"
@@ -532,14 +480,10 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 2800
-      sn_w: 2400
-      ns_e: 2800
-      sn_e: 2000
-      we_s: 2400
-      ew_s: 900
-      we_n: 2200
-      ew_n: 900
+      a_main: 2800
+      b_main: 2400
+      c_main: 2200
+      d_main: 900
   evening_peak:
     id: evening_peak
     version: "1.0.0"
@@ -548,14 +492,10 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 900
-      sn_w: 2400
-      ns_e: 900
-      sn_e: 2800
-      we_s: 900
-      ew_s: 2800
-      we_n: 900
-      ew_n: 2400
+      a_main: 900
+      b_main: 2400
+      c_main: 2800
+      d_main: 2400
   heavy_traffic:
     id: heavy_traffic
     version: "1.0.0"
@@ -564,14 +504,10 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 2200
-      sn_w: 2200
-      ns_e: 2200
-      sn_e: 2200
-      we_s: 2200
-      ew_s: 2200
-      we_n: 2200
-      ew_n: 2200
+      a_main: 2200
+      b_main: 2200
+      c_main: 2200
+      d_main: 2200
   oversaturated:
     id: oversaturated
     version: "1.0.0"
@@ -580,14 +516,10 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      ns_w: 70000
-      sn_w: 70000
-      ns_e: 70000
-      sn_e: 70000
-      we_s: 70000
-      ew_s: 70000
-      we_n: 70000
-      ew_n: 70000
+      a_main: 70000
+      b_main: 70000
+      c_main: 70000
+      d_main: 70000
 
 insertion_policy:
   source_type: DESIGN_DECISION

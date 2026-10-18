@@ -25,8 +25,7 @@ def build_detectors_xml(net_lane_lengths: Optional[Dict[str, float]] = None) -> 
     ]
     for tls_id, approaches in cfg.APPROACH_EDGES.items():
         for direction, edge in approaches.items():
-            for i in range(cfg.LANES_PER_APPROACH):
-                lane = f"{edge}_{i}"
+            for i, lane in enumerate(cfg.edge_lane_ids(edge)):
                 length = (net_lane_lengths or {}).get(lane, cfg.APPROACH_LENGTH_M)
                 e1_pos = max(0.1, length - cfg.E1_OFFSET_FROM_END_M)
                 e2_pos = max(0.1, length - cfg.E2_COVER_LENGTH_M)
@@ -41,11 +40,11 @@ def build_detectors_xml(net_lane_lengths: Optional[Dict[str, float]] = None) -> 
                     f'endPos="{e2_pos + e2_len:.2f}" freq="1" file="NUL"/>'
                 )
         for edge in cfg.OUTGOING_EDGES.get(tls_id, []):
-            for i in range(cfg.LANES_PER_APPROACH):
-                lane = f"{edge}_{i}"
+            for i, lane in enumerate(cfg.edge_lane_ids(edge)):
                 did = cfg.detector_id_e2_out(tls_id, edge, i)
-                pos = cfg.E2_OUT_POS_M
-                end = pos + cfg.E2_OUT_LENGTH_M
+                length = (net_lane_lengths or {}).get(lane, cfg.APPROACH_LENGTH_M)
+                pos = min(cfg.E2_OUT_POS_M, max(0.1, length - 1.0))
+                end = min(length, pos + cfg.E2_OUT_LENGTH_M)
                 lines.append(
                     f'    <laneAreaDetector id="{did}" lane="{lane}" pos="{pos:.2f}" '
                     f'endPos="{end:.2f}" freq="1" file="NUL"/>'
@@ -67,7 +66,12 @@ class DetectorManager:
             return self.available
         self._checked = True
         try:
-            sample = cfg.detector_id_e2(self.tls_id, "North", 0)
+            approaches = cfg.APPROACH_EDGES.get(self.tls_id, {})
+            sample_direction = next(iter(approaches), None)
+            if sample_direction is None:
+                self.available = False
+                return False
+            sample = cfg.detector_id_e2(self.tls_id, sample_direction, 0)
             ids = set(traci_module.lanearea.getIDList())
             self.available = sample in ids
             if not self.available:
@@ -85,9 +89,12 @@ class DetectorManager:
         if not self.ensure_checked(traci_module):
             return {}
         out = {"right": 0.0, "straight": 0.0, "left": 0.0}
-        for i in range(cfg.LANES_PER_APPROACH):
+        edge = cfg.APPROACH_EDGES.get(self.tls_id, {}).get(direction)
+        if not edge:
+            return out
+        for i, _lane in enumerate(cfg.edge_lane_ids(edge)):
             did = cfg.detector_id_e2(self.tls_id, direction, i)
-            movement = cfg.MOVEMENT_BY_LANE_INDEX[i]
+            movement = cfg.movement_for_lane(edge, i)
             try:
                 jam = float(traci_module.lanearea.getJamLengthMeters(did))
                 out[movement] = round(out[movement] + jam, 1)
@@ -99,7 +106,10 @@ class DetectorManager:
         if not self.ensure_checked(traci_module):
             return None
         vals: List[float] = []
-        for i in range(cfg.LANES_PER_APPROACH):
+        edge = cfg.APPROACH_EDGES.get(self.tls_id, {}).get(direction)
+        if not edge:
+            return None
+        for i, _lane in enumerate(cfg.edge_lane_ids(edge)):
             did = cfg.detector_id_e2(self.tls_id, direction, i)
             try:
                 occ = float(traci_module.lanearea.getLastStepOccupancy(did))
@@ -118,7 +128,7 @@ class DetectorManager:
             return 0.0, False
         vals: List[float] = []
         for edge in cfg.OUTGOING_EDGES.get(self.tls_id, []):
-            for i in range(cfg.LANES_PER_APPROACH):
+            for i, _lane in enumerate(cfg.edge_lane_ids(edge)):
                 did = cfg.detector_id_e2_out(self.tls_id, edge, i)
                 try:
                     occ = float(traci_module.lanearea.getLastStepOccupancy(did))

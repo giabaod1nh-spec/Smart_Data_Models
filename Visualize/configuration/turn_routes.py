@@ -114,11 +114,9 @@ def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
             raise ValueError(
                 f"boundary_sources.{source_id}: to_edge {to_edge!r} is hop-only; use full O-D destination"
             )
-        if to_edge == turn_edge:
-            raise ValueError(
-                f"boundary_sources.{source_id}: to_edge must differ from turn_edge for {mov!r} "
-                f"(got {to_edge!r})"
-            )
+        # Cropped OSM networks may terminate immediately after a controlled
+        # turn. In that case the outgoing turn edge is also the valid final
+        # destination; the legacy 2x2 grid required an extra downstream hop.
 
         weight_sum += float(d.get("weight", 0))
 

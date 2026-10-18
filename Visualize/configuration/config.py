@@ -107,7 +107,7 @@ SUMO_STEP_LENGTH = float(
 PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", "1.0"))
 PUBLISH_NODES = [
     n.strip()
-    for n in os.getenv("PUBLISH_NODES", os.getenv("PUBLISH_NODE", "A")).split(",")
+    for n in os.getenv("PUBLISH_NODES", os.getenv("PUBLISH_NODE", "A,B,C,D,M")).split(",")
     if n.strip()
 ]
 PUBLISH_NODE = PUBLISH_NODES[0]
@@ -232,37 +232,121 @@ HALTING_SPEED_MS = float(
 )
 
 # ── TopologyConfig (ADR-002/003) — structural, not model PCE ───────
-LANES_PER_APPROACH = 3
+LANES_PER_APPROACH = 3  # compatibility fallback; OSM edges use EDGE_LANE_COUNTS
 MOVEMENT_BY_LANE_INDEX = {0: "right", 1: "straight", 2: "left"}
 
 NODE_TO_TLS: Dict[str, str] = {
-    "A": "J1",
-    "B": "J2",
-    "C": "J3",
-    "D": "J4",
+    "A": "411926415",
+    "B": "14203086108",
+    "C": "14203056181",
+    "D": "411925926",
+    "M": "14203056194",
 }
-TLS_TO_NODE: Dict[str, str] = {v: k for k, v in NODE_TO_TLS.items()}
+
+# A physical intersection imported from OSM can be split into several SUMO TLS
+# controllers.  NODE_TO_TLS keeps one primary ID for backwards-compatible
+# snapshots/detectors; NODE_TO_TLS_GROUPS lists every controller that must move
+# together for that physical intersection.
+NODE_TO_TLS_GROUPS: Dict[str, Tuple[str, ...]] = {
+    "A": ("411926415",),
+    "B": ("14203086108", "14203086109", "14203086112"),  # cluster around (253.65, 236.76)
+    "C": ("14203056181", "14203056185", "14203056187", "14203056189"),  # above old C
+    "D": ("411925926",),
+    "M": ("14203056194", "14203056195", "14203056196", "14203056197"),
+}
+
+# Physical controllers assigned to the virtual NS/EW axes used by the common
+# four-phase agent action vocabulary.
+GROUPED_TLS_AXES: Dict[str, Dict[str, Tuple[str, ...]]] = {
+    "B": {
+        "NS": ("14203086108", "14203086109"),
+        "EW": ("14203086112",),
+    },
+    "C": {
+        "NS": ("14203056181", "14203056189"),
+        "EW": ("14203056185", "14203056187"),
+    },
+    "M": {
+        "NS": ("14203056194", "14203056196"),
+        "EW": ("14203056195", "14203056197"),
+    },
+}
+
+TLS_TO_NODE: Dict[str, str] = {
+    tls_id: node_id
+    for node_id, tls_ids in NODE_TO_TLS_GROUPS.items()
+    for tls_id in tls_ids
+}
+
+
+def tls_ids_for_node(node_id: str) -> Tuple[str, ...]:
+    return NODE_TO_TLS_GROUPS.get(node_id, (NODE_TO_TLS[node_id],))
 
 APPROACH_EDGES: Dict[str, Dict[str, str]] = {
-    "J1": {"North": "J3J1", "East": "J2J1", "South": "S1J1", "West": "W1J1"},
-    "J2": {"North": "J4J2", "East": "E1J2", "South": "S2J2", "West": "J1J2"},
-    "J3": {"North": "N1J3", "East": "J4J3", "South": "J1J3", "West": "W2J3"},
-    "J4": {"North": "N2J4", "East": "E2J4", "South": "J2J4", "West": "J3J4"},
+    "411926415": {"East": "-694973742#0", "South": "408246393#6", "West": "35114553#3"},
+    "14203086108": {
+        "North": "35113721#14",
+        "South": "-1179966753#1",
+        "East": "654858471#7",
+    },
+    "14203056181": {
+        "North": "35113721#3",
+        "East": "658328100#1",
+        "South": "-35113721#6",
+        "West": "-658328100#4",
+    },
+    "411925926": {"North": "1267138238#1", "East": "-694942823", "West": "694973742#5"},
+    "14203056194": {
+        "North": "35113721#9",
+        "East": "-694973742#4",
+        "South": "-35113721#12",
+        "West": "694973742#1",
+    },
 }
 
 OUTGOING_EDGES: Dict[str, List[str]] = {
-    "J1": ["J1J2", "J1J3", "J1S1", "J1W1"],
-    "J2": ["J2J1", "J2J4", "J2E1", "J2S2"],
-    "J3": ["J3J1", "J3J4", "J3N1", "J3W2"],
-    "J4": ["J4J2", "J4J3", "J4N2", "J4E2"],
+    "411926415": ["-35114553#3", "408246393#7", "694973742#0"],
+    "14203086108": ["-35113721#14", "1179966753#1", "654858471#9"],
+    "14203056181": ["-35113721#3", "-658328100#1", "35113721#6", "658328100#4"],
+    "411925926": ["-694973742#5", "326771005#0", "694942823"],
+    "14203056194": ["-35113721#9", "694973742#4", "35113721#12", "-694973742#1"],
+    "411926403": ["-658328100#5", "408246393#8", "658328100#6"],
+    "411926496": ["-1184372244#1", "1267138238#0", "658328100#0"],
+}
+
+# Exact lane counts for the controlled OSM approaches/exits. Other edges retain
+# the legacy fallback so external callers remain backward-compatible.
+EDGE_LANE_COUNTS: Dict[str, int] = {
+    "-694973742#0": 1, "408246393#6": 3, "35114553#3": 1,
+    "-35114553#3": 1, "408246393#7": 3, "694973742#0": 1,
+    "35113721#14": 1, "-1179966753#1": 1, "654858471#7": 3,
+    "-35113721#14": 1, "1179966753#1": 1, "654858471#9": 3,
+    "35113721#3": 1, "658328100#1": 1, "-35113721#6": 1, "-658328100#4": 1,
+    "-35113721#3": 1, "-658328100#1": 1, "35113721#6": 1, "658328100#4": 1,
+    "1267138238#1": 3, "-694942823": 1, "694973742#5": 1,
+    "-694973742#5": 1, "326771005#0": 3, "694942823": 1,
+    "35113721#9": 1, "-694973742#4": 1, "-35113721#12": 1, "694973742#1": 1,
+    "-35113721#9": 1, "694973742#4": 1, "35113721#12": 1, "-694973742#1": 1,
 }
 
 DIRECTIONS: List[str] = ["North", "South", "East", "West"]
 
 
 def approach_lane_ids(tls_id: str, direction: str) -> List[str]:
-    edge = APPROACH_EDGES[tls_id][direction]
-    return [f"{edge}_{i}" for i in range(LANES_PER_APPROACH)]
+    edge = APPROACH_EDGES.get(tls_id, {}).get(direction)
+    return edge_lane_ids(edge) if edge else []
+
+
+def edge_lane_ids(edge: Optional[str]) -> List[str]:
+    if not edge:
+        return []
+    return [f"{edge}_{i}" for i in range(EDGE_LANE_COUNTS.get(edge, LANES_PER_APPROACH))]
+
+
+def movement_for_lane(edge: str, lane_index: int) -> str:
+    if EDGE_LANE_COUNTS.get(edge, LANES_PER_APPROACH) == 1:
+        return "straight"
+    return MOVEMENT_BY_LANE_INDEX.get(lane_index, "straight")
 
 
 def detector_id_e1(tls_id: str, direction: str, lane_index: int) -> str:
@@ -278,29 +362,22 @@ def detector_id_e2_out(tls_id: str, edge: str, lane_index: int) -> str:
 
 
 TURN_BY_OD: Dict[Tuple[str, str], str] = {
-    ("J3J1", "J1W1"): "right", ("J3J1", "J1S1"): "straight", ("J3J1", "J1J2"): "left", ("J3J1", "J1J3"): "straight",
-    ("J2J1", "J1J3"): "right", ("J2J1", "J1W1"): "straight", ("J2J1", "J1S1"): "left", ("J2J1", "J1J2"): "straight",
-    ("S1J1", "J1J2"): "right", ("S1J1", "J1J3"): "straight", ("S1J1", "J1W1"): "left", ("S1J1", "J1S1"): "straight",
-    ("W1J1", "J1S1"): "right", ("W1J1", "J1J2"): "straight", ("W1J1", "J1J3"): "left", ("W1J1", "J1W1"): "straight",
-    ("J4J2", "J2J1"): "right", ("J4J2", "J2S2"): "straight", ("J4J2", "J2E1"): "left", ("J4J2", "J2J4"): "straight",
-    ("E1J2", "J2J4"): "right", ("E1J2", "J2J1"): "straight", ("E1J2", "J2S2"): "left", ("E1J2", "J2E1"): "straight",
-    ("S2J2", "J2E1"): "right", ("S2J2", "J2J4"): "straight", ("S2J2", "J2J1"): "left", ("S2J2", "J2S2"): "straight",
-    ("J1J2", "J2S2"): "right", ("J1J2", "J2E1"): "straight", ("J1J2", "J2J4"): "left", ("J1J2", "J2J1"): "straight",
-    ("N1J3", "J3W2"): "right", ("N1J3", "J3J1"): "straight", ("N1J3", "J3J4"): "left", ("N1J3", "J3N1"): "straight",
-    ("J4J3", "J3N1"): "right", ("J4J3", "J3W2"): "straight", ("J4J3", "J3J1"): "left", ("J4J3", "J3J4"): "straight",
-    ("J1J3", "J3J4"): "right", ("J1J3", "J3N1"): "straight", ("J1J3", "J3W2"): "left", ("J1J3", "J3J1"): "straight",
-    ("W2J3", "J3J1"): "right", ("W2J3", "J3J4"): "straight", ("W2J3", "J3N1"): "left", ("W2J3", "J3W2"): "straight",
-    ("N2J4", "J4J3"): "right", ("N2J4", "J4J2"): "straight", ("N2J4", "J4E2"): "left", ("N2J4", "J4N2"): "straight",
-    ("E2J4", "J4N2"): "right", ("E2J4", "J4J3"): "straight", ("E2J4", "J4J2"): "left", ("E2J4", "J4E2"): "straight",
-    ("J2J4", "J4E2"): "right", ("J2J4", "J4N2"): "straight", ("J2J4", "J4J3"): "left", ("J2J4", "J4J2"): "straight",
-    ("J3J4", "J4J2"): "right", ("J3J4", "J4E2"): "straight", ("J3J4", "J4N2"): "left", ("J3J4", "J4J3"): "straight",
+    ("408246393#6", "694973742#0"): "right", ("408246393#6", "408246393#7"): "straight", ("408246393#6", "-35114553#3"): "left",
+    ("35113721#14", "35113721#15"): "straight", ("-1179966753#1", "-1179966753#0"): "straight", ("654858471#7", "654858471#8"): "straight",
+    ("35113721#3", "35113721#4"): "straight", ("658328100#1", "658328100#2"): "straight",
+    ("-35113721#6", "-35113721#5"): "straight", ("-658328100#4", "-658328100#3"): "straight",
+    ("35113721#9", "35113721#10"): "straight", ("-694973742#4", "-694973742#3"): "straight",
+    ("-35113721#12", "-35113721#11"): "straight", ("694973742#1", "694973742#2"): "straight",
+    ("1267138238#1", "-694973742#5"): "right", ("1267138238#1", "326771005#0"): "straight", ("1267138238#1", "694942823"): "left",
+    ("408246393#7", "-658328100#5"): "right", ("408246393#7", "408246393#8"): "straight", ("408246393#7", "658328100#6"): "left",
+    ("1184372243", "658328100#0"): "right", ("1184372243", "1267138238#0"): "straight", ("1184372243", "-1184372244#1"): "left",
 }
 
 PHASE_INDEX_TO_NAME: Dict[int, str] = {
-    0: "NS_GREEN",
-    1: "NS_YELLOW",
-    2: "EW_GREEN",
-    3: "EW_YELLOW",
+    0: "EW_GREEN",
+    1: "EW_YELLOW",
+    2: "NS_GREEN",
+    3: "NS_YELLOW",
 }
 PHASE_NAME_TO_INDEX: Dict[str, int] = {v: k for k, v in PHASE_INDEX_TO_NAME.items()}
 PHASE_SEQUENCE: List[str] = ["NS_GREEN", "NS_YELLOW", "EW_GREEN", "EW_YELLOW"]
@@ -378,10 +455,11 @@ DEMAND_PROFILE_IDS = frozenset(
 
 # Deterministic incident approach per node (no UI direction picker).
 INCIDENT_APPROACH_BY_NODE: Dict[str, str] = {
-    "A": "North",
+    "A": "South",
     "B": "East",
-    "C": "West",
-    "D": "South",
+    "C": "North",
+    "D": "North",
+    "M": "West",
 }
 
 

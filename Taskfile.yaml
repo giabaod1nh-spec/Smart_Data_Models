@@ -14,11 +14,20 @@ tasks:
       - cmd /c mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local,analytics" "-Dspring-boot.run.arguments=--server.port=8081"
 
   sumo:
-    desc: SUMO TraCI runner (set env README §7 trước khi chạy)
+    desc: SUMO TraCI runner — Windows
     dir: Visualize
     interactive: true
+    platforms: [ windows ]
     cmds:
-      - ./.venv/Scripts/python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D --realtime --log-level INFO
+      - .\.venv\Scripts\python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D,M --realtime --log-level INFO
+
+  sumo-linux:
+    desc: SUMO TraCI runner — Linux/WSL
+    dir: Visualize
+    interactive: true
+    platforms: [ linux ]
+    cmds:
+      - ./.venv/bin/python -m app.traci_runner --gui --no-orion --nodes A,B,C,D,M --realtime --log-level INFO
 
   fe:
     desc: React Dashboard — Vite dev server (http://localhost:5173)

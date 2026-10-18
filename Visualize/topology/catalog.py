@@ -29,72 +29,9 @@ DIR_TO_MOVEMENT = {
 }
 
 # Semantic inter-node corridor links (outgoing of upstream = incoming of downstream).
-INTER_NODE_LINKS: Dict[str, Dict[str, str]] = {
-    "A_E_to_B_W": {
-        "edge": "J1J2",
-        "from_node": "A",
-        "to_node": "B",
-        "from_approach": "East",
-        "to_approach": "West",
-        "segment_role_note": "A East exit and B West approach",
-    },
-    "B_W_to_A_E": {
-        "edge": "J2J1",
-        "from_node": "B",
-        "to_node": "A",
-        "from_approach": "West",
-        "to_approach": "East",
-        "segment_role_note": "B West exit and A East approach",
-    },
-    "A_N_to_C_S": {
-        "edge": "J1J3",
-        "from_node": "A",
-        "to_node": "C",
-        "from_approach": "North",
-        "to_approach": "South",
-        "segment_role_note": "A North exit and C South approach",
-    },
-    "C_S_to_A_N": {
-        "edge": "J3J1",
-        "from_node": "C",
-        "to_node": "A",
-        "from_approach": "South",
-        "to_approach": "North",
-        "segment_role_note": "C South exit and A North approach",
-    },
-    "B_N_to_D_S": {
-        "edge": "J2J4",
-        "from_node": "B",
-        "to_node": "D",
-        "from_approach": "North",
-        "to_approach": "South",
-        "segment_role_note": "B North exit and D South approach",
-    },
-    "D_S_to_B_N": {
-        "edge": "J4J2",
-        "from_node": "D",
-        "to_node": "B",
-        "from_approach": "South",
-        "to_approach": "North",
-        "segment_role_note": "D South exit and B North approach",
-    },
-    "C_E_to_D_W": {
-        "edge": "J3J4",
-        "from_node": "C",
-        "to_node": "D",
-        "from_approach": "East",
-        "to_approach": "West",
-        "segment_role_note": "C East exit and D West approach",
-    },
-    "D_W_to_C_E": {
-        "edge": "J4J3",
-        "from_node": "D",
-        "to_node": "C",
-        "from_approach": "West",
-        "to_approach": "East",
-        "segment_role_note": "D West exit and C East approach",
-    },
-}
+# The selected physical intersections are separated by intermediate OSM
+# junctions, so there is no single edge that is a direct node-to-node link.
+INTER_NODE_LINKS: Dict[str, Dict[str, str]] = {}
 
 
 def _canonical_json(obj: Any) -> str:

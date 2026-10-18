@@ -5,8 +5,8 @@
  * between frames for smooth motion. Network is not geo-referenced (proj=!):
  * we draw SUMO x/y directly — never invent lat/lon.
  *
- * When `intersectionId` (A/B/C/D) is set, the canvas crops to that junction's
- * quadrant of the 2×2 grid so the detail page shows only that intersection.
+ * When `intersectionId` (A/B/C/D/M) is set, the canvas crops around the
+ * selected real-world OSM junction.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Circle, Text, Group } from 'react-konva'
@@ -33,18 +33,36 @@ import {
 } from '@/utils/stopLineGeometry'
 
 const NODE_LABEL: Record<string, string> = {
-  J1: 'A',
-  J2: 'B',
-  J3: 'C',
-  J4: 'D',
+  '411926415': 'A',
+  '14203086108': 'B',
+  '14203086109': 'B',
+  '14203086112': 'B',
+  '14203056181': 'C',
+  '14203056185': 'C',
+  '14203056187': 'C',
+  '14203056189': 'C',
+  '411925926': 'D',
+  '14203056194': 'M',
+  '14203056195': 'M',
+  '14203056196': 'M',
+  '14203056197': 'M',
 }
 
 /** Detail-page intersection letter → SUMO traffic-light junction id */
 const INTERSECTION_TO_TLS: Record<string, string> = {
-  A: 'J1',
-  B: 'J2',
-  C: 'J3',
-  D: 'J4',
+  A: '411926415',
+  B: '14203086108',
+  C: '14203056181',
+  D: '411925926',
+  M: '14203056194',
+}
+
+const INTERSECTION_TLS_GROUPS: Record<string, string[]> = {
+  A: ['411926415'],
+  B: ['14203086108', '14203086109', '14203086112'],
+  C: ['14203056181', '14203056185', '14203056187', '14203056189'],
+  D: ['411925926'],
+  M: ['14203056194', '14203056195', '14203056196', '14203056197'],
 }
 
 /** Normalize route/URN ids like urn:ngsi-ld:Intersection:A → A */
@@ -52,9 +70,9 @@ function toIntersectionLetter(intersectionId: string | null | undefined): string
   const raw = (intersectionId || '').trim()
   if (!raw) return ''
   const gold = toGoldIntersectionId(raw).trim().toUpperCase()
-  // Bare A–D, or trailing letter after URN / path
-  if (/^[A-D]$/.test(gold)) return gold
-  const m = gold.match(/([A-D])$/)
+  // Bare selected node id, or trailing id after URN / path
+  if (/^[A-DM]$/.test(gold)) return gold
+  const m = gold.match(/([A-DM])$/)
   return m?.[1] ?? ''
 }
 
@@ -249,24 +267,13 @@ export function viewBoundsForIntersection(
   const junc = network.junctions.find((j) => j.id === tlsId)
   if (!junc) return full
 
-  const midX = (full.minX + full.maxX) / 2
-  const midY = (full.minY + full.maxY) / 2
-
-  // SW A=J1, SE B=J2, NW C=J3, NE D=J4
-  let quad: ViewBounds
-  if (letter === 'A') quad = { minX: full.minX, minY: full.minY, maxX: midX, maxY: midY }
-  else if (letter === 'B') quad = { minX: midX, minY: full.minY, maxX: full.maxX, maxY: midY }
-  else if (letter === 'C') quad = { minX: full.minX, minY: midY, maxX: midX, maxY: full.maxY }
-  else if (letter === 'D') quad = { minX: midX, minY: midY, maxX: full.maxX, maxY: full.maxY }
-  else return full
-
   // Tighter crop around junction → larger px/m scale, better vehicle visibility
   const r = INTERSECTION_APPROACH_M
   return {
-    minX: Math.max(quad.minX, junc.x - r),
-    minY: Math.max(quad.minY, junc.y - r),
-    maxX: Math.min(quad.maxX, junc.x + r),
-    maxY: Math.min(quad.maxY, junc.y + r),
+    minX: Math.max(full.minX, junc.x - r),
+    minY: Math.max(full.minY, junc.y - r),
+    maxX: Math.min(full.maxX, junc.x + r),
+    maxY: Math.min(full.maxY, junc.y + r),
   }
 }
 
@@ -517,20 +524,22 @@ export function LiveSumoTrafficView({
   const visibleEdges = useMemo(() => {
     const edges = network?.edges ?? []
     if (!focusTls) return edges.map((e) => ({ ...e, lanes: expandEdgeLanes(e) }))
+    const group = new Set(INTERSECTION_TLS_GROUPS[focusLetter] ?? [focusTls])
     return edges
-      .filter((e) => e.from === focusTls || e.to === focusTls)
+      .filter((e) => group.has(e.from ?? '') || group.has(e.to ?? ''))
       .map((e) => ({ ...e, lanes: expandEdgeLanes(e) }))
-  }, [network, focusTls])
+  }, [network, focusTls, focusLetter])
 
   const focusJunction = useMemo(() => {
     if (!focusTls) return null
     const j = (network?.junctions ?? []).find((jn) => jn.id === focusTls)
     if (j) return j
     const known: Record<string, { x: number; y: number }> = {
-      J1: { x: 150, y: 150 },
-      J2: { x: 650, y: 150 },
-      J3: { x: 150, y: 650 },
-      J4: { x: 650, y: 650 },
+      '411926415': { x: 258.52, y: 485.86 },
+      '14203086108': { x: 253.65, y: 236.76 },
+      '14203056181': { x: 516.49, y: 516.07 },
+      '411925926': { x: 507.75, y: 254.17 },
+      '14203056194': { x: 372.78, y: 379.17 },
     }
     const p = known[focusTls]
     return p ? { id: focusTls, x: p.x, y: p.y, type: 'traffic_light' } : null
@@ -573,10 +582,11 @@ export function LiveSumoTrafficView({
     // Fallback hub if geometry missing but we know the TLS id
     if (filtered.length === 0 && focusTls && focusLetter) {
       const known: Record<string, { x: number; y: number }> = {
-        J1: { x: 150, y: 150 },
-        J2: { x: 650, y: 150 },
-        J3: { x: 150, y: 650 },
-        J4: { x: 650, y: 650 },
+        '411926415': { x: 258.52, y: 485.86 },
+        '14203086108': { x: 253.65, y: 236.76 },
+        '14203056181': { x: 516.49, y: 516.07 },
+        '411925926': { x: 507.75, y: 254.17 },
+        '14203056194': { x: 372.78, y: 379.17 },
       }
       const p = known[focusTls]
       if (p) {

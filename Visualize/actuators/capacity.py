@@ -19,10 +19,25 @@ OPPOSITE = {"North": "South", "South": "North", "East": "West", "West": "East"}
 
 # Outbound edge by TLS + cardinal direction (through-exit for opposite approach).
 EXIT_EDGES: Dict[str, Dict[str, str]] = {
-    "J1": {"North": "J1J3", "East": "J1J2", "South": "J1S1", "West": "J1W1"},
-    "J2": {"North": "J2J4", "East": "J2E1", "South": "J2S2", "West": "J2J1"},
-    "J3": {"North": "J3N1", "East": "J3J4", "South": "J3J1", "West": "J3W2"},
-    "J4": {"North": "J4N2", "East": "J4E2", "South": "J4J2", "West": "J4J3"},
+    "411926415": {"North": "408246393#7", "East": "694973742#0", "West": "-35114553#3"},
+    "14203086108": {
+        "North": "-35113721#14",
+        "South": "1179966753#1",
+        "West": "654858471#9",
+    },
+    "14203056181": {
+        "North": "-35113721#3",
+        "East": "-658328100#1",
+        "South": "35113721#6",
+        "West": "658328100#4",
+    },
+    "411925926": {"East": "694942823", "South": "326771005#0", "West": "-694973742#5"},
+    "14203056194": {
+        "North": "-35113721#9",
+        "East": "694973742#4",
+        "South": "35113721#12",
+        "West": "-694973742#1",
+    },
 }
 
 
@@ -97,7 +112,7 @@ class ScenarioCapacityActuator:
             edge = target_edge or target_lanes[0].rsplit("_", 1)[0]
             return edge, list(target_lanes), []
         if target_edge:
-            lanes = [f"{target_edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)]
+            lanes = cfg.edge_lane_ids(target_edge)
             return target_edge, lanes, []
 
         if overlay_type == "heavy_rain":
@@ -105,9 +120,11 @@ class ScenarioCapacityActuator:
             edges: List[str] = []
             lanes = []
             for direction in cfg.DIRECTIONS:
-                edge = cfg.APPROACH_EDGES[tls][direction]
+                edge = cfg.APPROACH_EDGES[tls].get(direction)
+                if not edge:
+                    continue
                 edges.append(edge)
-                lanes.extend([f"{edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)])
+                lanes.extend(cfg.edge_lane_ids(edge))
             return None, lanes, edges
 
         if not direction:
@@ -115,8 +132,8 @@ class ScenarioCapacityActuator:
         edge = self._edge_from_catalog(intersection_id, direction, segment_role)
         if not edge:
             tls = cfg.NODE_TO_TLS[intersection_id]
-            edge = cfg.APPROACH_EDGES[tls][direction]
-        lanes = [f"{edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)]
+            edge = cfg.APPROACH_EDGES[tls].get(direction)
+        lanes = cfg.edge_lane_ids(edge) if edge else []
         return edge, lanes, []
 
     def add_overlay(

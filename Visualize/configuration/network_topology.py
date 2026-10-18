@@ -4,27 +4,24 @@ from __future__ import annotations
 from typing import Dict, List, Tuple
 
 OUTGOING_EDGES: Dict[str, List[str]] = {
-    "J1": ["J1J2", "J1J3", "J1S1", "J1W1"],
-    "J2": ["J2J1", "J2J4", "J2E1", "J2S2"],
-    "J3": ["J3J1", "J3J4", "J3N1", "J3W2"],
-    "J4": ["J4J2", "J4J3", "J4N2", "J4E2"],
+    "411926415": ["-35114553#3", "408246393#7", "694973742#0"],
+    "14203086108": ["-35113721#14", "1179966753#1", "654858471#9"],
+    "14203056181": ["-35113721#3", "-658328100#1", "35113721#6", "658328100#4"],
+    "411925926": ["-694973742#5", "326771005#0", "694942823"],
+    "14203056194": ["-35113721#9", "694973742#4", "35113721#12", "-694973742#1"],
+    # Retained as route-validation waypoints for the generated OSM demand.
+    "411926403": ["-658328100#5", "408246393#8", "658328100#6"],
+    "411926496": ["-1184372244#1", "1267138238#0", "658328100#0"],
 }
 
 TURN_BY_OD: Dict[Tuple[str, str], str] = {
-    ("J3J1", "J1W1"): "right", ("J3J1", "J1S1"): "straight", ("J3J1", "J1J2"): "left", ("J3J1", "J1J3"): "straight",
-    ("J2J1", "J1J3"): "right", ("J2J1", "J1W1"): "straight", ("J2J1", "J1S1"): "left", ("J2J1", "J1J2"): "straight",
-    ("S1J1", "J1J2"): "right", ("S1J1", "J1J3"): "straight", ("S1J1", "J1W1"): "left", ("S1J1", "J1S1"): "straight",
-    ("W1J1", "J1S1"): "right", ("W1J1", "J1J2"): "straight", ("W1J1", "J1J3"): "left", ("W1J1", "J1W1"): "straight",
-    ("J4J2", "J2J1"): "right", ("J4J2", "J2S2"): "straight", ("J4J2", "J2E1"): "left", ("J4J2", "J2J4"): "straight",
-    ("E1J2", "J2J4"): "right", ("E1J2", "J2J1"): "straight", ("E1J2", "J2S2"): "left", ("E1J2", "J2E1"): "straight",
-    ("S2J2", "J2E1"): "right", ("S2J2", "J2J4"): "straight", ("S2J2", "J2J1"): "left", ("S2J2", "J2S2"): "straight",
-    ("J1J2", "J2S2"): "right", ("J1J2", "J2E1"): "straight", ("J1J2", "J2J4"): "left", ("J1J2", "J2J1"): "straight",
-    ("N1J3", "J3W2"): "right", ("N1J3", "J3J1"): "straight", ("N1J3", "J3J4"): "left", ("N1J3", "J3N1"): "straight",
-    ("J4J3", "J3N1"): "right", ("J4J3", "J3W2"): "straight", ("J4J3", "J3J1"): "left", ("J4J3", "J3J4"): "straight",
-    ("J1J3", "J3J4"): "right", ("J1J3", "J3N1"): "straight", ("J1J3", "J3W2"): "left", ("J1J3", "J3J1"): "straight",
-    ("W2J3", "J3J1"): "right", ("W2J3", "J3J4"): "straight", ("W2J3", "J3N1"): "left", ("W2J3", "J3W2"): "straight",
-    ("N2J4", "J4J3"): "right", ("N2J4", "J4J2"): "straight", ("N2J4", "J4E2"): "left", ("N2J4", "J4N2"): "straight",
-    ("E2J4", "J4N2"): "right", ("E2J4", "J4J3"): "straight", ("E2J4", "J4J2"): "left", ("E2J4", "J4E2"): "straight",
-    ("J2J4", "J4E2"): "right", ("J2J4", "J4N2"): "straight", ("J2J4", "J4J3"): "left", ("J2J4", "J4J2"): "straight",
-    ("J3J4", "J4J2"): "right", ("J3J4", "J4E2"): "straight", ("J3J4", "J4N2"): "left", ("J3J4", "J4J3"): "straight",
+    ("408246393#6", "694973742#0"): "right", ("408246393#6", "408246393#7"): "straight", ("408246393#6", "-35114553#3"): "left",
+    ("35113721#14", "35113721#15"): "straight", ("-1179966753#1", "-1179966753#0"): "straight", ("654858471#7", "654858471#8"): "straight",
+    ("35113721#3", "35113721#4"): "straight", ("658328100#1", "658328100#2"): "straight",
+    ("-35113721#6", "-35113721#5"): "straight", ("-658328100#4", "-658328100#3"): "straight",
+    ("35113721#9", "35113721#10"): "straight", ("-694973742#4", "-694973742#3"): "straight",
+    ("-35113721#12", "-35113721#11"): "straight", ("694973742#1", "694973742#2"): "straight",
+    ("1267138238#1", "-694973742#5"): "right", ("1267138238#1", "326771005#0"): "straight", ("1267138238#1", "694942823"): "left",
+    ("408246393#7", "-658328100#5"): "right", ("408246393#7", "408246393#8"): "straight", ("408246393#7", "658328100#6"): "left",
+    ("1184372243", "658328100#0"): "right", ("1184372243", "1267138238#0"): "straight", ("1184372243", "-1184372244#1"): "left",
 }

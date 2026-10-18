@@ -56,7 +56,12 @@ class SumoBackend:
         self.snapshots: Dict[str, SumoSnapshotProvider] = {}
         for node in self.publish_nodes:
             tls = cfg.NODE_TO_TLS[node]
-            self.signals[node] = SumoSignalController(tls)
+            self.signals[node] = SumoSignalController(
+                tls,
+                node_id=node,
+                tls_ids=cfg.tls_ids_for_node(node),
+                grouped_axes=cfg.GROUPED_TLS_AXES.get(node),
+            )
             self.scenarios[node] = SumoScenarioManager(tls)
             self.snapshots[node] = SumoSnapshotProvider(tls, node)
 
@@ -181,6 +186,8 @@ class SumoBackend:
         self._started = True
         self._runtime_state = SimulationRuntimeState.RUNNING
         self.simulation_time_sec = float(traci.simulation.getTime())
+        for signal in self.signals.values():
+            signal.initialize(traci)
         self.runtime.on_start(traci)
         # Live WebSocket stream (additive — does not affect Orion/demand/TLS control)
         try:

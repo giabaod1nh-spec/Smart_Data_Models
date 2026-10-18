@@ -1,6 +1,6 @@
 # Cooperative Multi-Agent DQN — điều khiển đèn tín hiệu
 
-Hệ thống 4 DQN agent (A–D) với Communication Bus in-memory, tích hợp SUMO/TraCI qua `Visualize/simulation/backend.py`.
+Hệ thống 5 DQN agent (A, B, C, D, M) với Communication Bus in-memory, tích hợp SUMO/TraCI qua `Visualize/simulation/backend.py`.
 
 ## Cài đặt
 
@@ -48,11 +48,11 @@ curl -X POST http://localhost:9090/control-mode -H "Content-Type: application/js
 curl http://localhost:9090/rl/status
 ```
 
-Model được load từ `AI_Control_Traffic_Light/models/agent_{A,B,C,D}.keras`.
+Model được load từ `AI_Control_Traffic_Light/models/agent_{A,B,C,D,M}.keras`.
 
 ## Kiến trúc
 
-- **Agent A–D** ↔ giao lộ J1–J4 (SUMO TLS)
-- **Neighbors:** A↔B, A↔C, B↔D, C↔D
+- **5 agent A, B, C, D, M** ↔ 5 giao lộ vật lý đã chọn trong bản đồ OSM
+- **Các cụm B, C, M** đồng bộ nhiều SUMO TLS thành một giao lộ 4 pha
 - **Actions:** KEEP, SWITCH, EXTEND +5s, EXTEND +10s
 - **Reward:** local + global + spillback penalty

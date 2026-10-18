@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 
 class AgentManager:
-    """Orchestrates 4 DQN agents with cooperative communication."""
+    """Orchestrates the configured DQN agents with cooperative communication."""
 
     def __init__(
         self,

@@ -328,8 +328,11 @@ class IncidentActuator:
     def crash_lane_id(self, node_id: str, direction: Optional[str] = None) -> str:
         direction = direction or cfg.incident_approach_direction(node_id)
         tls = cfg.NODE_TO_TLS[node_id]
-        edge = cfg.APPROACH_EDGES[tls][direction]
-        return f"{edge}_1"
+        edge = cfg.APPROACH_EDGES[tls].get(direction)
+        if not edge:
+            raise ValueError(f"No {direction} approach at intersection {node_id}")
+        lanes = cfg.edge_lane_ids(edge)
+        return lanes[1] if len(lanes) > 1 else lanes[0]
 
     def _clear_markers(self, traci_module, node_id: str) -> None:
         state = self.markers_by_node.pop(node_id, None)
@@ -597,8 +600,10 @@ class IncidentActuator:
         bypass_conf = _bypass_config()
         direction = direction or cfg.incident_approach_direction(node_id)
         tls = cfg.NODE_TO_TLS[node_id]
-        edge = cfg.APPROACH_EDGES[tls][direction]
-        lane_index = 1
+        edge = cfg.APPROACH_EDGES[tls].get(direction)
+        if not edge:
+            raise ValueError(f"No {direction} approach at intersection {node_id}")
+        lane_index = 1 if len(cfg.edge_lane_ids(edge)) > 1 else 0
         approach_lane = f"{edge}_{lane_index}"
         car_len = conf["car_length_m"]
         gap = conf["rear_bumper_gap_m"]

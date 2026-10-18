@@ -312,7 +312,7 @@ export function ReverseControlPanel({
           {isManual
             ? 'Officer mode: countdown stopped — you decide green / red.'
             : isAdaptive
-            ? 'DQN Agent: cooperative AI agents (A–D) control all signals every 5s decision cycle.'
+            ? 'DQN Agent: cooperative AI agents (A, B, C, D, M) control the selected intersections every 5s.'
             : 'Automatic: signal cycles with countdown. Switch to Manual when an officer takes over.'}
         </div>
         {isModeSwitching && (

@@ -20,16 +20,8 @@ from configuration.model_params import get_registry
 
 OUT = _ROOT / "Visualize" / "intersection.rou.xml"
 
-DIAGONALS = [
-    ("x1", "N1J3", "J2E1", "car"),
-    ("x2", "S1J1", "J3W2", "motorcycle"),
-    ("x3", "W1J1", "J4N2", "motorcycle"),
-    ("x4", "E1J2", "J1S1", "car"),
-    ("x5", "N2J4", "J1W1", "motorcycle"),
-    ("x6", "S2J2", "J4E2", "car"),
-    ("x7", "W2J3", "J2S2", "motorcycle"),
-    ("x8", "E2J4", "J3N1", "bus"),
-]
+# The former synthetic-grid diagonals do not exist in the cropped OSM net.
+DIAGONALS: list[tuple[str, str, str, str]] = []
 
 
 def _attrs(d: dict) -> str:
@@ -92,13 +84,14 @@ def main() -> None:
                 )
         lines.append("")
 
-    diag_vph = max(1, int(round(DIAGONAL_VEH_PER_HOUR / len(DIAGONALS))))
-    lines.append("    <!-- light diagonal flows -->")
-    for fid, fr, to, vtype in DIAGONALS:
-        lines.append(
-            f'    <flow id="{fid}" type="{vtype}" from="{fr}" to="{to}" '
-            f'begin="0" end="3600" vehsPerHour="{diag_vph}"/>'
-        )
+    if DIAGONALS:
+        diag_vph = max(1, int(round(DIAGONAL_VEH_PER_HOUR / len(DIAGONALS))))
+        lines.append("    <!-- light diagonal flows -->")
+        for fid, fr, to, vtype in DIAGONALS:
+            lines.append(
+                f'    <flow id="{fid}" type="{vtype}" from="{fr}" to="{to}" '
+                f'begin="0" end="3600" vehsPerHour="{diag_vph}"/>'
+            )
     lines.append("</routes>")
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {OUT} with turn-split flows for {len(sources)} boundary sources")
