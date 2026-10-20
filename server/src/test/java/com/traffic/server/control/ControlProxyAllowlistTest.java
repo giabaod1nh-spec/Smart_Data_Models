@@ -34,7 +34,7 @@ class ControlProxyAllowlistTest {
         assertTrue(allowlist.isAllowed("/scenario"));
         assertTrue(allowlist.isAllowed("/overlays/abc"));
         assertTrue(allowlist.isAllowed("/intersections/A/state"));
-        assertTrue(allowlist.isAllowed("/links/W1J1/state"));
+        assertTrue(allowlist.isAllowed("/links/-694942823/state"));
         assertTrue(allowlist.isAllowed("/snapshot/A"));
         assertTrue(allowlist.isAllowed("/trip-records"));
         assertTrue(allowlist.isAllowed("/stats"));

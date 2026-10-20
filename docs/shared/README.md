@@ -26,7 +26,11 @@ $env:ORION_SYNC_PUBLISH="false"
 $env:KAFKA_OUTBOX_ENABLED="true"
 $env:KAFKA_PUBLISH_ENABLED="false"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
-python -m app.traci_runner --gui --nodes A,B,C,D
+python -m app.traci_runner --gui --nodes A,B,C,D,M
+
+# Orion topology cutover (review dry-run before executing)
+python tools/cleanup_orion_topology.py
+python tools/cleanup_orion_topology.py --execute --confirm DELETE-SMART-TRAFFIC
 ```
 
 ## Run Server

@@ -69,7 +69,7 @@ def _snap():
 
 def test_mapper_publishes_contract_fields(mapper):
     ents = mapper.build_all_entities("A", _snap())
-    assert len(ents) == 10
+    assert len(ents) == 8
     for e in ents:
         assert e["simulationRunId"]["value"] == "run-mapper-test"
         assert e["scenarioId"]["value"] == "rain"
@@ -80,3 +80,27 @@ def test_mapper_publishes_contract_fields(mapper):
         if e["type"] in ("TrafficLight", "Intersection")
     }
     assert phases == {"EW_YELLOW"}
+
+
+@pytest.mark.parametrize(
+    ("node_id", "directions"),
+    [
+        ("A", {"East", "South", "West"}),
+        ("B", {"North", "South", "East"}),
+        ("C", {"North", "South", "East", "West"}),
+        ("D", {"North", "East", "West"}),
+        ("M", {"North", "South", "East", "West"}),
+    ],
+)
+def test_mapper_cardinality_follows_catalog(mapper, node_id, directions):
+    ents = mapper.build_all_entities(node_id, _snap())
+    intersection = next(entity for entity in ents if entity["type"] == "Intersection")
+    lights = [entity for entity in ents if entity["type"] == "TrafficLight"]
+    sensors = [entity for entity in ents if entity["type"] == "VehicleSensor"]
+
+    assert intersection["numberOfApproaches"]["value"] == len(directions)
+    assert len(lights) == len(directions)
+    assert len(sensors) == len(directions)
+    assert {entity["id"].rsplit("-", 1)[-1] for entity in lights} == directions
+    assert len(intersection["refTrafficLights"]["object"]) == len(directions)
+    assert len(intersection["refVehicleSensors"]["object"]) == len(directions)

@@ -261,6 +261,12 @@ export function TrafficLightPanel({
   isPaused,
   currentPhase,
 }: TrafficLightPanelProps) {
+  const availableDirections = [
+    ...ORDERED_DIRS.filter((dir) => lights.some((light) => light.direction === dir)),
+    ...lights
+      .map((light) => light.direction)
+      .filter((dir) => !ORDERED_DIRS.includes(dir)),
+  ]
   // Determine fallback status per direction from currentPhase
   const phaseUpper = (currentPhase ?? '').toUpperCase()
   const isNSGreen = phaseUpper === 'NS_GREEN'
@@ -298,7 +304,7 @@ export function TrafficLightPanel({
           position: 'relative',
         }}
       >
-        {ORDERED_DIRS.map((dir) => {
+        {availableDirections.map((dir) => {
           const light = lights.find((l) => l.direction === dir)
           const fallback = getFallback(dir)
           return (

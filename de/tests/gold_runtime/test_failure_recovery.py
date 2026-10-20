@@ -61,7 +61,7 @@ def test_recover_marks_complete_manifest_terminal(tmp_path, store):
         namespace = "live"
         simulation_run_id = "run-1"
         scenario_id = "scenario-1"
-        intersection_id = "J1"
+        intersection_id = "A"
         direction = "N"
         window_id = "wid"
 
@@ -125,7 +125,7 @@ def test_recover_backfills_missing_clickhouse_terminal_evidence(tmp_path, store)
         entries=(
             ManifestEntry(
                 target_table="gold_fact_traffic_window",
-                logical_identity=("gold_fact_traffic_window", "live", "run-1", "scenario-1", "J1", "N", "wid-terminal"),
+                logical_identity=("gold_fact_traffic_window", "live", "run-1", "scenario-1", "A", "N", "wid-terminal"),
                 source_set_hash="b" * 64,
                 revision_seq=0,
                 payload_digest="digest-terminal",

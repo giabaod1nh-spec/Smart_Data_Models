@@ -57,8 +57,6 @@ import { useRlAgentStatus } from '@/hooks/useRlAgentStatus'
 import { setStoredSelectedIntersectionId } from '@/utils/navigation'
 import { classifyApiError } from '@/utils/apiErrors'
 
-type Dir = 'North' | 'South' | 'East' | 'West'
-const DIRECTIONS: Dir[] = ['North', 'South', 'East', 'West']
 const DIR_ARROW: Record<string, string> = { North: '↑', South: '↓', East: '→', West: '←' }
 
 // Page status badge
@@ -442,8 +440,8 @@ export function IntersectionDetailPage() {
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
               Vehicles & Flow by Direction
             </div>
-            {DIRECTIONS.map((dir) => {
-              const s = dirSensors.find((d) => d.direction === dir)
+            {dirSensors.map((s) => {
+              const dir = s.direction
               const count = s?.vehicleCount ?? 0
               const maxCount = Math.max(...dirSensors.map((d) => d.vehicleCount ?? 0), 1)
               const pct = maxCount > 0 ? (count / maxCount) * 100 : 0

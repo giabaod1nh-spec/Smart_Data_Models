@@ -52,7 +52,7 @@ $env:ORION_SYNC_PUBLISH="false"
 $env:KAFKA_OUTBOX_ENABLED="true"
 $env:KAFKA_PUBLISH_ENABLED="false"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
-python -m app.traci_runner --gui --nodes A,B,C,D
+python -m app.traci_runner --gui --nodes A,B,C,D,M
 ```
 
 ### Spring Server

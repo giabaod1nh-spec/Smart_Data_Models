@@ -7,6 +7,7 @@ This module remains a compatibility facade for topology / publish / env wiring.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -25,6 +26,22 @@ GENERATED_ROOT = VISUALIZE_DIR / "generated"
 ARTIFACT_ROOT = VISUALIZE_DIR / "artifacts"
 ARTIFACTS_DIR = ARTIFACT_ROOT  # compat alias
 DEFAULT_SUMO_CONFIG = SUMO_ASSET_ROOT / "intersection.sumocfg"
+TOPOLOGY_CATALOG_PATH = GENERATED_ROOT / "network_topology_catalog.json"
+
+
+def _load_topology_catalog() -> Dict[str, object]:
+    if not TOPOLOGY_CATALOG_PATH.is_file():
+        raise FileNotFoundError(
+            f"Generated SUMO topology catalog not found: {TOPOLOGY_CATALOG_PATH}"
+        )
+    with TOPOLOGY_CATALOG_PATH.open("r", encoding="utf-8") as stream:
+        catalog = json.load(stream)
+    if not isinstance(catalog, dict):
+        raise ValueError(f"Invalid topology catalog root: {TOPOLOGY_CATALOG_PATH}")
+    return catalog
+
+
+_TOPOLOGY_CATALOG = _load_topology_catalog()
 
 VERSION = (
     (VISUALIZE_DIR / "VERSION").read_text(encoding="utf-8").splitlines()[0].split("=", 1)[-1].strip()
@@ -72,10 +89,14 @@ DIR_CODE = {"North": "N", "South": "S", "East": "E", "West": "W"}
 
 # ── NGSI node metadata ─────────────────────────────────────────────
 INTERSECTION_META: Dict[str, Dict[str, object]] = {
-    "A": {"name": "Nguyen Hue - Le Loi", "lat": 10.7769, "lng": 106.7009},
-    "B": {"name": "Dien Bien Phu - Hai Ba Trung", "lat": 10.7889, "lng": 106.6917},
-    "C": {"name": "Cong Hoa - Hoang Van Thu", "lat": 10.8005, "lng": 106.6520},
-    "D": {"name": "Vo Van Kiet - Nguyen Tri Phuong", "lat": 10.7550, "lng": 106.6700},
+    str(node_id): {
+        "name": f"OSM Intersection {node_id}",
+        "lat": float(location["lat"]),
+        "lng": float(location["lng"]),
+        "sumo_x": float(location["x"]),
+        "sumo_y": float(location["y"]),
+    }
+    for node_id, location in dict(_TOPOLOGY_CATALOG["node_locations"]).items()
 }
 
 DENSITY_TO_TRAFFIC_STATUS: Dict[str, str] = {
@@ -236,11 +257,8 @@ LANES_PER_APPROACH = 3  # compatibility fallback; OSM edges use EDGE_LANE_COUNTS
 MOVEMENT_BY_LANE_INDEX = {0: "right", 1: "straight", 2: "left"}
 
 NODE_TO_TLS: Dict[str, str] = {
-    "A": "411926415",
-    "B": "14203086108",
-    "C": "14203056181",
-    "D": "411925926",
-    "M": "14203056194",
+    str(node_id): str(tls_id)
+    for node_id, tls_id in dict(_TOPOLOGY_CATALOG["node_to_tls"]).items()
 }
 
 # A physical intersection imported from OSM can be split into several SUMO TLS
@@ -248,34 +266,23 @@ NODE_TO_TLS: Dict[str, str] = {
 # snapshots/detectors; NODE_TO_TLS_GROUPS lists every controller that must move
 # together for that physical intersection.
 NODE_TO_TLS_GROUPS: Dict[str, Tuple[str, ...]] = {
-    "A": ("411926415",),
-    "B": ("14203086108", "14203086109", "14203086112"),  # cluster around (253.65, 236.76)
-    "C": ("14203056181", "14203056185", "14203056187", "14203056189"),  # above old C
-    "D": ("411925926",),
-    "M": ("14203056194", "14203056195", "14203056196", "14203056197"),
+    str(node_id): tuple(str(tls_id) for tls_id in tls_ids)
+    for node_id, tls_ids in dict(_TOPOLOGY_CATALOG["node_to_tls_groups"]).items()
 }
 
 # Physical controllers assigned to the virtual NS/EW axes used by the common
 # four-phase agent action vocabulary.
 GROUPED_TLS_AXES: Dict[str, Dict[str, Tuple[str, ...]]] = {
-    "B": {
-        "NS": ("14203086108", "14203086109"),
-        "EW": ("14203086112",),
-    },
-    "C": {
-        "NS": ("14203056181", "14203056189"),
-        "EW": ("14203056185", "14203056187"),
-    },
-    "M": {
-        "NS": ("14203056194", "14203056196"),
-        "EW": ("14203056195", "14203056197"),
-    },
+    str(node_id): {
+        str(axis): tuple(str(tls_id) for tls_id in tls_ids)
+        for axis, tls_ids in dict(axes).items()
+    }
+    for node_id, axes in dict(_TOPOLOGY_CATALOG["grouped_tls_axes"]).items()
 }
 
 TLS_TO_NODE: Dict[str, str] = {
-    tls_id: node_id
-    for node_id, tls_ids in NODE_TO_TLS_GROUPS.items()
-    for tls_id in tls_ids
+    str(tls_id): str(node_id)
+    for tls_id, node_id in dict(_TOPOLOGY_CATALOG["tls_to_node"]).items()
 }
 
 
@@ -283,35 +290,13 @@ def tls_ids_for_node(node_id: str) -> Tuple[str, ...]:
     return NODE_TO_TLS_GROUPS.get(node_id, (NODE_TO_TLS[node_id],))
 
 APPROACH_EDGES: Dict[str, Dict[str, str]] = {
-    "411926415": {"East": "-694973742#0", "South": "408246393#6", "West": "35114553#3"},
-    "14203086108": {
-        "North": "35113721#14",
-        "South": "-1179966753#1",
-        "East": "654858471#7",
-    },
-    "14203056181": {
-        "North": "35113721#3",
-        "East": "658328100#1",
-        "South": "-35113721#6",
-        "West": "-658328100#4",
-    },
-    "411925926": {"North": "1267138238#1", "East": "-694942823", "West": "694973742#5"},
-    "14203056194": {
-        "North": "35113721#9",
-        "East": "-694973742#4",
-        "South": "-35113721#12",
-        "West": "694973742#1",
-    },
+    str(tls_id): {str(direction): str(edge_id) for direction, edge_id in dict(edges).items()}
+    for tls_id, edges in dict(_TOPOLOGY_CATALOG["approach_edges"]).items()
 }
 
 OUTGOING_EDGES: Dict[str, List[str]] = {
-    "411926415": ["-35114553#3", "408246393#7", "694973742#0"],
-    "14203086108": ["-35113721#14", "1179966753#1", "654858471#9"],
-    "14203056181": ["-35113721#3", "-658328100#1", "35113721#6", "658328100#4"],
-    "411925926": ["-694973742#5", "326771005#0", "694942823"],
-    "14203056194": ["-35113721#9", "694973742#4", "35113721#12", "-694973742#1"],
-    "411926403": ["-658328100#5", "408246393#8", "658328100#6"],
-    "411926496": ["-1184372244#1", "1267138238#0", "658328100#0"],
+    str(tls_id): [str(edge_id) for edge_id in edges]
+    for tls_id, edges in dict(_TOPOLOGY_CATALOG["outgoing_edges"]).items()
 }
 
 # Exact lane counts for the controlled OSM approaches/exits. Other edges retain
@@ -330,6 +315,13 @@ EDGE_LANE_COUNTS: Dict[str, int] = {
 }
 
 DIRECTIONS: List[str] = ["North", "South", "East", "West"]
+
+
+def directions_for_node(node_id: str) -> Tuple[str, ...]:
+    """Directions that physically exist at a logical OSM intersection."""
+    tls_id = NODE_TO_TLS[node_id]
+    approaches = APPROACH_EDGES.get(tls_id, {})
+    return tuple(direction for direction in DIRECTIONS if direction in approaches)
 
 
 def approach_lane_ids(tls_id: str, direction: str) -> List[str]:

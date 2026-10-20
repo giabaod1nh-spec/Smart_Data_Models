@@ -23,9 +23,9 @@ def traffic(
 ) -> SilverTrafficObservationInput:
     event = event_id or f"traffic-{direction}-{time}-{offset}"
     return SilverTrafficObservationInput(
-        simulation_run_id="run-1", scenario_id="scenario-1", intersection_id="J1",
+        simulation_run_id="run-1", scenario_id="scenario-1", intersection_id="A",
         source_direction=direction, canonical_direction=direction,
-        direction_mapping_version="direction-v1", source_entity_id=f"TrafficFlowObserved:J1:{direction}",
+        direction_mapping_version="direction-v1", source_entity_id=f"TrafficFlowObserved:A:{direction}",
         cycle_sequence=int(time), simulation_time_sec=time, vehicle_count=vehicles,
         pcu_equivalent=float(vehicles), average_speed_kmh=speed, queue_length_m=queue,
         waiting_vehicle_count=max(0, vehicles // 2), occupancy_pct=occupancy,
@@ -40,8 +40,8 @@ def traffic(
 def intersection(time: float = 70.0, *, offset: int = 100, incident: bool = True) -> SilverIntersectionStateInput:
     event = f"intersection-{time}-{offset}"
     return SilverIntersectionStateInput(
-        simulation_run_id="run-1", scenario_id="scenario-1", intersection_id="J1",
-        source_entity_id="TrafficIntersection:J1", cycle_sequence=int(time),
+        simulation_run_id="run-1", scenario_id="scenario-1", intersection_id="A",
+        source_entity_id="TrafficIntersection:A", cycle_sequence=int(time),
         simulation_time_sec=time, overall_traffic_status="CONGESTED",
         derived_traffic_state="CONGESTED", current_phase="NS_GREEN",
         has_active_incident=incident, has_spillback=time >= 60, is_box_blocked=False,
@@ -55,9 +55,9 @@ def intersection(time: float = 70.0, *, offset: int = 100, incident: bool = True
 def signal(direction: str = "N", time: float = 70.0, *, offset: int = 200, status: str = "GREEN") -> SilverSignalStateInput:
     event = f"signal-{direction}-{time}-{offset}"
     return SilverSignalStateInput(
-        simulation_run_id="run-1", scenario_id="scenario-1", intersection_id="J1",
+        simulation_run_id="run-1", scenario_id="scenario-1", intersection_id="A",
         source_direction=direction, canonical_direction=direction,
-        direction_mapping_version="direction-v1", source_entity_id=f"TrafficLight:J1:{direction}",
+        direction_mapping_version="direction-v1", source_entity_id=f"TrafficLight:A:{direction}",
         cycle_sequence=int(time), simulation_time_sec=time, signal_status=status,
         current_phase="NS_GREEN", green_duration_sec=30.0, red_duration_sec=25.0,
         yellow_duration_sec=5.0, timing_mode="FIXED", quality_status="VALID", quality_flags=(),

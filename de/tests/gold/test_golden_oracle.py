@@ -13,7 +13,7 @@ def test_two_window_business_oracle(context, two_window_records):
     kpis = {
         (item.metric_code, item.window_size_sec, item.window_start_sim_sec): item
         for item in result.kpi_results
-        if item.intersection_id == "J1"
+        if item.intersection_id == "A"
     }
     assert kpis[("CONGESTION_SCORE_WINDOW", 60, 0)].numeric_value == fixture["previous_congestion"]
     assert kpis[("CONGESTION_SCORE_WINDOW", 60, 60)].numeric_value == fixture["current_congestion"]

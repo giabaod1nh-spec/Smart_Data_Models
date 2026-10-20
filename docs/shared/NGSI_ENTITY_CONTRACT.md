@@ -41,6 +41,11 @@ The authoritative schema and golden payloads live in [`contracts/entity/`](../..
 | `refTrafficLight` | VehicleSensor to TrafficLight | many-to-one |
 | `refCamera` | TrafficLight/VehicleSensor to Camera | many-to-one |
 
+Approach cardinality is topology-derived. `numberOfApproaches`,
+`refTrafficLights`, and `refVehicleSensors` contain only the directions present
+for that logical node in `Visualize/generated/network_topology_catalog.json`;
+consumers must not assume every intersection has four approaches.
+
 ## NGSI-LD value rules
 
 - `Property`: domain value is in `value`.

@@ -49,6 +49,26 @@ def parse_net(path: Path | str | None = None) -> Dict[str, Any]:
         raise FileNotFoundError(f"SUMO net file not found: {net_path}")
 
     root = ET.parse(net_path).getroot()
+    location_el = root.find("location")
+    junction_locations: Dict[str, Dict[str, float]] = {}
+    if location_el is not None:
+        conv = [float(value) for value in (location_el.get("convBoundary") or "").split(",")]
+        orig = [float(value) for value in (location_el.get("origBoundary") or "").split(",")]
+        if len(conv) == 4 and len(orig) == 4 and conv[2] != conv[0] and conv[3] != conv[1]:
+            for junction_el in root.findall("junction"):
+                junction_id = junction_el.get("id") or ""
+                if not junction_id or junction_id.startswith(":"):
+                    continue
+                x = float(junction_el.get("x") or 0.0)
+                y = float(junction_el.get("y") or 0.0)
+                lng = orig[0] + ((x - conv[0]) / (conv[2] - conv[0])) * (orig[2] - orig[0])
+                lat = orig[1] + ((y - conv[1]) / (conv[3] - conv[1])) * (orig[3] - orig[1])
+                junction_locations[junction_id] = {
+                    "x": round(x, 2),
+                    "y": round(y, 2),
+                    "lng": round(lng, 7),
+                    "lat": round(lat, 7),
+                }
     edges: List[Dict[str, Any]] = []
     for edge_el in root.findall("edge"):
         edge_id = edge_el.get("id") or ""
@@ -91,7 +111,12 @@ def parse_net(path: Path | str | None = None) -> Dict[str, Any]:
             c["dir"],
         )
     )
-    return {"edges": edges, "connections": connections, "source_net": str(net_path)}
+    return {
+        "edges": edges,
+        "connections": connections,
+        "junction_locations": junction_locations,
+        "source_net": str(net_path),
+    }
 
 
 def _hash_payload(
@@ -170,6 +195,18 @@ def build_catalog(net_path: Path | str | None = None) -> Dict[str, Any]:
     connections = parsed["connections"]
     node_to_tls = dict(cfg.NODE_TO_TLS)
     tls_to_node = dict(cfg.TLS_TO_NODE)
+    node_to_tls_groups = {
+        node_id: list(cfg.tls_ids_for_node(node_id)) for node_id in node_to_tls
+    }
+    grouped_tls_axes = {
+        node_id: {axis: list(tls_ids) for axis, tls_ids in axes.items()}
+        for node_id, axes in cfg.GROUPED_TLS_AXES.items()
+    }
+    node_locations = {
+        node_id: dict(parsed["junction_locations"][tls_id])
+        for node_id, tls_id in node_to_tls.items()
+        if tls_id in parsed["junction_locations"]
+    }
     approach_edges = {tls: dict(dirs) for tls, dirs in cfg.APPROACH_EDGES.items()}
     outgoing_edges = {tls: list(edges_) for tls, edges_ in cfg.OUTGOING_EDGES.items()}
 
@@ -193,7 +230,10 @@ def build_catalog(net_path: Path | str | None = None) -> Dict[str, Any]:
         "source_net": "Visualize/intersection.net.xml",
         "topology_hash": topology_hash,
         "node_to_tls": node_to_tls,
+        "node_to_tls_groups": node_to_tls_groups,
         "tls_to_node": tls_to_node,
+        "grouped_tls_axes": grouped_tls_axes,
+        "node_locations": node_locations,
         "approach_edges": approach_edges,
         "outgoing_edges": outgoing_edges,
         "inter_node_links": inter_node_links,
@@ -214,6 +254,10 @@ def validate_catalog(catalog: Mapping[str, Any]) -> List[str]:
     required = (
         "topology_hash",
         "node_to_tls",
+        "node_to_tls_groups",
+        "tls_to_node",
+        "grouped_tls_axes",
+        "node_locations",
         "edges",
         "connections",
         "inter_node_links",
@@ -238,6 +282,39 @@ def validate_catalog(catalog: Mapping[str, Any]) -> List[str]:
 
     if dict(cfg.NODE_TO_TLS) != node_to_tls:
         errors.append("node_to_tls does not match config.NODE_TO_TLS")
+
+    node_to_tls_groups = catalog["node_to_tls_groups"]
+    tls_to_node = catalog["tls_to_node"]
+    for node_id, primary_tls in node_to_tls.items():
+        tls_group = list(node_to_tls_groups.get(node_id) or [])
+        if not tls_group:
+            errors.append(f"node_to_tls_groups missing: {node_id}")
+            continue
+        if tls_group[0] != primary_tls:
+            errors.append(
+                f"primary TLS must be first in group: {node_id}={primary_tls} group={tls_group}"
+            )
+        for tls_id in tls_group:
+            if tls_to_node.get(tls_id) != node_id:
+                errors.append(
+                    f"tls_to_node mismatch: {tls_id}={tls_to_node.get(tls_id)!r} expected={node_id!r}"
+                )
+
+    for node_id, axes in catalog["grouped_tls_axes"].items():
+        group = set(node_to_tls_groups.get(node_id) or [])
+        for axis, tls_ids in axes.items():
+            unknown = set(tls_ids) - group
+            if unknown:
+                errors.append(
+                    f"grouped_tls_axes outside TLS group: {node_id}/{axis}={sorted(unknown)}"
+                )
+
+    for node_id in node_to_tls:
+        location = catalog["node_locations"].get(node_id)
+        if not location:
+            errors.append(f"node_locations missing: {node_id}")
+        elif not all(key in location for key in ("x", "y", "lat", "lng")):
+            errors.append(f"node_locations incomplete: {node_id}")
 
     edge_ids = {str(e["id"]) for e in edges}
     for tls_id, dirs in cfg.APPROACH_EDGES.items():

@@ -162,7 +162,7 @@ def run_sumo(*, run_id: str, max_sim: float, evidence_dir: Path) -> dict:
         "--no-gui",
         "--fast",
         "--nodes",
-        "A,B,C,D",
+        "A,B,C,D,M",
         "--max-sim-time",
         str(max_sim),
         "--simulation-run-id",

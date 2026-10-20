@@ -63,14 +63,14 @@ def test_checkpoint_cas_advance_and_conflict(tmp_path):
 def test_manifest_identity_set_equality():
     entry_a = ManifestEntry(
         target_table="gold_fact_traffic_window",
-        logical_identity=("live", "run", "sc", "J1", "N", "wid"),
+        logical_identity=("live", "run", "sc", "A", "N", "wid"),
         source_set_hash="a" * 64,
         revision_seq=0,
         payload_digest="d1",
     )
     entry_b = ManifestEntry(
         target_table="gold_fact_traffic_window",
-        logical_identity=("live", "run", "sc", "J1", "S", "wid"),
+        logical_identity=("live", "run", "sc", "A", "S", "wid"),
         source_set_hash="a" * 64,
         revision_seq=0,
         payload_digest="d2",

@@ -1,17 +1,17 @@
-"""Static network topology constants (no ParameterRegistry dependency)."""
+"""SUMO topology facade backed by the generated network catalog."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Dict, List, Tuple
 
+_CATALOG_PATH = Path(__file__).resolve().parents[1] / "generated" / "network_topology_catalog.json"
+with _CATALOG_PATH.open("r", encoding="utf-8") as _stream:
+    _CATALOG = json.load(_stream)
+
 OUTGOING_EDGES: Dict[str, List[str]] = {
-    "411926415": ["-35114553#3", "408246393#7", "694973742#0"],
-    "14203086108": ["-35113721#14", "1179966753#1", "654858471#9"],
-    "14203056181": ["-35113721#3", "-658328100#1", "35113721#6", "658328100#4"],
-    "411925926": ["-694973742#5", "326771005#0", "694942823"],
-    "14203056194": ["-35113721#9", "694973742#4", "35113721#12", "-694973742#1"],
-    # Retained as route-validation waypoints for the generated OSM demand.
-    "411926403": ["-658328100#5", "408246393#8", "658328100#6"],
-    "411926496": ["-1184372244#1", "1267138238#0", "658328100#0"],
+    str(tls_id): [str(edge_id) for edge_id in edges]
+    for tls_id, edges in dict(_CATALOG["outgoing_edges"]).items()
 }
 
 TURN_BY_OD: Dict[Tuple[str, str], str] = {

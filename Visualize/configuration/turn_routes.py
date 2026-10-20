@@ -5,27 +5,9 @@ from typing import Any, Dict, List, Mapping, Tuple
 
 MOVEMENTS = ("left", "straight", "right")
 
-# First-hop only destinations (pre full-O-D fix) — must not appear as flow `to=`.
-HOP_ONLY_DESTINATIONS = frozenset(
-    {
-        "J3J1",
-        "J3J4",
-        "J3W2",
-        "J1J3",
-        "J1W1",
-        "J1J2",
-        "J4J2",
-        "J4E2",
-        "J4J3",
-        "J2J4",
-        "J2J1",
-        "J2E1",
-        "J1S1",
-        "J2S2",
-        "J3N1",
-        "J4N2",
-    }
-)
+# The OSM catalog uses complete route destinations; the legacy synthetic grid's
+# first-hop deny-list is intentionally gone.
+HOP_ONLY_DESTINATIONS = frozenset()
 
 
 def route_key(source_id: str, movement: str) -> str:

@@ -60,7 +60,7 @@ def main() -> int:
     env["PATH"] = env["SUMO_HOME"] + r"\bin;" + env.get("PATH", "")
     env["AUDIT_CASE"] = args.case
     env["ARCHITECTURE_PROFILE"] = "final"
-    env["PUBLISH_NODES"] = "A,B,C,D"
+    env["PUBLISH_NODES"] = "A,B,C,D,M"
     env["KAFKA_BOOTSTRAP_SERVERS"] = env.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
     env["LOG_LEVEL"] = env.get("LOG_LEVEL", "WARNING")
     env["ORION_PERF_AUDIT"] = env.get("ORION_PERF_AUDIT", "0")
@@ -148,7 +148,7 @@ def main() -> int:
             "--no-orion",
             "--no-api",
             "--nodes",
-            "A,B,C,D",
+            "A,B,C,D,M",
             "--max-sim-time",
             str(args.max_sim_time),
         ]

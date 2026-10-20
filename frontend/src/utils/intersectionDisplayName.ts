@@ -50,7 +50,7 @@ export function getIntersectionDisplayName(
       return rawId
     }
 
-    // Short IDs like "A", "B", "C", "D", "J1", "J2"
+    // Short logical IDs like "A", "B", "C", "D", "M"
     if (rawId.length <= 3) {
       return `Intersection ${rawId}`
     }

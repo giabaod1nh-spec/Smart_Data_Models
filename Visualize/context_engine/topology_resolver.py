@@ -27,18 +27,4 @@ class TopologyResolver:
             dn = link.get("downstream") or {}
             if up.get("intersection") == upstream and dn.get("intersection") == downstream:
                 return {"id": lid, **link}
-        known = {
-            ("A", "B"): {
-                "id": "A_N_to_B_S",
-                "edge": "408246393#7",
-                "upstream_dir": "North",
-                "downstream_dir": "South",
-            },
-            ("C", "D"): {
-                "id": "C_S_to_D_N",
-                "edge": "1267138238#1",
-                "upstream_dir": "South",
-                "downstream_dir": "North",
-            },
-        }
-        return known.get((upstream, downstream))
+        return None

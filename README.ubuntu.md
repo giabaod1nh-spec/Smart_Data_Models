@@ -196,7 +196,7 @@ export KAFKA_OUTBOX_ENABLED="true"
 export KAFKA_PUBLISH_ENABLED="false"
 export KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
 export PYTHONUNBUFFERED="1"
-.venv/bin/python -m app.traci_runner --gui --no-orion --nodes A,B,C,D --realtime --log-level INFO
+.venv/bin/python -m app.traci_runner --gui --no-orion --nodes A,B,C,D,M --realtime --log-level INFO
 ~~~
 
 Các biến trên buộc đường realtime dùng durable outbox → Kafka và không bật publish trực tiếp vào Orion. Giữ Terminal A chạy trong lúc xem demo; nhấn Ctrl+C để kết thúc run. Nếu không mở GUI, dùng --no-gui thay cho --gui.
@@ -348,7 +348,7 @@ export ORION_SYNC_PUBLISH="false"
 export KAFKA_OUTBOX_ENABLED="true"
 export KAFKA_PUBLISH_ENABLED="false"
 export KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
-.venv/bin/python -m app.traci_runner --gui --no-orion --nodes A,B,C,D --realtime
+.venv/bin/python -m app.traci_runner --gui --no-orion --nodes A,B,C,D,M --realtime
 
 # Terminal 3 — Spring Server :8081
 cd server
@@ -403,7 +403,7 @@ export KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
 .venv/bin/python -m app.traci_runner \
   --gui \
   --no-orion \
-  --nodes A,B,C,D \
+  --nodes A,B,C,D,M \
   --realtime \
   --publish-interval 5 \
   --log-level INFO
