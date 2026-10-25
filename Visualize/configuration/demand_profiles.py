@@ -36,14 +36,16 @@ BASE_TRUNK_VEH_PER_HOUR = float(_comp["base_trunk_veh_per_hour"])
 DIAGONAL_VEH_PER_HOUR = float(_comp["diagonal_veh_per_hour"])
 
 
-def split_flow(total_vph: float) -> Dict[str, int]:
-    """Return integer vehsPerHour per class summing ≈ total_vph."""
-    core = {k: max(0, int(round(total_vph * w))) for k, w in VEHICLE_CLASS_WEIGHTS.items()}
-    drift = int(round(total_vph)) - sum(core.values())
-    core["motorcycle"] = max(0, core["motorcycle"] + drift)
+def split_flow(total_vph: float) -> Dict[str, float]:
+    """Return fractional vehsPerHour, preserving rare baseline classes."""
+    core = {
+        k: max(0.0, round(total_vph * w, 3))
+        for k, w in VEHICLE_CLASS_WEIGHTS.items()
+    }
     for k, w in EMERGENCY_SHARE.items():
-        # At least 1 veh/h for emergency/container so preemption paths are exerciseable
-        core[k] = max(1, int(round(total_vph * w)))
+        # Do not force rare vehicles to 1 veh/h. Emergency scenarios own
+        # ambulance insertion; fractional rates keep containers genuinely rare.
+        core[k] = max(0.0, round(total_vph * w, 3))
     return core
 
 

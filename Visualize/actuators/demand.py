@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
 import configuration.config as cfg
+from configuration.lane_policy import movement_from_route_key, preferred_depart_lane
 from configuration.model_params import get_registry
 from configuration.turn_routes import to_edge_for_route_key, turn_edge_for_route_key
 
@@ -105,10 +106,13 @@ class ScenarioDemandActuator:
         )
         best_sev = _PROFILE_SEVERITY.get(base_pid, 0)
         src_tls = str(src.get("turn_at_tls") or "")
+        src_node = cfg.TLS_TO_NODE.get(src_tls)
 
         for node_id, pid in self.node_profiles.items():
-            node_tls = cfg.NODE_TO_TLS.get(str(node_id))
-            if not node_tls or node_tls != src_tls:
+            # OSM may split one physical junction into multiple SUMO TLS IDs.
+            # Match through the topology's TLS-to-node mapping so demand on a
+            # non-primary controller still responds to the physical node.
+            if src_node != str(node_id):
                 continue
             tgt = float(profile_targets.get(pid, {}).get(source_id, src["baseline_veh_per_hour"]))
             sev = _PROFILE_SEVERITY.get(pid, 0)
@@ -140,7 +144,9 @@ class ScenarioDemandActuator:
         self._buckets.clear()
         self._last_logged_failed = 0
         winning: Dict[str, str] = {}
-        for sid, src in sources.items():
+        ordered_sources = sorted(sources.items())
+        source_count = max(1, len(ordered_sources))
+        for source_index, (sid, src) in enumerate(ordered_sources):
             base = float(src["baseline_veh_per_hour"])
             tgt_f, win_pid = self._effective_target_vph(sid, src, profile_targets)
             if tgt_f < base:
@@ -154,9 +160,18 @@ class ScenarioDemandActuator:
                 target_delta_vph=delta,
                 interval_s=interval,
             )
-            # Preserve owed inserts / accumulator across profile rebuilds.
+            # Preserve owed inserts / accumulator across profile rebuilds. On
+            # cold start, stagger source phases so all boundary sources do not
+            # insert on the same simulation step.
             bucket.pending = int(prev_pending.get(sid, 0))
-            bucket.accumulator_s = float(prev_acc.get(sid, 0.0))
+            if sid in prev_acc:
+                bucket.accumulator_s = float(prev_acc[sid])
+            elif delta > 0:
+                # Source 0 is due on the first tick; remaining sources are
+                # spaced uniformly across one insertion interval. This gives
+                # continuous traffic from startup without a synchronized burst.
+                phase_fraction = (source_count - source_index) / source_count
+                bucket.accumulator_s = interval * phase_fraction
             self._buckets[sid] = bucket
             winning[sid] = win_pid
 
@@ -275,8 +290,17 @@ class ScenarioDemandActuator:
             traci_module.route.add(rid, edges)
         except Exception:
             pass
+        try:
+            lane_count = int(traci_module.edge.getLaneNumber(fr))
+        except Exception:
+            lane_count = 1
+        preferred_lane = preferred_depart_lane(
+            vtype, movement_from_route_key(route_key), lane_count
+        )
+        departure_tries = ((preferred_lane, "base"),) + _DEPART_TRIES
+
         last_err: Exception | None = None
-        for depart_lane, depart_pos in _DEPART_TRIES:
+        for depart_lane, depart_pos in departure_tries:
             try:
                 traci_module.vehicle.add(
                     vid,

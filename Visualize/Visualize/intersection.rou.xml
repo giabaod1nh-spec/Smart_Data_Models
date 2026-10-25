@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Weighted demand (ADR-007) + full O-D turn split + GUI imgFile -->
+<!-- Weighted demand + O-D turn split + soft VN mixed-traffic lane preference -->
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
 
     <!-- Loại xe + sprite PNG (đường dẫn tương đối so với sumocfg) -->
@@ -17,108 +17,157 @@
     <vType id="police" vClass="authority" guiShape="police" length="5.0" width="2.2" maxSpeed="19.0" accel="3.5" decel="5.5" sigma="0.3" minGap="2.0" imgFile="images/police_bg.png"/>
     <vType id="firetruck" vClass="emergency" guiShape="firebrigade" length="8.0" width="2.5" maxSpeed="16.0" accel="2.5" decel="4.0" sigma="0.4" minGap="3.0" imgFile="images/firetruck_bg.png"/>
 
-    <!-- corridor a_main: 408246393#2 @ 411926415 (120 veh/h baseline) -->
-    <flow id="a_main_straight_motorcycle" type="motorcycle" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="43.26"/>
-    <flow id="a_main_straight_car" type="car" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="5.88"/>
-    <flow id="a_main_straight_bus" type="bus" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="0.84"/>
-    <flow id="a_main_straight_truck" type="truck" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="a_main_straight_ambulance" type="ambulance" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="a_main_straight_police" type="police" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="a_main_straight_firetruck" type="firetruck" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="a_main_straight_container" type="container" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="a_main_left_motorcycle" type="motorcycle" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="28.84"/>
-    <flow id="a_main_left_car" type="car" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="3.92"/>
-    <flow id="a_main_left_bus" type="bus" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="0.56"/>
-    <flow id="a_main_left_truck" type="truck" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="a_main_left_ambulance" type="ambulance" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="a_main_left_police" type="police" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="a_main_left_firetruck" type="firetruck" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="a_main_left_container" type="container" from="408246393#2" to="-35114553#0" via="-35114553#3" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="a_main_right_motorcycle" type="motorcycle" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="30.9"/>
-    <flow id="a_main_right_car" type="car" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="4.2"/>
-    <flow id="a_main_right_bus" type="bus" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="0.6"/>
-    <flow id="a_main_right_truck" type="truck" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="a_main_right_ambulance" type="ambulance" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="a_main_right_police" type="police" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="a_main_right_firetruck" type="firetruck" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="a_main_right_container" type="container" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" vehsPerHour="0.3"/>
+    <!-- corridor a_main: 408246393#2 @ 411926415 (90 veh/h baseline) -->
+    <flow id="a_main_straight_motorcycle" type="motorcycle" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="0.00924" departLane="0"/>
+    <flow id="a_main_straight_car" type="car" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="0.00105" departLane="1"/>
+    <flow id="a_main_straight_bus" type="bus" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="0.000105" departLane="1"/>
+    <flow id="a_main_straight_truck" type="truck" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="0.000105" departLane="1"/>
+    <flow id="a_main_straight_container" type="container" from="408246393#2" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="1.05555556e-05" departLane="1"/>
+    <flow id="a_main_left_motorcycle" type="motorcycle" from="408246393#2" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="0.00616" departLane="2"/>
+    <flow id="a_main_left_car" type="car" from="408246393#2" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="0.0007" departLane="2"/>
+    <flow id="a_main_left_bus" type="bus" from="408246393#2" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="7e-05" departLane="2"/>
+    <flow id="a_main_left_truck" type="truck" from="408246393#2" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="7e-05" departLane="2"/>
+    <flow id="a_main_left_container" type="container" from="408246393#2" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="6.94444444e-06" departLane="2"/>
+    <flow id="a_main_right_motorcycle" type="motorcycle" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="0.0066" departLane="0"/>
+    <flow id="a_main_right_car" type="car" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="0.00075" departLane="0"/>
+    <flow id="a_main_right_bus" type="bus" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
+    <flow id="a_main_right_truck" type="truck" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
+    <flow id="a_main_right_container" type="container" from="408246393#2" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="7.5e-06" departLane="0"/>
 
-    <!-- corridor b_main: 654858471#4 @ 14203086108 (120 veh/h baseline) -->
-    <flow id="b_main_straight_motorcycle" type="motorcycle" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="43.26"/>
-    <flow id="b_main_straight_car" type="car" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="5.88"/>
-    <flow id="b_main_straight_bus" type="bus" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="0.84"/>
-    <flow id="b_main_straight_truck" type="truck" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="b_main_straight_ambulance" type="ambulance" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="b_main_straight_police" type="police" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="b_main_straight_firetruck" type="firetruck" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="b_main_straight_container" type="container" from="654858471#4" to="1222962347#0" via="654858471#9" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="b_main_left_motorcycle" type="motorcycle" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="28.84"/>
-    <flow id="b_main_left_car" type="car" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="3.92"/>
-    <flow id="b_main_left_bus" type="bus" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="0.56"/>
-    <flow id="b_main_left_truck" type="truck" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="b_main_left_ambulance" type="ambulance" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="b_main_left_police" type="police" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="b_main_left_firetruck" type="firetruck" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="b_main_left_container" type="container" from="654858471#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="b_main_right_motorcycle" type="motorcycle" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="30.9"/>
-    <flow id="b_main_right_car" type="car" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="4.2"/>
-    <flow id="b_main_right_bus" type="bus" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="0.6"/>
-    <flow id="b_main_right_truck" type="truck" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="b_main_right_ambulance" type="ambulance" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="b_main_right_police" type="police" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="b_main_right_firetruck" type="firetruck" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="b_main_right_container" type="container" from="654858471#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" vehsPerHour="0.3"/>
+    <!-- corridor a_west_local: -654861070#0 @ 411926415 (30 veh/h baseline) -->
+    <flow id="a_west_local_straight_motorcycle" type="motorcycle" from="-654861070#0" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="0.00308" departLane="0"/>
+    <flow id="a_west_local_straight_car" type="car" from="-654861070#0" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="0.00035" departLane="0"/>
+    <flow id="a_west_local_straight_bus" type="bus" from="-654861070#0" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="a_west_local_straight_truck" type="truck" from="-654861070#0" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="a_west_local_straight_container" type="container" from="-654861070#0" to="408246393#8" via="408246393#7" begin="0" end="3600" probability="3.61111111e-06" departLane="0"/>
+    <flow id="a_west_local_left_motorcycle" type="motorcycle" from="-654861070#0" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="0.00205333333" departLane="0"/>
+    <flow id="a_west_local_left_car" type="car" from="-654861070#0" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="0.000233333333" departLane="0"/>
+    <flow id="a_west_local_left_bus" type="bus" from="-654861070#0" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="a_west_local_left_truck" type="truck" from="-654861070#0" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="a_west_local_left_container" type="container" from="-654861070#0" to="193616433#1" via="-35114553#3" begin="0" end="3600" probability="2.22222222e-06" departLane="0"/>
+    <flow id="a_west_local_right_motorcycle" type="motorcycle" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="0.0022" departLane="0"/>
+    <flow id="a_west_local_right_car" type="car" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="0.00025" departLane="0"/>
+    <flow id="a_west_local_right_bus" type="bus" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="a_west_local_right_truck" type="truck" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="a_west_local_right_container" type="container" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
 
-    <!-- corridor c_main: 1184372243 @ 411926496 (120 veh/h baseline) -->
-    <flow id="c_main_straight_motorcycle" type="motorcycle" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="43.26"/>
-    <flow id="c_main_straight_car" type="car" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="5.88"/>
-    <flow id="c_main_straight_bus" type="bus" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="0.84"/>
-    <flow id="c_main_straight_truck" type="truck" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="c_main_straight_ambulance" type="ambulance" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="c_main_straight_police" type="police" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="c_main_straight_firetruck" type="firetruck" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="c_main_straight_container" type="container" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="c_main_left_motorcycle" type="motorcycle" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="28.84"/>
-    <flow id="c_main_left_car" type="car" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="3.92"/>
-    <flow id="c_main_left_bus" type="bus" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="0.56"/>
-    <flow id="c_main_left_truck" type="truck" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="c_main_left_ambulance" type="ambulance" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="c_main_left_police" type="police" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="c_main_left_firetruck" type="firetruck" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="c_main_left_container" type="container" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="c_main_right_motorcycle" type="motorcycle" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="30.9"/>
-    <flow id="c_main_right_car" type="car" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="4.2"/>
-    <flow id="c_main_right_bus" type="bus" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="0.6"/>
-    <flow id="c_main_right_truck" type="truck" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="c_main_right_ambulance" type="ambulance" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="c_main_right_police" type="police" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="c_main_right_firetruck" type="firetruck" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="c_main_right_container" type="container" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" vehsPerHour="0.3"/>
+    <!-- corridor b_east_main: 35114207#4 @ 14203086112 (90 veh/h baseline) -->
+    <flow id="b_east_main_straight_motorcycle" type="motorcycle" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00924" departLane="0"/>
+    <flow id="b_east_main_straight_car" type="car" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00105" departLane="1"/>
+    <flow id="b_east_main_straight_bus" type="bus" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.000105" departLane="1"/>
+    <flow id="b_east_main_straight_truck" type="truck" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.000105" departLane="1"/>
+    <flow id="b_east_main_straight_container" type="container" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="1.05555556e-05" departLane="1"/>
+    <flow id="b_east_main_left_motorcycle" type="motorcycle" from="35114207#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.00616" departLane="2"/>
+    <flow id="b_east_main_left_car" type="car" from="35114207#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.0007" departLane="2"/>
+    <flow id="b_east_main_left_bus" type="bus" from="35114207#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="7e-05" departLane="2"/>
+    <flow id="b_east_main_left_truck" type="truck" from="35114207#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="7e-05" departLane="2"/>
+    <flow id="b_east_main_left_container" type="container" from="35114207#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="6.94444444e-06" departLane="2"/>
+    <flow id="b_east_main_right_motorcycle" type="motorcycle" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.0066" departLane="0"/>
+    <flow id="b_east_main_right_car" type="car" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.00075" departLane="0"/>
+    <flow id="b_east_main_right_bus" type="bus" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
+    <flow id="b_east_main_right_truck" type="truck" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
+    <flow id="b_east_main_right_container" type="container" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="7.5e-06" departLane="0"/>
 
-    <!-- corridor d_main: 1184372243 @ 411925926 (120 veh/h baseline) -->
-    <flow id="d_main_straight_motorcycle" type="motorcycle" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="43.26"/>
-    <flow id="d_main_straight_car" type="car" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="5.88"/>
-    <flow id="d_main_straight_bus" type="bus" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="0.84"/>
-    <flow id="d_main_straight_truck" type="truck" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="d_main_straight_ambulance" type="ambulance" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="d_main_straight_police" type="police" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="d_main_straight_firetruck" type="firetruck" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="d_main_straight_container" type="container" from="1184372243" to="326771005#3" via="326771005#0" begin="0" end="3600" vehsPerHour="0.42"/>
-    <flow id="d_main_left_motorcycle" type="motorcycle" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="28.84"/>
-    <flow id="d_main_left_car" type="car" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="3.92"/>
-    <flow id="d_main_left_bus" type="bus" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="0.56"/>
-    <flow id="d_main_left_truck" type="truck" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="d_main_left_ambulance" type="ambulance" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="d_main_left_police" type="police" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="d_main_left_firetruck" type="firetruck" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="d_main_left_container" type="container" from="1184372243" to="-35113201" via="694942823" begin="0" end="3600" vehsPerHour="0.28"/>
-    <flow id="d_main_right_motorcycle" type="motorcycle" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="30.9"/>
-    <flow id="d_main_right_car" type="car" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="4.2"/>
-    <flow id="d_main_right_bus" type="bus" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="0.6"/>
-    <flow id="d_main_right_truck" type="truck" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="d_main_right_ambulance" type="ambulance" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="d_main_right_police" type="police" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="d_main_right_firetruck" type="firetruck" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="0.3"/>
-    <flow id="d_main_right_container" type="container" from="1184372243" to="408246393#8" via="-694973742#5" begin="0" end="3600" vehsPerHour="0.3"/>
+    <!-- corridor b_main: 327048054#6 @ 14203086112 (60 veh/h baseline) -->
+    <flow id="b_main_straight_motorcycle" type="motorcycle" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00616" departLane="0"/>
+    <flow id="b_main_straight_car" type="car" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.0007" departLane="1"/>
+    <flow id="b_main_straight_bus" type="bus" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="7e-05" departLane="1"/>
+    <flow id="b_main_straight_truck" type="truck" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="7e-05" departLane="1"/>
+    <flow id="b_main_straight_container" type="container" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="6.94444444e-06" departLane="1"/>
+    <flow id="b_main_left_motorcycle" type="motorcycle" from="327048054#6" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.00410666667" departLane="1"/>
+    <flow id="b_main_left_car" type="car" from="327048054#6" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.000466666667" departLane="1"/>
+    <flow id="b_main_left_bus" type="bus" from="327048054#6" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="4.66666667e-05" departLane="1"/>
+    <flow id="b_main_left_truck" type="truck" from="327048054#6" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="4.66666667e-05" departLane="1"/>
+    <flow id="b_main_left_container" type="container" from="327048054#6" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="4.72222222e-06" departLane="1"/>
+    <flow id="b_main_right_motorcycle" type="motorcycle" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.0044" departLane="0"/>
+    <flow id="b_main_right_car" type="car" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.0005" departLane="0"/>
+    <flow id="b_main_right_bus" type="bus" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="5e-05" departLane="0"/>
+    <flow id="b_main_right_truck" type="truck" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="5e-05" departLane="0"/>
+    <flow id="b_main_right_container" type="container" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="5e-06" departLane="0"/>
+
+    <!-- corridor b_south_mid: -725104583 @ 14203086112 (30 veh/h baseline) -->
+    <flow id="b_south_mid_straight_motorcycle" type="motorcycle" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00308" departLane="0"/>
+    <flow id="b_south_mid_straight_car" type="car" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00035" departLane="0"/>
+    <flow id="b_south_mid_straight_bus" type="bus" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="b_south_mid_straight_truck" type="truck" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="b_south_mid_straight_container" type="container" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.61111111e-06" departLane="0"/>
+    <flow id="b_south_mid_left_motorcycle" type="motorcycle" from="-725104583" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.00205333333" departLane="0"/>
+    <flow id="b_south_mid_left_car" type="car" from="-725104583" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.000233333333" departLane="0"/>
+    <flow id="b_south_mid_left_bus" type="bus" from="-725104583" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="b_south_mid_left_truck" type="truck" from="-725104583" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="b_south_mid_left_container" type="container" from="-725104583" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="2.22222222e-06" departLane="0"/>
+    <flow id="b_south_mid_right_motorcycle" type="motorcycle" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.0022" departLane="0"/>
+    <flow id="b_south_mid_right_car" type="car" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.00025" departLane="0"/>
+    <flow id="b_south_mid_right_bus" type="bus" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="b_south_mid_right_truck" type="truck" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="b_south_mid_right_container" type="container" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
+
+    <!-- corridor b_south_west: -1179966753#4 @ 14203086112 (30 veh/h baseline) -->
+    <flow id="b_south_west_straight_motorcycle" type="motorcycle" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00308" departLane="0"/>
+    <flow id="b_south_west_straight_car" type="car" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00035" departLane="0"/>
+    <flow id="b_south_west_straight_bus" type="bus" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="b_south_west_straight_truck" type="truck" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="b_south_west_straight_container" type="container" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.61111111e-06" departLane="0"/>
+    <flow id="b_south_west_left_motorcycle" type="motorcycle" from="-1179966753#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.00205333333" departLane="0"/>
+    <flow id="b_south_west_left_car" type="car" from="-1179966753#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="0.000233333333" departLane="0"/>
+    <flow id="b_south_west_left_bus" type="bus" from="-1179966753#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="b_south_west_left_truck" type="truck" from="-1179966753#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="b_south_west_left_container" type="container" from="-1179966753#4" to="1179966753#4" via="1179966753#1" begin="0" end="3600" probability="2.22222222e-06" departLane="0"/>
+    <flow id="b_south_west_right_motorcycle" type="motorcycle" from="-1179966753#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.0022" departLane="0"/>
+    <flow id="b_south_west_right_car" type="car" from="-1179966753#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="0.00025" departLane="0"/>
+    <flow id="b_south_west_right_bus" type="bus" from="-1179966753#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="b_south_west_right_truck" type="truck" from="-1179966753#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="b_south_west_right_container" type="container" from="-1179966753#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
+
+    <!-- corridor c_main: 1184372243 @ 411926496 (90 veh/h baseline) -->
+    <flow id="c_main_straight_motorcycle" type="motorcycle" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" probability="0.00924" departLane="0"/>
+    <flow id="c_main_straight_car" type="car" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" probability="0.00105" departLane="1"/>
+    <flow id="c_main_straight_bus" type="bus" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" probability="0.000105" departLane="1"/>
+    <flow id="c_main_straight_truck" type="truck" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" probability="0.000105" departLane="1"/>
+    <flow id="c_main_straight_container" type="container" from="1184372243" to="326771005#3" via="1267138238#0" begin="0" end="3600" probability="1.05555556e-05" departLane="1"/>
+    <flow id="c_main_left_motorcycle" type="motorcycle" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" probability="0.00616" departLane="2"/>
+    <flow id="c_main_left_car" type="car" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" probability="0.0007" departLane="2"/>
+    <flow id="c_main_left_bus" type="bus" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" probability="7e-05" departLane="2"/>
+    <flow id="c_main_left_truck" type="truck" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" probability="7e-05" departLane="2"/>
+    <flow id="c_main_left_container" type="container" from="1184372243" to="-1184372244#1" via="-1184372244#1" begin="0" end="3600" probability="6.94444444e-06" departLane="2"/>
+    <flow id="c_main_right_motorcycle" type="motorcycle" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" probability="0.0066" departLane="0"/>
+    <flow id="c_main_right_car" type="car" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" probability="0.00075" departLane="0"/>
+    <flow id="c_main_right_bus" type="bus" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
+    <flow id="c_main_right_truck" type="truck" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
+    <flow id="c_main_right_container" type="container" from="1184372243" to="193616433#1" via="658328100#0" begin="0" end="3600" probability="7.5e-06" departLane="0"/>
+
+    <!-- corridor d_main: 1184372244#1 @ 411925926 (30 veh/h baseline) -->
+    <flow id="d_main_straight_motorcycle" type="motorcycle" from="1184372244#1" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="0.00308" departLane="0"/>
+    <flow id="d_main_straight_car" type="car" from="1184372244#1" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="0.00035" departLane="0"/>
+    <flow id="d_main_straight_bus" type="bus" from="1184372244#1" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="d_main_straight_truck" type="truck" from="1184372244#1" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="d_main_straight_container" type="container" from="1184372244#1" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="3.61111111e-06" departLane="0"/>
+    <flow id="d_main_left_motorcycle" type="motorcycle" from="1184372244#1" to="1222962347#0" via="694942823" begin="0" end="3600" probability="0.00205333333" departLane="0"/>
+    <flow id="d_main_left_car" type="car" from="1184372244#1" to="1222962347#0" via="694942823" begin="0" end="3600" probability="0.000233333333" departLane="0"/>
+    <flow id="d_main_left_bus" type="bus" from="1184372244#1" to="1222962347#0" via="694942823" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="d_main_left_truck" type="truck" from="1184372244#1" to="1222962347#0" via="694942823" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="d_main_left_container" type="container" from="1184372244#1" to="1222962347#0" via="694942823" begin="0" end="3600" probability="2.22222222e-06" departLane="0"/>
+    <flow id="d_main_right_motorcycle" type="motorcycle" from="1184372244#1" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="0.0022" departLane="0"/>
+    <flow id="d_main_right_car" type="car" from="1184372244#1" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="0.00025" departLane="0"/>
+    <flow id="d_main_right_bus" type="bus" from="1184372244#1" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="d_main_right_truck" type="truck" from="1184372244#1" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="d_main_right_container" type="container" from="1184372244#1" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
+
+    <!-- corridor d_north_local: -658328100#6 @ 411925926 (30 veh/h baseline) -->
+    <flow id="d_north_local_straight_motorcycle" type="motorcycle" from="-658328100#6" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="0.00308" departLane="0"/>
+    <flow id="d_north_local_straight_car" type="car" from="-658328100#6" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="0.00035" departLane="0"/>
+    <flow id="d_north_local_straight_bus" type="bus" from="-658328100#6" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="d_north_local_straight_truck" type="truck" from="-658328100#6" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
+    <flow id="d_north_local_straight_container" type="container" from="-658328100#6" to="326771005#3" via="326771005#0" begin="0" end="3600" probability="3.61111111e-06" departLane="0"/>
+    <flow id="d_north_local_left_motorcycle" type="motorcycle" from="-658328100#6" to="1222962347#0" via="694942823" begin="0" end="3600" probability="0.00205333333" departLane="0"/>
+    <flow id="d_north_local_left_car" type="car" from="-658328100#6" to="1222962347#0" via="694942823" begin="0" end="3600" probability="0.000233333333" departLane="0"/>
+    <flow id="d_north_local_left_bus" type="bus" from="-658328100#6" to="1222962347#0" via="694942823" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="d_north_local_left_truck" type="truck" from="-658328100#6" to="1222962347#0" via="694942823" begin="0" end="3600" probability="2.33333333e-05" departLane="0"/>
+    <flow id="d_north_local_left_container" type="container" from="-658328100#6" to="1222962347#0" via="694942823" begin="0" end="3600" probability="2.22222222e-06" departLane="0"/>
+    <flow id="d_north_local_right_motorcycle" type="motorcycle" from="-658328100#6" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="0.0022" departLane="0"/>
+    <flow id="d_north_local_right_car" type="car" from="-658328100#6" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="0.00025" departLane="0"/>
+    <flow id="d_north_local_right_bus" type="bus" from="-658328100#6" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="d_north_local_right_truck" type="truck" from="-658328100#6" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
+    <flow id="d_north_local_right_container" type="container" from="-658328100#6" to="408246393#8" via="-694973742#5" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
 
 </routes>

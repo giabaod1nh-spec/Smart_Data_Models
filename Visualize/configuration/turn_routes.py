@@ -47,14 +47,14 @@ def weighted_pick(items: List[Tuple[str, float]], r: float) -> str:
 
 
 def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
-    from configuration.network_topology import OUTGOING_EDGES, TURN_BY_OD
+    from configuration.network_topology import KNOWN_TLS, OUTGOING_EDGES, TURN_BY_OD
 
     if "source_edge" not in src:
         raise ValueError(f"boundary_sources.{source_id}: missing source_edge")
     if "turn_at_tls" not in src:
         raise ValueError(f"boundary_sources.{source_id}: missing turn_at_tls")
     tls = str(src["turn_at_tls"])
-    if tls not in OUTGOING_EDGES:
+    if tls not in KNOWN_TLS:
         raise ValueError(f"boundary_sources.{source_id}: unknown turn_at_tls {tls!r}")
 
     destinations = src.get("destinations") or []
@@ -67,7 +67,7 @@ def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
     # Keep the spawn edge at the network fringe and validate movement semantics
     # against the actual approach edge at the TLS.
     from_edge = str(src.get("turn_from_edge") or src["source_edge"])
-    allowed = set(OUTGOING_EDGES[tls])
+    allowed = set(OUTGOING_EDGES.get(tls, ()))
 
     for d in destinations:
         mov = str(d.get("movement", ""))
@@ -85,11 +85,15 @@ def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
         turn_edge = str(d["turn_edge"])
         to_edge = str(d["to_edge"])
 
-        if turn_edge not in allowed:
+        expected = TURN_BY_OD.get((from_edge, turn_edge))
+        # Some OSM intersections are split into a signalized connector and an
+        # immediately-following priority junction (notably node B).  In that
+        # case the movement edge is not directly outgoing from the TLS, but it
+        # is still a catalogued movement from the configured approach.
+        if turn_edge not in allowed and expected is None:
             raise ValueError(
                 f"boundary_sources.{source_id}: turn_edge {turn_edge!r} not in OUTGOING_EDGES[{tls}]"
             )
-        expected = TURN_BY_OD.get((from_edge, turn_edge))
         if expected != mov:
             raise ValueError(
                 f"boundary_sources.{source_id}: {from_edge}->{turn_edge} is {expected!r} in TURN_BY_OD, "

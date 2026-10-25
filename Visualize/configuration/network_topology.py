@@ -14,6 +14,11 @@ OUTGOING_EDGES: Dict[str, List[str]] = {
     for tls_id, edges in dict(_CATALOG["outgoing_edges"]).items()
 }
 
+KNOWN_TLS = frozenset(
+    {str(tls_id) for tls_id in dict(_CATALOG["tls_to_node"])}
+    | set(OUTGOING_EDGES)
+)
+
 TURN_BY_OD: Dict[Tuple[str, str], str] = {
     ("408246393#6", "694973742#0"): "right", ("408246393#6", "408246393#7"): "straight", ("408246393#6", "-35114553#3"): "left",
     ("654858471#7", "654858471#9"): "straight", ("654858471#7", "1179966753#1"): "left", ("654858471#7", "-35113721#14"): "right",

@@ -355,24 +355,28 @@ driver_behavior:
       jmExtraGap: 0.35
 
 composition:
-  profile_id: synthetic_moto_dominant_profile
+  profile_id: vn_urban_moto_dominant_v2
   source_type: EXPERIMENTAL
   calibrated: false
-  qualitative_basis: motorcycle-dominant mixed traffic
+  qualitative_basis: >
+    Vietnam-style motorcycle-dominant urban traffic. Emergency vehicles are
+    scenario-driven instead of being forced into the normal baseline.
   weights:
-    motorcycle: 0.85
-    car: 0.12
-    bus: 0.02
+    motorcycle: 0.88
+    car: 0.10
+    bus: 0.01
     truck: 0.01
   emergency_share:
-    ambulance: 0.002
-    police: 0.002
-    firetruck: 0.001
-    container: 0.005
+    ambulance: 0.0
+    police: 0.0
+    firetruck: 0.0
+    container: 0.001
   # Legacy key kept for older tools; hybrid baseline uses demand_baselines below.
   base_trunk_veh_per_hour: 120.0
   diagonal_veh_per_hour: 40.0
-  description: "Synthetic demand composition; not a Vietnam standard vehicle mix."
+  description: >
+    Experimental VN urban flow mix (not a national standard or calibrated
+    count). Ambulance/police/firetruck are inserted by emergency scenarios.
 
 # Hybrid demand: static rou owns baseline; actuator owns profile_target - baseline.
 demand_baselines:
@@ -406,31 +410,79 @@ boundary_sources:
     turn_from_edge: 408246393#6
     turn_at_tls: "411926415"
     to_edge: 408246393#8
-    baseline_veh_per_hour: 120
+    baseline_veh_per_hour: 90
     nodes_on_path: [A, B]
     destinations:
       - { movement: straight, turn_edge: 408246393#7, to_edge: 408246393#8, weight: 0.42 }
-      - { movement: left,     turn_edge: -35114553#3, to_edge: -35114553#0, weight: 0.28 }
+      - { movement: left,     turn_edge: -35114553#3, to_edge: 193616433#1, weight: 0.28 }
       - { movement: right,    turn_edge: 694973742#0, to_edge: 1222962347#0, weight: 0.30 }
     route_distribution: { a_main_straight: 0.42, a_main_left: 0.28, a_main_right: 0.30 }
+  a_west_local:
+    source_edge: -654861070#0
+    turn_from_edge: 408246393#6
+    turn_at_tls: "411926415"
+    to_edge: 408246393#8
+    baseline_veh_per_hour: 30
+    nodes_on_path: [A, B]
+    destinations:
+      - { movement: straight, turn_edge: 408246393#7, to_edge: 408246393#8, weight: 0.42 }
+      - { movement: left,     turn_edge: -35114553#3, to_edge: 193616433#1, weight: 0.28 }
+      - { movement: right,    turn_edge: 694973742#0, to_edge: 1222962347#0, weight: 0.30 }
+    route_distribution: { a_west_local_straight: 0.42, a_west_local_left: 0.28, a_west_local_right: 0.30 }
   b_main:
-    source_edge: 654858471#4
+    source_edge: 327048054#6
     turn_from_edge: 654858471#7
-    turn_at_tls: "14203086108"
+    turn_at_tls: "14203086112"
     to_edge: 1222962347#0
-    baseline_veh_per_hour: 120
+    baseline_veh_per_hour: 60
     nodes_on_path: [B]
     destinations:
-      - { movement: straight, turn_edge: 654858471#9, to_edge: 1222962347#0, weight: 0.42 }
+      - { movement: straight, turn_edge: 654858471#8, to_edge: 1222962347#0, weight: 0.42 }
       - { movement: left,     turn_edge: 1179966753#1, to_edge: 1179966753#4, weight: 0.28 }
       - { movement: right,    turn_edge: -35113721#14, to_edge: 193616433#1, weight: 0.30 }
     route_distribution: { b_main_straight: 0.42, b_main_left: 0.28, b_main_right: 0.30 }
+  b_east_main:
+    source_edge: 35114207#4
+    turn_from_edge: 654858471#7
+    turn_at_tls: "14203086112"
+    to_edge: 1222962347#0
+    baseline_veh_per_hour: 90
+    nodes_on_path: [B]
+    destinations:
+      - { movement: straight, turn_edge: 654858471#8, to_edge: 1222962347#0, weight: 0.42 }
+      - { movement: left,     turn_edge: 1179966753#1, to_edge: 1179966753#4, weight: 0.28 }
+      - { movement: right,    turn_edge: -35113721#14, to_edge: 193616433#1, weight: 0.30 }
+    route_distribution: { b_east_main_straight: 0.42, b_east_main_left: 0.28, b_east_main_right: 0.30 }
+  b_south_west:
+    source_edge: -1179966753#4
+    turn_from_edge: 654858471#7
+    turn_at_tls: "14203086112"
+    to_edge: 1222962347#0
+    baseline_veh_per_hour: 30
+    nodes_on_path: [B]
+    destinations:
+      - { movement: straight, turn_edge: 654858471#8, to_edge: 1222962347#0, weight: 0.42 }
+      - { movement: left,     turn_edge: 1179966753#1, to_edge: 1179966753#4, weight: 0.28 }
+      - { movement: right,    turn_edge: -35113721#14, to_edge: 193616433#1, weight: 0.30 }
+    route_distribution: { b_south_west_straight: 0.42, b_south_west_left: 0.28, b_south_west_right: 0.30 }
+  b_south_mid:
+    source_edge: -725104583
+    turn_from_edge: 654858471#7
+    turn_at_tls: "14203086112"
+    to_edge: 1222962347#0
+    baseline_veh_per_hour: 30
+    nodes_on_path: [B]
+    destinations:
+      - { movement: straight, turn_edge: 654858471#8, to_edge: 1222962347#0, weight: 0.42 }
+      - { movement: left,     turn_edge: 1179966753#1, to_edge: 1179966753#4, weight: 0.28 }
+      - { movement: right,    turn_edge: -35113721#14, to_edge: 193616433#1, weight: 0.30 }
+    route_distribution: { b_south_mid_straight: 0.42, b_south_mid_left: 0.28, b_south_mid_right: 0.30 }
   c_main:
     source_edge: "1184372243"
     turn_from_edge: "1184372243"
     turn_at_tls: "411926496"
     to_edge: 326771005#3
-    baseline_veh_per_hour: 120
+    baseline_veh_per_hour: 90
     nodes_on_path: [C, D]
     destinations:
       - { movement: straight, turn_edge: 1267138238#0, to_edge: 326771005#3, weight: 0.42 }
@@ -438,32 +490,51 @@ boundary_sources:
       - { movement: right,    turn_edge: 658328100#0, to_edge: 193616433#1, weight: 0.30 }
     route_distribution: { c_main_straight: 0.42, c_main_left: 0.28, c_main_right: 0.30 }
   d_main:
-    source_edge: "1184372243"
+    source_edge: 1184372244#1
     turn_from_edge: 1267138238#1
     turn_at_tls: "411925926"
     to_edge: 326771005#3
-    baseline_veh_per_hour: 120
+    baseline_veh_per_hour: 30
     nodes_on_path: [D]
     destinations:
       - { movement: straight, turn_edge: 326771005#0, to_edge: 326771005#3, weight: 0.42 }
-      - { movement: left,     turn_edge: 694942823, to_edge: -35113201, weight: 0.28 }
+      - { movement: left,     turn_edge: 694942823, to_edge: 1222962347#0, weight: 0.28 }
       - { movement: right,    turn_edge: -694973742#5, to_edge: 408246393#8, weight: 0.30 }
     route_distribution: { d_main_straight: 0.42, d_main_left: 0.28, d_main_right: 0.30 }
+  d_north_local:
+    source_edge: -658328100#6
+    turn_from_edge: 1267138238#1
+    turn_at_tls: "411925926"
+    to_edge: 326771005#3
+    baseline_veh_per_hour: 30
+    nodes_on_path: [D]
+    destinations:
+      - { movement: straight, turn_edge: 326771005#0, to_edge: 326771005#3, weight: 0.42 }
+      - { movement: left,     turn_edge: 694942823, to_edge: 1222962347#0, weight: 0.28 }
+      - { movement: right,    turn_edge: -694973742#5, to_edge: 408246393#8, weight: 0.30 }
+    route_distribution: { d_north_local_straight: 0.42, d_north_local_left: 0.28, d_north_local_right: 0.30 }
 
 network_demand_profiles:
   active_default: normal
   normal:
     id: normal
     version: "1.0.0"
-    description: "Continuous free-flow baseline target (EXPERIMENTAL)."
+    description: >
+      Continuous observable urban flow. Dynamic source phases are staggered so
+      demand starts immediately and remains even without a t=0 burst.
     source_type: EXPERIMENTAL
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      a_main: 700
-      b_main: 700
-      c_main: 700
-      d_main: 700
+      a_main: 900
+      a_west_local: 300
+      b_main: 600
+      b_east_main: 900
+      b_south_west: 300
+      b_south_mid: 300
+      c_main: 900
+      d_main: 300
+      d_north_local: 300
   peak:
     id: peak
     version: "1.0.0"
@@ -472,10 +543,15 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      a_main: 4000
-      b_main: 4000
-      c_main: 4000
-      d_main: 4000
+      a_main: 3000
+      a_west_local: 1000
+      b_main: 2000
+      b_east_main: 3000
+      b_south_west: 1000
+      b_south_mid: 1000
+      c_main: 3000
+      d_main: 1000
+      d_north_local: 1000
   morning_peak:
     id: morning_peak
     version: "1.0.0"
@@ -484,10 +560,15 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      a_main: 2800
-      b_main: 2400
+      a_main: 2100
+      a_west_local: 700
+      b_main: 685.714
+      b_east_main: 1028.572
+      b_south_west: 342.857
+      b_south_mid: 342.857
       c_main: 2200
-      d_main: 900
+      d_main: 450
+      d_north_local: 450
   evening_peak:
     id: evening_peak
     version: "1.0.0"
@@ -496,10 +577,15 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      a_main: 900
-      b_main: 2400
+      a_main: 675
+      a_west_local: 225
+      b_main: 685.714
+      b_east_main: 1028.572
+      b_south_west: 342.857
+      b_south_mid: 342.857
       c_main: 2800
-      d_main: 2400
+      d_main: 1200
+      d_north_local: 1200
   heavy_traffic:
     id: heavy_traffic
     version: "1.0.0"
@@ -508,22 +594,32 @@ network_demand_profiles:
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      a_main: 2200
-      b_main: 2200
-      c_main: 2200
-      d_main: 2200
+      a_main: 1650
+      a_west_local: 550
+      b_main: 1100
+      b_east_main: 1650
+      b_south_west: 550
+      b_south_mid: 550
+      c_main: 1650
+      d_main: 550
+      d_north_local: 550
   oversaturated:
     id: oversaturated
     version: "1.0.0"
-    description: "100× normal inflow (700→70000 veh/h/source) for extreme jam demos."
+    description: "Extreme 70000 veh/h/source stress profile for gridlock demos."
     source_type: EXPERIMENTAL
     calibrated: false
     created_by: Smart Traffic Team
     source_targets:
-      a_main: 70000
-      b_main: 70000
-      c_main: 70000
-      d_main: 70000
+      a_main: 52500
+      a_west_local: 17500
+      b_main: 35000
+      b_east_main: 52500
+      b_south_west: 17500
+      b_south_mid: 17500
+      c_main: 52500
+      d_main: 17500
+      d_north_local: 17500
 
 insertion_policy:
   source_type: DESIGN_DECISION
