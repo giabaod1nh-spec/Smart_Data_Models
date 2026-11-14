@@ -24,6 +24,11 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _observed_at(snapshot: dict) -> str:
+    """Use the captured event time when projecting a replayed observation."""
+    return str(snapshot.get("captured_at") or _now_iso())
+
+
 def _prop(value: Any) -> dict:
     return {"type": "Property", "value": value}
 
@@ -114,7 +119,7 @@ def build_intersection(node_id: str, snapshot: dict) -> dict:
     density = cfg.density_label_intersection(total_pcu)
     overall = cfg.traffic_status_from_density(density)
     incidents = snapshot.get("incidents") or []
-    now = _now_iso()
+    now = _observed_at(snapshot)
 
     tl_ids = [_traffic_light_id(node_id, d) for d in active_directions]
     vs_ids = [
@@ -224,7 +229,7 @@ def build_camera(node_id: str, snapshot: dict) -> dict:
     traffic_status = cfg.traffic_status_from_density(density)
     incidents = snapshot.get("incidents") or []
     has_incident = len(incidents) > 0
-    now = _now_iso()
+    now = _observed_at(snapshot)
 
     entity: Dict[str, Any] = {
         "id": _camera_id(node_id),
@@ -264,7 +269,7 @@ def build_vehicle_sensor(node_id: str, direction: str, snapshot: dict) -> dict:
     traffic_dir = cfg.DIRECTION_TO_TRAFFIC[direction]
     traffic_status = cfg.traffic_status_from_density(d.get("density", "LOW"))
     class_comp = d.get("vehicle_class_composition")
-    now = _now_iso()
+    now = _observed_at(snapshot)
 
     entity: Dict[str, Any] = {
         "id": _vehicle_sensor_id(node_id, traffic_dir),

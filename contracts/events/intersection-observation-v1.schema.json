@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IntersectionObservation v1",
+  "type": "object",
+  "required": [
+    "eventId", "eventType", "schemaVersion", "simulationRunId",
+    "intersectionId", "cycleSequence", "simulationStep",
+    "simulationTimeSeconds", "capturedAt", "payloadHash", "payload"
+  ],
+  "properties": {
+    "eventId": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "eventType": {"const": "IntersectionObservation"},
+    "schemaVersion": {"const": 1},
+    "simulationRunId": {"type": "string", "minLength": 1},
+    "intersectionId": {"type": "string", "minLength": 1},
+    "cycleSequence": {"type": "integer", "minimum": 0},
+    "simulationStep": {"type": "integer", "minimum": 0},
+    "simulationTimeSeconds": {"type": "number", "minimum": 0},
+    "capturedAt": {"type": "string", "format": "date-time"},
+    "payloadHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "payload": {
+      "type": "object",
+      "required": [
+        "node_id", "simulation_run_id", "simulation_time_sec",
+        "scenario", "control_mode", "directions", "colors"
+      ],
+      "properties": {
+        "node_id": {"type": "string", "minLength": 1},
+        "simulation_run_id": {"type": "string", "minLength": 1},
+        "simulation_time_sec": {"type": "number", "minimum": 0},
+        "scenario": {"type": "string", "minLength": 1},
+        "control_mode": {"type": "string", "minLength": 1},
+        "directions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "vehicle_count": {"type": ["integer", "null"], "minimum": 0},
+              "waiting_vehicle_count": {"type": ["integer", "null"], "minimum": 0},
+              "queue_length_m": {"type": ["number", "null"], "minimum": 0},
+              "average_speed_kmh": {"type": ["number", "null"], "minimum": 0}
+            },
+            "additionalProperties": true
+          }
+        },
+        "colors": {"type": "object", "minProperties": 1}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

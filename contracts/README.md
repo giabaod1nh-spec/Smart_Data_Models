@@ -4,6 +4,11 @@ This tree holds **named** interface contracts. Do not refer to them generically 
 
 ## Named contracts
 
+`traffic_observation.py` is the new domain observation contract under migration.
+It is not the active Kafka wire contract yet; the current Projector and Raw
+consumer still require `TrafficEntityObserved` 2.0.0. See
+`docs/shared/PHASE1_BOUNDARIES.md` before changing the producer topic.
+
 | Official name | Version | Path / notes |
 |---------------|---------|--------------|
 | **NGSI-LD Entity Contract** | **1.0.0** | `entity/`, `simulation/`, `trafficlight/`, `topology/` — Orion → Spring Server → Dashboard |

@@ -177,7 +177,7 @@ class OutboxDeliveryWorker:
             return f"payload parse: {e}"
         if body.get("eventId") != rec.event_id:
             return "payload eventId mismatch"
-        if body.get("entityPayloadHash") != rec.payload_hash:
+        if (body.get("payloadHash") or body.get("entityPayloadHash")) != rec.payload_hash:
             return "payload_hash mismatch vs frozen row"
         return None
 

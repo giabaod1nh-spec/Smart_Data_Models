@@ -768,20 +768,21 @@ def events_to_outbox_rows(
 
     rows: List[OutboxRow] = []
     for ev in events:
-        entity = ev.get("entity") if isinstance(ev.get("entity"), dict) else {}
         run_id = str(ev["simulationRunId"])
-        node_id = str(ev["nodeId"])
+        node_id = str(ev.get("intersectionId") or ev.get("nodeId") or "")
+        if not node_id:
+            raise ValueError("event missing intersectionId/nodeId")
         payload = json.dumps(ev, ensure_ascii=True, separators=(",", ":"))
         rows.append(
             OutboxRow(
                 event_id=str(ev["eventId"]),
                 simulation_run_id=run_id,
                 cycle_sequence=int(ev["cycleSequence"]),
-                entity_sequence=int(ev["entitySequence"]),
+                entity_sequence=int(ev.get("entitySequence", 0)),
                 event_key=partition_key(run_id, node_id),
                 topic=topic,
                 payload_json=payload,
-                payload_hash=str(ev["entityPayloadHash"]),
+                payload_hash=str(ev.get("payloadHash") or ev.get("entityPayloadHash") or ""),
             )
         )
     return rows

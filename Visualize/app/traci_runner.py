@@ -358,6 +358,12 @@ def run(args: argparse.Namespace) -> int:
         getattr(cfg, "KAFKA_OUTBOX_ENABLED", False)
         or getattr(cfg, "KAFKA_PUBLISH_ENABLED", False)
     )
+    if publish_orion and kafka_wanted and profile_name != "migration":
+        log.error(
+            "Direct Orion and Kafka projection paths cannot both be active "
+            "outside the migration profile"
+        )
+        return 2
     use_async = _resolve_async_mode(args) if publish_orion else False
     # Sync path does not fanout Kafka — forbidden under locked profiles (validated above).
     if getattr(args, "sync_publish", False) and kafka_wanted:
@@ -447,10 +453,8 @@ def run(args: argparse.Namespace) -> int:
                 )
             except Exception as e:
                 log.error("Kafka outbox failed to start: %s", e, exc_info=True)
-                if profile_name in ("k5-cutover", "final", "migration"):
-                    log.error("Outbox mandatory under profile=%s — aborting", profile_name)
-                    return 2
-                kafka_outbox = None
+                log.error("Configured durable Outbox is unavailable — aborting")
+                return 2
         elif getattr(cfg, "KAFKA_PUBLISH_ENABLED", False):
             try:
                 from integration.kafka.producer import AsyncKafkaProducer
@@ -800,6 +804,9 @@ def run(args: argparse.Namespace) -> int:
 
                         if isinstance(e, OutboxAppendError):
                             log.error("Kafka outbox FAULTED: %s", e)
+                            # Reliable mode must not silently advance SUMO after
+                            # a snapshot failed to reach durable local storage.
+                            raise
                         else:
                             log.error("Kafka-only capture failed: %s", e, exc_info=True)
                 elif publish_orion:

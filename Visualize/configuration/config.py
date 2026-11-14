@@ -155,10 +155,10 @@ ORION_PUBLISH_RETRY_MAX = int(os.getenv("ORION_PUBLISH_RETRY_MAX", "10"))
 ORION_PUBLISH_RETRY_BASE_SEC = float(os.getenv("ORION_PUBLISH_RETRY_BASE_SEC", "0.5"))
 ORION_PUBLISH_RETRY_SLOW_SEC = float(os.getenv("ORION_PUBLISH_RETRY_SLOW_SEC", "5"))
 ORION_PUBLISH_HTTP_TIMEOUT_SEC = float(os.getenv("ORION_PUBLISH_HTTP_TIMEOUT_SEC", "5"))
-# Publish mode: sequential (default) | batch. Bound at AsyncOrionPublisher construct time.
-_ORION_PUBLISH_MODE_RAW = os.getenv("ORION_PUBLISH_MODE", "sequential").strip().lower()
+# Direct Orion publisher remains available for local runs; batch is its default.
+_ORION_PUBLISH_MODE_RAW = os.getenv("ORION_PUBLISH_MODE", "batch").strip().lower()
 ORION_PUBLISH_MODE = (
-    _ORION_PUBLISH_MODE_RAW if _ORION_PUBLISH_MODE_RAW in ("sequential", "batch") else "sequential"
+    _ORION_PUBLISH_MODE_RAW if _ORION_PUBLISH_MODE_RAW in ("sequential", "batch") else "batch"
 )
 ORION_BATCH_OPTIONS = os.getenv("ORION_BATCH_OPTIONS", "update").strip().lower() or "update"
 ORION_PUBLISH_BATCH_TIMEOUT_SEC = float(
@@ -222,7 +222,7 @@ KAFKA_EVIDENCE_ROOT = Path(
     )
 )
 
-# ── Kafka durable outbox (K-2b) — default OFF; supersedes K-2a produce when on ─
+# ── Kafka durable outbox (K-2b) — opt-in; supersedes K-2a produce ─
 KAFKA_OUTBOX_ENABLED = os.getenv("KAFKA_OUTBOX_ENABLED", "false").lower() in (
     "1",
     "true",

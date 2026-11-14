@@ -106,7 +106,8 @@ class SumoBackend:
         if not os.environ.get("SUMO_HOME", "").strip():
             log.warning("SUMO_HOME is not set. TraCI import may fail.")
         try:
-            import traci
+            from simulation.traci_adapter import TraCIAdapter
+            traci = TraCIAdapter()
         except ImportError as e:
             raise RuntimeError(
                 "Cannot import traci. Set SUMO_HOME. Detail: " + str(e)
@@ -181,14 +182,24 @@ class SumoBackend:
             sumo_cmd.extend(["--step-length", str(cfg.SUMO_STEP_LENGTH)])
 
         log.info("Starting SUMO: %s", " ".join(sumo_cmd))
-        traci.start(sumo_cmd)
-        self._traci = traci
+        try:
+            traci.connect(sumo_cmd)
+            self._traci = traci
+            self.simulation_time_sec = float(traci.simulation.getTime())
+            for signal in self.signals.values():
+                signal.initialize(traci)
+            self.runtime.on_start(traci)
+        except Exception:
+            try:
+                traci.close()
+            except Exception as close_error:
+                log.warning("TraCI cleanup after start failure: %s", close_error)
+            self._traci = None
+            self._started = False
+            self._runtime_state = SimulationRuntimeState.FAILED
+            raise
         self._started = True
         self._runtime_state = SimulationRuntimeState.RUNNING
-        self.simulation_time_sec = float(traci.simulation.getTime())
-        for signal in self.signals.values():
-            signal.initialize(traci)
-        self.runtime.on_start(traci)
         # Live WebSocket stream (additive — does not affect Orion/demand/TLS control)
         try:
             from streaming.live_vehicle_stream import init_live_stream
@@ -245,7 +256,11 @@ class SumoBackend:
 
         # --- simulationStep ---
         phases.append("simulationStep")
-        traci.simulationStep()
+        try:
+            traci.simulation_step()
+        except Exception:
+            self._runtime_state = SimulationRuntimeState.FAILED
+            raise
         for sig in self.signals.values():
             sig.tick_pending(traci)
             if sig.manual_mode:
@@ -353,6 +368,7 @@ class SumoBackend:
 
     def stop(self) -> None:
         if self._traci is not None:
+            self._runtime_state = SimulationRuntimeState.STOPPING
             try:
                 self._traci.close()
                 log.info("TraCI closed.")
@@ -361,6 +377,7 @@ class SumoBackend:
             finally:
                 self._traci = None
                 self._started = False
+                self._runtime_state = SimulationRuntimeState.STOPPED
 
     def _attach_publish_identity(self, node_id: str, snap: dict) -> dict:
         """Ensure Orion mapper always sees run/scenario identity (RT-DE Contract v1)."""
