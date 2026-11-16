@@ -15,32 +15,6 @@ from actuators.resource_state import ResourcePatch, ResourceStateRegistry
 
 log = logging.getLogger(__name__)
 
-OPPOSITE = {"North": "South", "South": "North", "East": "West", "West": "East"}
-
-# Outbound edge by TLS + cardinal direction (through-exit for opposite approach).
-EXIT_EDGES: Dict[str, Dict[str, str]] = {
-    "411926415": {"North": "408246393#7", "East": "694973742#0", "West": "-35114553#3"},
-    "14203086108": {
-        "North": "-35113721#14",
-        "South": "1179966753#1",
-        "West": "654858471#9",
-    },
-    "14203056181": {
-        "North": "-35113721#3",
-        "East": "-658328100#1",
-        "South": "35113721#6",
-        "West": "658328100#4",
-    },
-    "411925926": {"East": "694942823", "South": "326771005#0", "West": "-694973742#5"},
-    "14203056194": {
-        "North": "-35113721#9",
-        "East": "694973742#4",
-        "South": "35113721#12",
-        "West": "-694973742#1",
-    },
-}
-
-
 class OverlayLifecycle(str, Enum):
     CREATED = "CREATED"
     ACTIVE = "ACTIVE"
@@ -88,14 +62,13 @@ class ScenarioCapacityActuator:
                 if link.get("to_node") == intersection_id and link.get("to_approach") == direction:
                     return link.get("edge")
             tls = cfg.NODE_TO_TLS[intersection_id]
-            return cfg.APPROACH_EDGES[tls].get(direction)
-        # downstream_exit: through exit opposite the named approach direction
-        out_dir = OPPOSITE.get(direction, direction)
-        for link in links.values():
-            if link.get("from_node") == intersection_id and link.get("from_approach") == out_dir:
-                return link.get("edge")
+            return (cfg.sensing_edge_for_direction(tls, direction)
+                    if direction in cfg.APPROACH_EDGES[tls] else None)
+        # Through exit for the named incoming approach, from actual SUMO connections.
         tls = cfg.NODE_TO_TLS[intersection_id]
-        return EXIT_EDGES.get(tls, {}).get(out_dir)
+        rows = (self._catalog.get("movements_by_approach") or {}).get(tls, {}).get(direction, [])
+        straight = [row["to"] for row in rows if row["movement"] == "straight"]
+        return straight[0] if straight else None
 
     def _resolve_lanes(
         self,
@@ -119,20 +92,19 @@ class ScenarioCapacityActuator:
             tls = cfg.NODE_TO_TLS[intersection_id]
             edges: List[str] = []
             lanes = []
-            for direction in cfg.DIRECTIONS:
-                edge = cfg.APPROACH_EDGES[tls].get(direction)
-                if not edge:
-                    continue
-                edges.append(edge)
-                lanes.extend(cfg.edge_lane_ids(edge))
+            for direction in cfg.directions_for_node(intersection_id):
+                for edge in cfg.SENSING_EDGES[tls][direction]:
+                    edges.append(edge)
+                    lanes.extend(cfg.edge_lane_ids(edge))
             return None, lanes, edges
 
         if not direction:
-            direction = "North"
+            direction = cfg.incident_approach_direction(intersection_id)
         edge = self._edge_from_catalog(intersection_id, direction, segment_role)
         if not edge:
             tls = cfg.NODE_TO_TLS[intersection_id]
-            edge = cfg.APPROACH_EDGES[tls].get(direction)
+            edge = (cfg.sensing_edge_for_direction(tls, direction)
+                    if direction in cfg.APPROACH_EDGES[tls] else None)
         lanes = cfg.edge_lane_ids(edge) if edge else []
         return edge, lanes, []
 

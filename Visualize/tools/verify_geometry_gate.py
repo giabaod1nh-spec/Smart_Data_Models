@@ -13,25 +13,12 @@ if str(ROOT) not in sys.path:
 from topology.catalog import (  # noqa: E402
     DEFAULT_CATALOG_PATH,
     DEFAULT_NET_PATH,
-    build_catalog,
-    load_catalog,
-    validate_catalog,
+    verify_against_net,
 )
 
 
 def verify(net_path: Path, catalog_path: Path) -> list[str]:
-    catalog = load_catalog(catalog_path)
-    errors = validate_catalog(catalog)
-    current = build_catalog(net_path)
-
-    if catalog.get("topology_hash") != current.get("topology_hash"):
-        errors.append(
-            "catalog topology_hash does not match the current SUMO .net.xml; "
-            "run tools/generate_topology_catalog.py"
-        )
-    if catalog.get("node_to_tls") != current.get("node_to_tls"):
-        errors.append("catalog logical node mapping differs from current configuration")
-    return errors
+    return verify_against_net(net_path, catalog_path)
 
 
 def main() -> None:

@@ -6,7 +6,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
-import configuration.config as cfg
 from configuration.lane_policy import movement_from_route_key, preferred_depart_lane
 from configuration.model_params import get_registry
 from configuration.turn_routes import to_edge_for_route_key, turn_edge_for_route_key
@@ -48,9 +47,8 @@ class ScenarioDemandActuator:
     Hybrid ownership: static rou owns baseline_veh_per_hour;
     this actuator inserts only max(0, profile_target - baseline).
 
-    Demand can be scoped per intersection: only boundary sources whose
-    nodes_on_path include that intersection are boosted for that profile.
-    Sources feeding multiple nodes take the max target among active node profiles.
+    Demand can be scoped per intersection via each source's demand_scope_node.
+    A source keeps its existing route even if it travels through other nodes.
     """
 
     def __init__(self, seed: int = 42):
@@ -96,8 +94,7 @@ class ScenarioDemandActuator:
         """
         Return (target_vph, winning_profile_id) for a boundary source.
 
-        Per-intersection profiles apply only when turn_at_tls matches the
-        boosted node (vehicles enter at that intersection's TLS).
+        Per-intersection profiles apply to the source's declared logical owner.
         """
         base_pid = self.default_profile_id
         best_pid = base_pid
@@ -105,13 +102,9 @@ class ScenarioDemandActuator:
             profile_targets.get(base_pid, {}).get(source_id, src["baseline_veh_per_hour"])
         )
         best_sev = _PROFILE_SEVERITY.get(base_pid, 0)
-        src_tls = str(src.get("turn_at_tls") or "")
-        src_node = cfg.TLS_TO_NODE.get(src_tls)
+        src_node = str(src["demand_scope_node"])
 
         for node_id, pid in self.node_profiles.items():
-            # OSM may split one physical junction into multiple SUMO TLS IDs.
-            # Match through the topology's TLS-to-node mapping so demand on a
-            # non-primary controller still responds to the physical node.
             if src_node != str(node_id):
                 continue
             tgt = float(profile_targets.get(pid, {}).get(source_id, src["baseline_veh_per_hour"]))

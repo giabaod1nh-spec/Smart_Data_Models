@@ -25,26 +25,33 @@ def build_detectors_xml(net_lane_lengths: Optional[Dict[str, float]] = None) -> 
     ]
     for tls_id, approaches in cfg.APPROACH_EDGES.items():
         for direction, edge in approaches.items():
+            sensor_edge = cfg.sensing_edge_for_direction(tls_id, direction)
             for i, lane in enumerate(cfg.edge_lane_ids(edge)):
                 length = (net_lane_lengths or {}).get(lane, cfg.APPROACH_LENGTH_M)
-                e1_pos = max(0.1, length - cfg.E1_OFFSET_FROM_END_M)
-                e2_pos = max(0.1, length - cfg.E2_COVER_LENGTH_M)
-                e2_len = min(cfg.E2_COVER_LENGTH_M, max(1.0, length - e2_pos))
+                margin = min(0.1, length / 4)
+                e1_pos = max(margin, length - cfg.E1_OFFSET_FROM_END_M)
+                e1_pos = min(e1_pos, length - margin)
+                sensor_lane = f"{sensor_edge}_{i}"
+                sensor_length = (net_lane_lengths or {}).get(sensor_lane, cfg.APPROACH_LENGTH_M)
+                sensor_margin = min(0.1, sensor_length / 4)
+                e2_pos = max(sensor_margin, sensor_length - cfg.E2_COVER_LENGTH_M)
+                e2_end = sensor_length - sensor_margin
                 e1 = cfg.detector_id_e1(tls_id, direction, i)
                 e2 = cfg.detector_id_e2(tls_id, direction, i)
                 lines.append(
                     f'    <inductionLoop id="{e1}" lane="{lane}" pos="{e1_pos:.2f}" freq="1" file="NUL"/>'
                 )
                 lines.append(
-                    f'    <laneAreaDetector id="{e2}" lane="{lane}" pos="{e2_pos:.2f}" '
-                    f'endPos="{e2_pos + e2_len:.2f}" freq="1" file="NUL"/>'
+                    f'    <laneAreaDetector id="{e2}" lane="{sensor_lane}" pos="{e2_pos:.3f}" '
+                    f'endPos="{e2_end:.3f}" freq="1" file="NUL"/>'
                 )
         for edge in cfg.OUTGOING_EDGES.get(tls_id, []):
             for i, lane in enumerate(cfg.edge_lane_ids(edge)):
                 did = cfg.detector_id_e2_out(tls_id, edge, i)
                 length = (net_lane_lengths or {}).get(lane, cfg.APPROACH_LENGTH_M)
-                pos = min(cfg.E2_OUT_POS_M, max(0.1, length - 1.0))
-                end = min(length, pos + cfg.E2_OUT_LENGTH_M)
+                margin = min(0.02, length / 10)
+                pos = min(cfg.E2_OUT_POS_M, max(margin, length - cfg.E2_OUT_LENGTH_M - margin))
+                end = min(length - margin, pos + cfg.E2_OUT_LENGTH_M)
                 lines.append(
                     f'    <laneAreaDetector id="{did}" lane="{lane}" pos="{pos:.2f}" '
                     f'endPos="{end:.2f}" freq="1" file="NUL"/>'
@@ -92,6 +99,11 @@ class DetectorManager:
         edge = cfg.APPROACH_EDGES.get(self.tls_id, {}).get(direction)
         if not edge:
             return out
+        if any(cfg.movement_for_lane(edge, i) == "mixed"
+               for i, _ in enumerate(cfg.edge_lane_ids(edge))):
+            # E2 measures a lane, not its per-vehicle turn. Use route-based
+            # queue attribution when a lane serves multiple movements.
+            return {}
         for i, _lane in enumerate(cfg.edge_lane_ids(edge)):
             did = cfg.detector_id_e2(self.tls_id, direction, i)
             movement = cfg.movement_for_lane(edge, i)

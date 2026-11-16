@@ -253,8 +253,7 @@ HALTING_SPEED_MS = float(
 )
 
 # ── TopologyConfig (ADR-002/003) — structural, not model PCE ───────
-LANES_PER_APPROACH = 3  # compatibility fallback; OSM edges use EDGE_LANE_COUNTS
-MOVEMENT_BY_LANE_INDEX = {0: "right", 1: "straight", 2: "left"}
+LANES_PER_APPROACH = 3  # retained for external compatibility
 
 NODE_TO_TLS: Dict[str, str] = {
     str(node_id): str(tls_id)
@@ -293,25 +292,29 @@ APPROACH_EDGES: Dict[str, Dict[str, str]] = {
     str(tls_id): {str(direction): str(edge_id) for direction, edge_id in dict(edges).items()}
     for tls_id, edges in dict(_TOPOLOGY_CATALOG["approach_edges"]).items()
 }
+SENSING_EDGES: Dict[str, Dict[str, List[str]]] = {
+    str(tls_id): {str(direction): list(edges) for direction, edges in dirs.items()}
+    for tls_id, dirs in _TOPOLOGY_CATALOG["sensing_edges"].items()
+}
+
+
+def sensing_edge_for_direction(tls_id: str, direction: str) -> str:
+    """Return the upstream observation/staging edge for a selected approach."""
+    return SENSING_EDGES[tls_id][direction][0]
 
 OUTGOING_EDGES: Dict[str, List[str]] = {
     str(tls_id): [str(edge_id) for edge_id in edges]
     for tls_id, edges in dict(_TOPOLOGY_CATALOG["outgoing_edges"]).items()
 }
 
-# Exact lane counts for the controlled OSM approaches/exits. Other edges retain
-# the legacy fallback so external callers remain backward-compatible.
 EDGE_LANE_COUNTS: Dict[str, int] = {
-    "-694973742#0": 1, "408246393#6": 3, "35114553#3": 1,
-    "-35114553#3": 1, "408246393#7": 3, "694973742#0": 1,
-    "35113721#14": 1, "-1179966753#1": 1, "654858471#7": 3,
-    "-35113721#14": 1, "1179966753#1": 1, "654858471#9": 3,
-    "35113721#3": 1, "658328100#1": 1, "-35113721#6": 1, "-658328100#4": 1,
-    "-35113721#3": 1, "-658328100#1": 1, "35113721#6": 1, "658328100#4": 1,
-    "1267138238#1": 3, "-694942823": 1, "694973742#5": 1,
-    "-694973742#5": 1, "326771005#0": 3, "694942823": 1,
-    "35113721#9": 1, "-694973742#4": 1, "-35113721#12": 1, "694973742#1": 1,
-    "-35113721#9": 1, "694973742#4": 1, "35113721#12": 1, "-694973742#1": 1,
+    str(edge["id"]): int(edge["numLanes"])
+    for edge in _TOPOLOGY_CATALOG["edges"]
+}
+LANE_SPEED_MPS: Dict[str, float] = {
+    f"{edge['id']}_{index}": float(speed)
+    for edge in _TOPOLOGY_CATALOG["edges"]
+    for index, speed in enumerate(edge["laneSpeedsMps"])
 }
 
 DIRECTIONS: List[str] = ["North", "South", "East", "West"]
@@ -325,20 +328,31 @@ def directions_for_node(node_id: str) -> Tuple[str, ...]:
 
 
 def approach_lane_ids(tls_id: str, direction: str) -> List[str]:
-    edge = APPROACH_EDGES.get(tls_id, {}).get(direction)
-    return edge_lane_ids(edge) if edge else []
+    return [lane for edge in SENSING_EDGES.get(tls_id, {}).get(direction, ())
+            for lane in edge_lane_ids(edge)]
 
 
 def edge_lane_ids(edge: Optional[str]) -> List[str]:
     if not edge:
         return []
-    return [f"{edge}_{i}" for i in range(EDGE_LANE_COUNTS.get(edge, LANES_PER_APPROACH))]
+    if edge not in EDGE_LANE_COUNTS:
+        raise KeyError(f"Edge {edge!r} is not in the generated SUMO catalog")
+    return [f"{edge}_{i}" for i in range(EDGE_LANE_COUNTS[edge])]
+
+
+_LANE_MOVEMENTS: Dict[Tuple[str, int], set[str]] = {}
+for _row in _TOPOLOGY_CATALOG["connections"]:
+    _dir = str(_row["dir"])
+    if _dir in ("l", "s", "r"):
+        _key = (str(_row["from"]), int(_row["fromLane"]))
+        _LANE_MOVEMENTS.setdefault(_key, set()).add(
+            {"l": "left", "s": "straight", "r": "right"}[_dir]
+        )
 
 
 def movement_for_lane(edge: str, lane_index: int) -> str:
-    if EDGE_LANE_COUNTS.get(edge, LANES_PER_APPROACH) == 1:
-        return "straight"
-    return MOVEMENT_BY_LANE_INDEX.get(lane_index, "straight")
+    movements = _LANE_MOVEMENTS.get((edge, lane_index), set())
+    return next(iter(movements)) if len(movements) == 1 else "mixed"
 
 
 def detector_id_e1(tls_id: str, direction: str, lane_index: int) -> str:
@@ -354,24 +368,22 @@ def detector_id_e2_out(tls_id: str, edge: str, lane_index: int) -> str:
 
 
 TURN_BY_OD: Dict[Tuple[str, str], str] = {
-    ("408246393#6", "694973742#0"): "right", ("408246393#6", "408246393#7"): "straight", ("408246393#6", "-35114553#3"): "left",
-    ("654858471#7", "654858471#9"): "straight", ("654858471#7", "1179966753#1"): "left", ("654858471#7", "-35113721#14"): "right",
-    ("35113721#14", "35113721#15"): "straight", ("-1179966753#1", "-1179966753#0"): "straight", ("654858471#7", "654858471#8"): "straight",
-    ("35113721#3", "35113721#4"): "straight", ("658328100#1", "658328100#2"): "straight",
-    ("-35113721#6", "-35113721#5"): "straight", ("-658328100#4", "-658328100#3"): "straight",
-    ("35113721#9", "35113721#10"): "straight", ("-694973742#4", "-694973742#3"): "straight",
-    ("-35113721#12", "-35113721#11"): "straight", ("694973742#1", "694973742#2"): "straight",
-    ("1267138238#1", "-694973742#5"): "right", ("1267138238#1", "326771005#0"): "straight", ("1267138238#1", "694942823"): "left",
-    ("408246393#7", "-658328100#5"): "right", ("408246393#7", "408246393#8"): "straight", ("408246393#7", "658328100#6"): "left",
-    ("1184372243", "658328100#0"): "right", ("1184372243", "1267138238#0"): "straight", ("1184372243", "-1184372244#1"): "left",
+    (str(row["from"]), str(row["to"])): str(row["movement"])
+    for tls_moves in _TOPOLOGY_CATALOG["movements_by_approach"].values()
+    for rows in tls_moves.values() for row in rows
+    if row["movement"] in ("left", "straight", "right")
 }
 
-PHASE_INDEX_TO_NAME: Dict[int, str] = {
-    0: "EW_GREEN",
-    1: "EW_YELLOW",
-    2: "NS_GREEN",
-    3: "NS_YELLOW",
+PHASE_NAME_TO_INDEX_BY_NODE: Dict[str, Dict[str, int]] = {
+    str(node): {str(name): int(index) for name, index in phases.items()}
+    for node, phases in _TOPOLOGY_CATALOG["phase_name_to_index"].items()
 }
+PHASE_INDEX_TO_NAME_BY_NODE: Dict[str, Dict[int, str]] = {
+    node: {index: name for name, index in phases.items()}
+    for node, phases in PHASE_NAME_TO_INDEX_BY_NODE.items()
+}
+
+PHASE_INDEX_TO_NAME: Dict[int, str] = PHASE_INDEX_TO_NAME_BY_NODE["A"]
 PHASE_NAME_TO_INDEX: Dict[str, int] = {v: k for k, v in PHASE_INDEX_TO_NAME.items()}
 PHASE_SEQUENCE: List[str] = ["NS_GREEN", "NS_YELLOW", "EW_GREEN", "EW_YELLOW"]
 

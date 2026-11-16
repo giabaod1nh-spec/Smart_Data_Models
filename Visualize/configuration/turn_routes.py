@@ -1,4 +1,4 @@
-"""Turn-route helpers for boundary-source demand (first-TLS turn split + full O-D)."""
+"""Turn-route helpers for boundary-source demand and full O-D routes."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Tuple
@@ -47,15 +47,16 @@ def weighted_pick(items: List[Tuple[str, float]], r: float) -> str:
 
 
 def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
-    from configuration.network_topology import KNOWN_TLS, OUTGOING_EDGES, TURN_BY_OD
+    from configuration.network_topology import JUNCTION_TYPES, EDGE_BY_ID, LOGICAL_NODES, TURN_BY_OD, CONNECTIONS
 
     if "source_edge" not in src:
         raise ValueError(f"boundary_sources.{source_id}: missing source_edge")
-    if "turn_at_tls" not in src:
-        raise ValueError(f"boundary_sources.{source_id}: missing turn_at_tls")
-    tls = str(src["turn_at_tls"])
-    if tls not in KNOWN_TLS:
-        raise ValueError(f"boundary_sources.{source_id}: unknown turn_at_tls {tls!r}")
+    junction = str(src.get("turn_at_junction") or "")
+    if junction not in JUNCTION_TYPES:
+        raise ValueError(f"boundary_sources.{source_id}: unknown turn_at_junction {junction!r}")
+    owner = str(src.get("demand_scope_node") or "")
+    if owner not in LOGICAL_NODES:
+        raise ValueError(f"boundary_sources.{source_id}: unknown demand_scope_node {owner!r}")
 
     destinations = src.get("destinations") or []
     if len(destinations) != 3:
@@ -65,9 +66,24 @@ def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
     weight_sum = 0.0
     # A boundary source can be several edges upstream of the controlled turn.
     # Keep the spawn edge at the network fringe and validate movement semantics
-    # against the actual approach edge at the TLS.
+    # against the actual junction where its route splits.
     from_edge = str(src.get("turn_from_edge") or src["source_edge"])
-    allowed = set(OUTGOING_EDGES.get(tls, ()))
+    if from_edge not in EDGE_BY_ID or EDGE_BY_ID[from_edge]["to"] != junction:
+        raise ValueError(f"boundary_sources.{source_id}: {from_edge!r} does not enter {junction}")
+    next_edges: Dict[str, set[str]] = {}
+    for connection in CONNECTIONS:
+        if connection["from"] in EDGE_BY_ID and connection["to"] in EDGE_BY_ID:
+            next_edges.setdefault(connection["from"], set()).add(connection["to"])
+
+    def reachable(start: str, goal: str) -> bool:
+        frontier = {start}
+        seen = set(frontier)
+        for _ in range(12):
+            if goal in frontier:
+                return True
+            frontier = {edge for current in frontier for edge in next_edges.get(current, ())} - seen
+            seen.update(frontier)
+        return False
 
     for d in destinations:
         mov = str(d.get("movement", ""))
@@ -86,15 +102,11 @@ def validate_source_turn_routes(source_id: str, src: Mapping[str, Any]) -> None:
         to_edge = str(d["to_edge"])
 
         expected = TURN_BY_OD.get((from_edge, turn_edge))
-        # Some OSM intersections are split into a signalized connector and an
-        # immediately-following priority junction (notably node B).  In that
-        # case the movement edge is not directly outgoing from the TLS, but it
-        # is still a catalogued movement from the configured approach.
-        if turn_edge not in allowed and expected is None:
+        if turn_edge not in EDGE_BY_ID or not reachable(from_edge, turn_edge):
             raise ValueError(
-                f"boundary_sources.{source_id}: turn_edge {turn_edge!r} not in OUTGOING_EDGES[{tls}]"
+                f"boundary_sources.{source_id}: turn_edge {turn_edge!r} is unreachable from {from_edge!r}"
             )
-        if expected != mov:
+        if expected is not None and expected != mov:
             raise ValueError(
                 f"boundary_sources.{source_id}: {from_edge}->{turn_edge} is {expected!r} in TURN_BY_OD, "
                 f"destinations says {mov!r}"

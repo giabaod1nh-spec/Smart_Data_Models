@@ -25,28 +25,27 @@ def clear_node_scenario_effects(runtime, traci_module, node_id: str) -> List[str
 
 
 def _node_demand_delta(runtime, node_id: str) -> Dict[str, float]:
-    tls = cfg.NODE_TO_TLS[node_id]
     out: Dict[str, float] = {}
     for sid, bucket in runtime.demand._buckets.items():
         src = get_registry().boundary_sources().get(sid, {})
-        if str(src.get("turn_at_tls") or "") == tls:
+        if str(src.get("demand_scope_node") or "") == node_id:
             out[sid] = float(bucket.target_delta_vph)
     return out
 
 
 def _verify_rain_lanes(traci_module, node_id: str) -> None:
     tls = cfg.NODE_TO_TLS[node_id]
-    reduced = 0
-    for direction in cfg.DIRECTIONS:
+    for direction in cfg.directions_for_node(node_id):
+        reduced = 0
         for lid in cfg.approach_lane_ids(tls, direction):
             try:
                 speed = float(traci_module.lane.getMaxSpeed(lid))
-                if speed < 12.0:
+                if speed < cfg.LANE_SPEED_MPS[lid] - 1e-6:
                     reduced += 1
             except Exception:
                 pass
-    if reduced == 0:
-        raise RuntimeError(f"rain overlay did not reduce lane speeds at {node_id}")
+        if reduced == 0:
+            raise RuntimeError(f"rain overlay did not reduce lane speeds at {node_id}/{direction}")
 
 
 def apply_node_scenario(

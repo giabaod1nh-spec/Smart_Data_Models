@@ -62,15 +62,16 @@ class SumoSnapshotProvider:
     def __init__(self, tls_id: str = "411926415", node_id: str = "A"):
         self.tls_id = tls_id
         self.node_id = node_id
+        self.directions = cfg.directions_for_node(node_id)
         self.detectors = DetectorManager(tls_id)
-        self._prev_ids: Dict[str, Set[str]] = {d: set() for d in cfg.DIRECTIONS}
-        self._arrival_pcu_window: Dict[str, float] = {d: 0.0 for d in cfg.DIRECTIONS}
-        self._arrival_rate: Dict[str, float] = {d: 0.0 for d in cfg.DIRECTIONS}
+        self._prev_ids: Dict[str, Set[str]] = {d: set() for d in self.directions}
+        self._arrival_pcu_window: Dict[str, float] = {d: 0.0 for d in self.directions}
+        self._arrival_rate: Dict[str, float] = {d: 0.0 for d in self.directions}
         self._last_arrival_flush_sim_t: float = 0.0
         self.simulation_run_id: Optional[str] = None
 
     def update_arrival_rates(self, traci_module, sim_t: float) -> None:
-        for direction in cfg.DIRECTIONS:
+        for direction in self.directions:
             ids_now = self._vehicle_ids_on_approach(traci_module, direction)
             new_ids = ids_now - self._prev_ids[direction]
             for vid in new_ids:
@@ -83,7 +84,7 @@ class SumoSnapshotProvider:
 
         if sim_t - self._last_arrival_flush_sim_t >= 1.0:
             dt = max(1e-6, sim_t - self._last_arrival_flush_sim_t)
-            for d in cfg.DIRECTIONS:
+            for d in self.directions:
                 self._arrival_rate[d] = round(self._arrival_pcu_window[d] / dt, 3)
                 self._arrival_pcu_window[d] = 0.0
             self._last_arrival_flush_sim_t = sim_t
@@ -96,7 +97,7 @@ class SumoSnapshotProvider:
         colors = signal_controller.colors(traci_module)
         directions_data = {
             d: self._build_direction(traci_module, d, colors.get(d, "red"))
-            for d in cfg.DIRECTIONS
+            for d in self.directions
         }
 
         spill = self._spillback_metrics(traci_module)
@@ -394,7 +395,7 @@ class SumoSnapshotProvider:
         if not box_blocked:
             return 0
         count = 0
-        for direction in cfg.DIRECTIONS:
+        for direction in self.directions:
             for vid in self._vehicle_ids_on_approach(traci_module, direction):
                 try:
                     lane_id = traci_module.vehicle.getLaneID(vid)
@@ -411,7 +412,7 @@ class SumoSnapshotProvider:
         if "YELLOW" not in phase:
             return 0
         count = 0
-        for direction in cfg.DIRECTIONS:
+        for direction in self.directions:
             for vid in self._vehicle_ids_on_approach(traci_module, direction):
                 try:
                     lane_id = traci_module.vehicle.getLaneID(vid)

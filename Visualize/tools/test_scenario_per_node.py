@@ -21,11 +21,10 @@ def _steps(backend: SumoBackend, n: int) -> None:
 
 
 def _delta_for_node(backend: SumoBackend, node: str) -> float:
-    tls = cfg.NODE_TO_TLS[node]
     total = 0.0
     for sid, bucket in backend.runtime.demand._buckets.items():
         src = get_registry().boundary_sources()[sid]
-        if str(src.get("turn_at_tls")) == tls:
+        if str(src.get("demand_scope_node")) == node:
             total += bucket.target_delta_vph
     return total
 

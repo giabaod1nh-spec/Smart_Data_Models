@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import uuid
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -117,6 +118,15 @@ class SumoBackend:
         config_path = str(self.sumo_config)
         if not os.path.isfile(config_path):
             raise FileNotFoundError(f"SUMO config not found: {config_path}")
+        config_xml = ET.parse(config_path).getroot()
+        net_setting = config_xml.find("./input/net-file")
+        if net_setting is None or not net_setting.get("value"):
+            raise ValueError(f"SUMO config has no input/net-file: {config_path}")
+        net_path = (Path(config_path).resolve().parent / net_setting.get("value")).resolve()
+        from topology.catalog import verify_against_net
+        topology_errors = verify_against_net(net_path, cfg.TOPOLOGY_CATALOG_PATH)
+        if topology_errors:
+            raise RuntimeError("SUMO topology preflight failed: " + "; ".join(topology_errors))
 
         self.simulation_run_id = self.requested_simulation_run_id or str(uuid.uuid4())
         for snap in self.snapshots.values():
@@ -185,6 +195,26 @@ class SumoBackend:
         try:
             traci.connect(sumo_cmd)
             self._traci = traci
+            missing_tls = set(cfg.NODE_TO_TLS.values()) - set(traci.trafficlight.getIDList())
+            if missing_tls:
+                raise RuntimeError(f"Selected TLS missing from TraCI: {sorted(missing_tls)}")
+            e1_ids = set(traci.inductionloop.getIDList())
+            e2_ids = set(traci.lanearea.getIDList())
+            missing_detectors = []
+            for tls_id in cfg.NODE_TO_TLS.values():
+                for direction, edge in cfg.APPROACH_EDGES[tls_id].items():
+                    for i, _ in enumerate(cfg.edge_lane_ids(edge)):
+                        if cfg.detector_id_e1(tls_id, direction, i) not in e1_ids:
+                            missing_detectors.append(cfg.detector_id_e1(tls_id, direction, i))
+                        if cfg.detector_id_e2(tls_id, direction, i) not in e2_ids:
+                            missing_detectors.append(cfg.detector_id_e2(tls_id, direction, i))
+                for edge in cfg.OUTGOING_EDGES[tls_id]:
+                    for i, _ in enumerate(cfg.edge_lane_ids(edge)):
+                        detector_id = cfg.detector_id_e2_out(tls_id, edge, i)
+                        if detector_id not in e2_ids:
+                            missing_detectors.append(detector_id)
+            if missing_detectors:
+                raise RuntimeError(f"Selected detectors missing from TraCI: {missing_detectors[:8]}")
             self.simulation_time_sec = float(traci.simulation.getTime())
             for signal in self.signals.values():
                 signal.initialize(traci)

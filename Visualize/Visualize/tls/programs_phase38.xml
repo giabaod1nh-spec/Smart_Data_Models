@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Canonical programs for the four large OSM signals. A and D are selected
-     agents; the split B/C/M clusters keep their native 3-phase programs and
-     are synchronized virtually by simulation/signal_controller.py. -->
+<!-- Canonical programs for these four OSM signals. A and D are selected
+     agents; the other two remain background signals. The B/C/M agent programs
+     are validated from the generated topology catalog against the net. -->
 <additional>
     <tlLogic id="411926415" type="static" programID="0" offset="0">
         <phase duration="39" state="GGgrrrrrGgg"/>

@@ -95,7 +95,7 @@ def main() -> None:
         baseline = float(src["baseline_veh_per_hour"])
         trunk = split_flow(baseline)
         lines.append(
-            f"    <!-- corridor {source_id}: {fr} @ {src['turn_at_tls']} "
+            f"    <!-- corridor {source_id}: {fr} @ {src['turn_at_junction']} "
             f"({baseline:.0f} veh/h baseline) -->"
         )
         for dest in src["destinations"]:

@@ -28,6 +28,10 @@ class SumoSignalController:
     ):
         self.tls_id = tls_id
         self.node_id = node_id or cfg.TLS_TO_NODE.get(tls_id)
+        if self.node_id not in cfg.PHASE_NAME_TO_INDEX_BY_NODE:
+            raise ValueError(f"No phase mapping for selected TLS {tls_id}")
+        self._name_to_index = cfg.PHASE_NAME_TO_INDEX_BY_NODE[self.node_id]
+        self._index_to_name = cfg.PHASE_INDEX_TO_NAME_BY_NODE[self.node_id]
         self.tls_ids = tuple(tls_ids or (tls_id,))
         self.grouped_axes = {
             axis: tuple(ids) for axis, ids in (grouped_axes or {}).items()
@@ -126,7 +130,9 @@ class SumoSignalController:
         if self._grouped:
             return self._group_phase_name
         idx = int(traci_module.trafficlight.getPhase(self.tls_id))
-        return cfg.PHASE_INDEX_TO_NAME.get(idx, "NS_GREEN")
+        if idx not in self._index_to_name:
+            raise RuntimeError(f"Unexpected phase {idx} on {self.tls_id}")
+        return self._index_to_name[idx]
 
     def next_phase_name(self, traci_module) -> str:
         current = self.current_phase_name(traci_module)
@@ -162,7 +168,7 @@ class SumoSignalController:
                         return self._custom_green_sec
                     return int(logic.phases[0].duration)
             for i, ph in enumerate(logic.phases):
-                name = cfg.PHASE_INDEX_TO_NAME.get(i, "")
+                name = self._index_to_name.get(i, "")
                 if kind == "GREEN" and "GREEN" in name:
                     if self._custom_green_sec:
                         return self._custom_green_sec
@@ -193,7 +199,8 @@ class SumoSignalController:
 
     def colors(self, traci_module) -> Dict[str, str]:
         name = self.current_phase_name(traci_module)
-        return dict(cfg.PHASE_COLORS.get(name, cfg.PHASE_COLORS["NS_GREEN"]))
+        palette = cfg.PHASE_COLORS.get(name, cfg.PHASE_COLORS["NS_GREEN"])
+        return {d: palette[d] for d in cfg.directions_for_node(self.node_id)}
 
     def tick_pending(self, traci_module) -> None:
         if self._grouped:
@@ -225,7 +232,7 @@ class SumoSignalController:
             if remaining > 0:
                 return
             # Yellow expired (or nextSwitch already past) — force target now
-            target_idx = cfg.PHASE_NAME_TO_INDEX.get(self._pending_target)
+            target_idx = self._name_to_index.get(self._pending_target)
             if target_idx is not None:
                 traci_module.trafficlight.setPhase(self.tls_id, target_idx)
                 log.info("Applied pending phase %s on %s after yellow", self._pending_target, self.tls_id)
@@ -234,7 +241,7 @@ class SumoSignalController:
                 self.apply_manual_hold(traci_module)
             return
         # Not yellow and not yet on target — apply immediately
-        target_idx = cfg.PHASE_NAME_TO_INDEX.get(self._pending_target)
+        target_idx = self._name_to_index.get(self._pending_target)
         if target_idx is not None:
             traci_module.trafficlight.setPhase(self.tls_id, target_idx)
             log.info("Applied pending phase %s on %s", self._pending_target, self.tls_id)
@@ -249,7 +256,7 @@ class SumoSignalController:
                 self.preemption_active = False
             return
         ev_direction: Optional[str] = None
-        for direction in cfg.DIRECTIONS:
+        for direction in cfg.directions_for_node(self.node_id):
             for lid in cfg.approach_lane_ids(self.tls_id, direction):
                 try:
                     for vid in traci_module.lane.getLastStepVehicleIDs(lid):
@@ -286,8 +293,8 @@ class SumoSignalController:
         first go through that axis's yellow, then set the target on the
         next call to tick_pending / or immediately set yellow then schedule target.
         """
-        if phase_name not in cfg.PHASE_NAME_TO_INDEX:
-            raise ValueError(f"Unknown phase '{phase_name}'. Expected one of {list(cfg.PHASE_NAME_TO_INDEX)}")
+        if phase_name not in self._name_to_index:
+            raise ValueError(f"Unknown phase '{phase_name}'. Expected one of {list(self._name_to_index)}")
 
         if self._grouped:
             current = self._group_phase_name
@@ -306,7 +313,7 @@ class SumoSignalController:
             return
 
         current = self.current_phase_name(traci_module)
-        target_idx = cfg.PHASE_NAME_TO_INDEX[phase_name]
+        target_idx = self._name_to_index[phase_name]
 
         same_axis = (
             (current.startswith("NS") and phase_name.startswith("NS"))
@@ -356,7 +363,7 @@ class SumoSignalController:
         # Cross-axis from green: insert yellow of current axis first
         via_yellow = cfg.FORCE_VIA_YELLOW.get(current)
         if via_yellow:
-            yellow_idx = cfg.PHASE_NAME_TO_INDEX[via_yellow]
+            yellow_idx = self._name_to_index[via_yellow]
             traci_module.trafficlight.setPhase(self.tls_id, yellow_idx)
             self._pending_target = phase_name
             try:
@@ -391,7 +398,7 @@ class SumoSignalController:
                 return
             logic = logics[0]
             for i, ph in enumerate(logic.phases):
-                name = cfg.PHASE_INDEX_TO_NAME.get(i, "")
+                name = self._index_to_name.get(i, "")
                 if "GREEN" in name:
                     ph.duration = float(seconds)
                     if hasattr(ph, "minDur"):

@@ -6,6 +6,10 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+if str(Path(__file__).resolve().parent.parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from topology.catalog import build_catalog, validate_catalog, load_catalog
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_NET = ROOT / "Visualize" / "intersection.net.xml"
 DEFAULT_PROGRAMS = ROOT / "Visualize" / "tls" / "programs_phase38.xml"
@@ -17,6 +21,11 @@ def verify(net_path: Path, programs_path: Path = DEFAULT_PROGRAMS) -> list[str]:
     net = ET.parse(net_path)
     canonical = ET.parse(programs_path)
     errors: list[str] = []
+    selected = build_catalog(net_path)
+    errors.extend(validate_catalog(selected))
+    saved = load_catalog()
+    if saved.get("signal_program_hash") != selected["signal_program_hash"]:
+        errors.append("selected TLS program changed since catalog generation")
 
     for expected in canonical.findall(".//tlLogic"):
         tid = expected.get("id") or ""

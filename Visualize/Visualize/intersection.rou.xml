@@ -51,7 +51,7 @@
     <flow id="a_west_local_right_truck" type="truck" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
     <flow id="a_west_local_right_container" type="container" from="-654861070#0" to="1222962347#0" via="694973742#0" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
 
-    <!-- corridor b_east_main: 35114207#4 @ 14203086112 (90 veh/h baseline) -->
+    <!-- corridor b_east_main: 35114207#4 @ 5778300421 (90 veh/h baseline) -->
     <flow id="b_east_main_straight_motorcycle" type="motorcycle" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00924" departLane="0"/>
     <flow id="b_east_main_straight_car" type="car" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00105" departLane="1"/>
     <flow id="b_east_main_straight_bus" type="bus" from="35114207#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.000105" departLane="1"/>
@@ -68,7 +68,7 @@
     <flow id="b_east_main_right_truck" type="truck" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="7.5e-05" departLane="0"/>
     <flow id="b_east_main_right_container" type="container" from="35114207#4" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="7.5e-06" departLane="0"/>
 
-    <!-- corridor b_main: 327048054#6 @ 14203086112 (60 veh/h baseline) -->
+    <!-- corridor b_main: 327048054#6 @ 5778300421 (60 veh/h baseline) -->
     <flow id="b_main_straight_motorcycle" type="motorcycle" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00616" departLane="0"/>
     <flow id="b_main_straight_car" type="car" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.0007" departLane="1"/>
     <flow id="b_main_straight_bus" type="bus" from="327048054#6" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="7e-05" departLane="1"/>
@@ -85,7 +85,7 @@
     <flow id="b_main_right_truck" type="truck" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="5e-05" departLane="0"/>
     <flow id="b_main_right_container" type="container" from="327048054#6" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="5e-06" departLane="0"/>
 
-    <!-- corridor b_south_mid: -725104583 @ 14203086112 (30 veh/h baseline) -->
+    <!-- corridor b_south_mid: -725104583 @ 5778300421 (30 veh/h baseline) -->
     <flow id="b_south_mid_straight_motorcycle" type="motorcycle" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00308" departLane="0"/>
     <flow id="b_south_mid_straight_car" type="car" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00035" departLane="0"/>
     <flow id="b_south_mid_straight_bus" type="bus" from="-725104583" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
@@ -102,7 +102,7 @@
     <flow id="b_south_mid_right_truck" type="truck" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-05" departLane="0"/>
     <flow id="b_south_mid_right_container" type="container" from="-725104583" to="193616433#1" via="-35113721#14" begin="0" end="3600" probability="2.5e-06" departLane="0"/>
 
-    <!-- corridor b_south_west: -1179966753#4 @ 14203086112 (30 veh/h baseline) -->
+    <!-- corridor b_south_west: -1179966753#4 @ 5778300421 (30 veh/h baseline) -->
     <flow id="b_south_west_straight_motorcycle" type="motorcycle" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00308" departLane="0"/>
     <flow id="b_south_west_straight_car" type="car" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="0.00035" departLane="0"/>
     <flow id="b_south_west_straight_bus" type="bus" from="-1179966753#4" to="1222962347#0" via="654858471#8" begin="0" end="3600" probability="3.5e-05" departLane="0"/>
