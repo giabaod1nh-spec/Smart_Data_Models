@@ -14,6 +14,7 @@ from contracts.traffic_observation import (
     observation_event_id,
     validate_observation,
 )
+from contracts.topology.v1_digest import topology_digest
 
 _VISUALIZE = Path(__file__).resolve().parents[2] / "Visualize"
 if str(_VISUALIZE) not in sys.path:
@@ -25,18 +26,29 @@ from simulation.traci_adapter import TraCIAdapter  # noqa: E402
 
 
 def _snapshot(node: str = "A") -> dict:
+    catalog_path = Path(__file__).resolve().parents[2] / "Visualize" / "generated" / "network_topology_catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     return {
         "node_id": node,
         "simulation_run_id": "run-1",
         "simulation_time_sec": 12.0,
         "scenario": "normal",
         "control_mode": "FIXED",
+        "phase": "NS_GREEN",
+        "incidents": [],
+        "captured_at": "2026-01-01T00:00:12Z",
+        "topology_digest": topology_digest(catalog),
         "directions": {
             "North": {
                 "vehicle_count": 3,
+                "pcu_equivalent": 3.0,
+                "left_count": 1,
+                "straight_count": 1,
+                "right_count": 1,
                 "waiting_vehicle_count": 1,
                 "queue_length_m": 7.5,
                 "average_speed_kmh": 12.0,
+                "occupancy_pct": 8.0,
             }
         },
         "colors": {"North": "green"},
@@ -95,6 +107,9 @@ def test_projection_keeps_stable_logical_ids() -> None:
     snapshot = _snap()
     snapshot["node_id"] = "A"
     snapshot["control_mode"] = "FIXED"
+    snapshot["captured_at"] = "2026-01-01T00:00:09Z"
+    catalog_path = Path(__file__).resolve().parents[2] / "Visualize" / "generated" / "network_topology_catalog.json"
+    snapshot["topology_digest"] = topology_digest(json.loads(catalog_path.read_text(encoding="utf-8")))
     event = build_observation(snapshot, cycle_sequence=4, simulation_step=1200)
     entities = observation_to_entities(event)
     assert {e["type"] for e in entities} == {

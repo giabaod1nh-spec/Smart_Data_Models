@@ -1,0 +1,21 @@
+{
+  "event_id": "d912e0405742f47556f0a9ab79b52d5484f8d4171e3a98d83cbc1666c9a0cb74",
+  "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:__run__",
+  "topic": "traffic.entity-events.v2",
+  "payload_hash": "1114cd26c222a4da9e89f4d82d0862c356d9b955caa72dc527a67509384cab09",
+  "status": "ACKED",
+  "kafka_partition": 2,
+  "kafka_offset": 20591,
+  "created_at": "2026-08-10T09:22:36.036207Z",
+  "acked_at": "2026-08-10T09:22:36.184454Z",
+  "event": {
+    "eventType": "TrafficSimulationRunStarted",
+    "eventVersion": "2.0.0",
+    "contractVersion": "2.0.0",
+    "source": "sumo",
+    "producerId": "visualize-traci",
+    "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+    "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+    "startedAt": "2026-08-10T09:22:36.035671Z"
+  }
+}

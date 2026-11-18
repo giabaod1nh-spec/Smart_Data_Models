@@ -1,0 +1,37 @@
+{
+  "capturedAtUtc": "2026-11-16T11:07:12.8267545Z",
+  "source": "read-only Docker, Kafka and Orion queries plus repository hashes",
+  "checkoutHead": "7495d5a9deb03fbbc9525bf3e63ce9f718206686",
+  "networkSha256": "62638b276817a58de2a27601fe0f6f2aae4a9c129a455aa1e1726e5c88a3d9f1",
+  "topologyHash": "60413af0786d82c9ebe372fd2fb598085c09accb810d98a3f9338991465c837e",
+  "catalogFileSha256": "9cb03c72679573e4e702e238a8d0f3b6b7438b049317075c480b2d2fa1375c37",
+  "orionRunId": "6c94ec62-7223-4ecb-96c0-4150a3efba3e",
+  "orionSimulationTimeSeconds": 128.05,
+  "orionEntityCounts": {
+    "Intersection": 5,
+    "Camera": 5,
+    "TrafficLight": 17,
+    "VehicleSensor": 17
+  },
+  "topic": "traffic.entity-events.v2",
+  "partitionCount": 3,
+  "replicationFactor": 1,
+  "brokerOffsetsAtInspection": {
+    "0": {"earliest": 51602, "end": 51602, "projectorCommitted": 51602, "rawCommitted": 51602},
+    "1": {"earliest": 20733, "end": 20733, "projectorCommitted": 20723, "rawCommitted": 20733},
+    "2": {"earliest": 20912, "end": 20912, "projectorCommitted": 20902, "rawCommitted": 20912}
+  },
+  "projector": {
+    "groupId": "projector-k5-production",
+    "writeMode": "active",
+    "consumerMode": "normal",
+    "targetNamespace": "production",
+    "imageId": "sha256:f26a121b54df7334395e62841f85bc85100a050b7cbe887fbac0555672e775a9"
+  },
+  "rawConsumer": {
+    "groupId": "de-kafka-raw-v2",
+    "imageId": "sha256:9a71597bfda1934668a81b00fcd9390a6e3f9b7fc7e5d7f23ed08a93589d1e28"
+  },
+  "liveV2RecordsRetained": false,
+  "activeSimulationProcessObserved": false
+}

@@ -2,52 +2,166 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "IntersectionObservation v1",
   "type": "object",
-  "required": [
-    "eventId", "eventType", "schemaVersion", "simulationRunId",
-    "intersectionId", "cycleSequence", "simulationStep",
-    "simulationTimeSeconds", "capturedAt", "payloadHash", "payload"
-  ],
+  "required": ["eventId", "eventType", "schemaVersion", "simulationRunId", "intersectionId", "scenarioId", "cycleSequence", "simulationStep", "simulationTimeSeconds", "capturedAt", "topologyDigest", "payloadHash", "payload"],
   "properties": {
     "eventId": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "eventType": {"const": "IntersectionObservation"},
     "schemaVersion": {"const": 1},
     "simulationRunId": {"type": "string", "minLength": 1},
     "intersectionId": {"type": "string", "minLength": 1},
+    "scenarioId": {"type": "string", "minLength": 1},
     "cycleSequence": {"type": "integer", "minimum": 0},
     "simulationStep": {"type": "integer", "minimum": 0},
     "simulationTimeSeconds": {"type": "number", "minimum": 0},
     "capturedAt": {"type": "string", "format": "date-time"},
+    "topologyDigest": {"type": "string", "pattern": "^v1:sha256:[0-9a-f]{64}$"},
     "payloadHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "payload": {
       "type": "object",
-      "required": [
-        "node_id", "simulation_run_id", "simulation_time_sec",
-        "scenario", "control_mode", "directions", "colors"
-      ],
+      "required": ["node_id", "simulation_run_id", "simulation_time_sec", "scenario", "control_mode", "phase", "directions", "colors", "incidents"],
       "properties": {
         "node_id": {"type": "string", "minLength": 1},
         "simulation_run_id": {"type": "string", "minLength": 1},
         "simulation_time_sec": {"type": "number", "minimum": 0},
         "scenario": {"type": "string", "minLength": 1},
-        "control_mode": {"type": "string", "minLength": 1},
+        "control_mode": {"enum": ["FIXED", "ADAPTIVE", "MANUAL", "PREEMPTION_ENABLED"]},
+        "timing_mode": {"type": "string", "minLength": 1},
+        "phase": {"type": "string", "minLength": 1},
+        "next_phase": {"type": "string", "minLength": 1},
+        "phase_remaining": {"type": "number", "minimum": 0},
+        "phase_duration": {"type": "number", "minimum": 0},
+        "green_duration": {"type": "number", "minimum": 0},
+        "yellow_duration": {"type": "number", "minimum": 0},
+        "red_duration": {"type": "number", "minimum": 0},
+        "colors": {
+          "type": "object", "minProperties": 1,
+          "patternProperties": {"^(North|South|East|West)$": {"enum": ["red", "yellow", "green"]}},
+          "additionalProperties": false
+        },
         "directions": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
+          "type": "object", "minProperties": 1,
+          "patternProperties": {"^(North|South|East|West)$": {"$ref": "#/$defs/direction"}},
+          "additionalProperties": false
+        },
+        "incidents": {
+          "type": "array", "items": {
+            "type": "object", "required": ["type", "direction", "time"],
             "properties": {
-              "vehicle_count": {"type": ["integer", "null"], "minimum": 0},
-              "waiting_vehicle_count": {"type": ["integer", "null"], "minimum": 0},
-              "queue_length_m": {"type": ["number", "null"], "minimum": 0},
-              "average_speed_kmh": {"type": ["number", "null"], "minimum": 0}
-            },
-            "additionalProperties": true
+              "type": {"type": "string", "minLength": 1},
+              "direction": {"enum": ["North", "South", "East", "West"]},
+              "time": {"type": "number", "minimum": 0}
+            }, "additionalProperties": false
           }
         },
-        "colors": {"type": "object", "minProperties": 1}
-      },
-      "additionalProperties": true
+        "blocked_direction": {"enum": ["North", "South", "East", "West", null]},
+        "downstream_edge_full": {"type": "boolean"},
+        "spillback_pressure": {"type": "number", "minimum": 0},
+        "spillback_detected": {"type": "boolean"},
+        "intersection_box_blocked": {"type": "boolean"},
+        "vehicles_blocked_at_entry": {"type": "integer", "minimum": 0},
+        "yellow_commitment_count": {"type": "integer", "minimum": 0},
+        "preemption_active": {"type": "boolean"},
+        "derived_traffic_state": {"type": "string", "minLength": 1},
+        "derived_phenomena": {
+          "type": "object",
+          "properties": {
+            "spillback_risk": {"type": "boolean"},
+            "spillback_active": {"type": "boolean"},
+            "box_blocked": {"type": "boolean"}
+          }, "additionalProperties": false
+        },
+        "operational_state": {
+          "type": "object",
+          "properties": {
+            "incident_active": {"type": "boolean"},
+            "emergency_preemption_active": {"type": "boolean"},
+            "downstream_restriction_active": {"type": "boolean"}
+          }, "additionalProperties": false
+        },
+        "direction_contexts": {
+          "type": "object",
+          "patternProperties": {"^(North|South|East|West)$": {"type": "string", "minLength": 1}},
+          "additionalProperties": false
+        },
+        "probable_causes": {"type": "array", "items": {"$ref": "#/$defs/cause"}},
+        "anomaly_score": {"type": "number"},
+        "anomaly_label": {"type": "string"}
+      }, "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "count": {"type": ["integer", "null"], "minimum": 0},
+    "measure": {"type": ["number", "null"], "minimum": 0},
+    "direction": {
+      "type": "object",
+      "required": ["vehicle_count", "pcu_equivalent", "left_count", "straight_count", "right_count", "average_speed_kmh", "waiting_vehicle_count", "queue_length_m", "occupancy_pct"],
+      "properties": {
+        "vehicle_count": {"$ref": "#/$defs/count"},
+        "pcu_equivalent": {"$ref": "#/$defs/measure"},
+        "left_count": {"$ref": "#/$defs/count"},
+        "straight_count": {"$ref": "#/$defs/count"},
+        "right_count": {"$ref": "#/$defs/count"},
+        "average_speed_kmh": {"$ref": "#/$defs/measure"},
+        "waiting_vehicle_count": {"$ref": "#/$defs/count"},
+        "queue_length_m": {"$ref": "#/$defs/measure"},
+        "occupancy_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "metric_availability": {
+          "type": "object",
+          "patternProperties": {"^(vehicle_count|pcu_equivalent|left_count|straight_count|right_count|average_speed_kmh|waiting_vehicle_count|queue_length_m|occupancy_pct)$": {"enum": ["UNAVAILABLE", "NOT_APPLICABLE"]}},
+          "additionalProperties": false
+        },
+        "queue_length_vehicles": {"type": "number", "minimum": 0},
+        "queue_by_movement": {
+          "type": "object", "required": ["straight", "left", "right"],
+          "properties": {"straight": {"type": "number", "minimum": 0}, "left": {"type": "number", "minimum": 0}, "right": {"type": "number", "minimum": 0}},
+          "additionalProperties": false
+        },
+        "density": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+        "estimated_density_veh_per_km": {"type": "number", "minimum": 0},
+        "arrival_rate_pcu_per_sec": {"type": "number", "minimum": 0},
+        "waiting_reason_counts": {
+          "type": "object", "required": ["RED_PHASE", "CONGESTION"],
+          "properties": {"RED_PHASE": {"type": "integer", "minimum": 0}, "CONGESTION": {"type": "integer", "minimum": 0}},
+          "additionalProperties": false
+        },
+        "dominant_waiting_reason": {"enum": ["RED_PHASE", "CONGESTION", null]},
+        "theoretical_speed_kmh": {"type": "number", "minimum": 0},
+        "moto_front_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "vehicle_class_composition": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}},
+        "approach_length_m": {"type": "number", "minimum": 0},
+        "full_link_halting_count": {"type": "integer", "minimum": 0},
+        "full_link_jam_length_m": {"type": "number", "minimum": 0},
+        "storage_utilization_lane": {"type": "number", "minimum": 0},
+        "storage_utilization_pcu": {"type": "number", "minimum": 0},
+        "nominal_storage_pcu_geometric": {"type": "number", "minimum": 0}
+      }, "additionalProperties": false
+    },
+    "cause": {
+      "type": "object",
+      "properties": {
+        "type": {"type": "string"},
+        "source_node": {"type": "string"},
+        "affected_node": {"type": "string"},
+        "target_node": {"type": "string"},
+        "link_id": {"type": ["string", "null"]},
+        "link": {"type": ["string", "null"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "inference_method": {"type": "string"},
+        "window_s": {"type": "number", "minimum": 0},
+        "observed_from_s": {"type": "number", "minimum": 0},
+        "observed_to_s": {"type": "number", "minimum": 0},
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "queue_slope_veh_per_s": {"type": "number"},
+            "occupancy": {"type": "number", "minimum": 0},
+            "observation_window_s": {"type": "number", "minimum": 0},
+            "discharge_drop_ratio": {"type": "number", "minimum": 0},
+            "queue_length_m": {"type": "number", "minimum": 0}
+          }, "additionalProperties": false
+        }
+      }, "additionalProperties": false
+    }
+  }
 }

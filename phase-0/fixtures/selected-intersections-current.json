@@ -1,0 +1,27 @@
+{
+  "A": {
+    "primary_tls": "411926415",
+    "approach_edges": {"East": "-694973742#0", "South": "408246393#6", "West": "35114553#3"},
+    "phase_name_to_index": {"EW_GREEN": 0, "EW_YELLOW": 1, "NS_GREEN": 2, "NS_YELLOW": 3}
+  },
+  "B": {
+    "primary_tls": "5778300421",
+    "approach_edges": {"North": "35113721#15", "South": "-1179966753#0", "East": "654858471#8"},
+    "phase_name_to_index": {"NS_GREEN": 0, "NS_YELLOW": 1, "EW_GREEN": 2, "EW_YELLOW": 3}
+  },
+  "C": {
+    "primary_tls": "411926497",
+    "approach_edges": {"North": "35113721#4", "East": "658328100#2", "South": "-35113721#5", "West": "-658328100#3"},
+    "phase_name_to_index": {"EW_GREEN": 0, "EW_YELLOW": 1, "NS_GREEN": 2, "NS_YELLOW": 3}
+  },
+  "D": {
+    "primary_tls": "411925926",
+    "approach_edges": {"North": "1267138238#1", "East": "-694942823", "West": "694973742#5"},
+    "phase_name_to_index": {"EW_GREEN": 0, "EW_YELLOW": 1, "NS_GREEN": 2, "NS_YELLOW": 3}
+  },
+  "M": {
+    "primary_tls": "411918581",
+    "approach_edges": {"North": "35113721#10", "East": "-694973742#3", "South": "-35113721#11", "West": "694973742#2"},
+    "phase_name_to_index": {"EW_GREEN": 0, "EW_YELLOW": 1, "NS_GREEN": 2, "NS_YELLOW": 3}
+  }
+}
