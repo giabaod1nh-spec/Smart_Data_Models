@@ -28,6 +28,20 @@ services:
       - "1026:1026"
     command: -dbhost mongo-db -logLevel DEBUG
 
+  mongo-db-v1-replay:
+    profiles: ["v1-replay"]
+    image: mongo:4.4
+    command: --nojournal
+    volumes:
+      - v1-replay-mongo:/data/db
+
+  orion-v1-replay:
+    profiles: ["v1-replay"]
+    image: fiware/orion-ld:1.7.1
+    depends_on:
+      - mongo-db-v1-replay
+    command: -dbhost mongo-db-v1-replay -logLevel WARN
+
   context-server:
     image: httpd:2.4
     container_name: context-provider
@@ -322,13 +336,11 @@ services:
     entrypoint: ["/bin/bash", "/kafka-init.sh"]
     restart: "no"
 
-  # K-5 production Projector folded into the K-6b canonical Kafka runtime.
-  orion-projector:
-    profiles: ["v2-legacy"]
+  orion-projector-v1:
     build:
       context: .
       dockerfile: Visualize/Dockerfile.projector
-    container_name: orion-projector
+    container_name: orion-projector-v1
     restart: unless-stopped
     depends_on:
       kafka:
@@ -336,51 +348,32 @@ services:
       orion:
         condition: service_started
     ports:
-      - "8093:8092"
+      - "8094:8092"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_TOPIC: traffic.entity-events.v2
+      V1_KAFKA_TOPIC: traffic.observations.v1
+      V1_PROJECTOR_GROUP: projector-v1-production-cutover
+      V1_PROJECTOR_DB: /app/Visualize/artifacts/projector/v1-production.sqlite3
+      V1_RUNS_DIR: /app/Visualize/artifacts/runs
+      V1_PROJECTOR_HEALTH_PORT: "8092"
       ORION_URL: http://orion:1026
-      PROJECTOR_SHADOW_MODE: "false"
-      PROJECTOR_TARGET_NAMESPACE: production
-      PROJECTOR_WRITE_MODE: active
-      PROJECTOR_GROUP_ID: projector-k5-production
-      PROJECTOR_CONSUMER_MODE: normal
-      PROJECTOR_HEALTH_HOST: 0.0.0.0
-      PROJECTOR_HEALTH_PORT: "8092"
-      PROJECTOR_DB: /app/Visualize/artifacts/projector/k5-production.sqlite3
-      PROJECTOR_SINGLE_INSTANCE: "true"
-      ARCHITECTURE_PROFILE: k6-final
-      ARCHITECTURE_LOCK_SMOKE: "false"
-      DE_WEBHOOK_ENABLED: "false"
+      ORION_TENANT: ${ORION_TENANT:-}
+      ORION_FIWARE_SERVICE: ${ORION_FIWARE_SERVICE:-}
+      ORION_SERVICE_PATH: ${ORION_SERVICE_PATH:-}
     volumes:
-      - ./Visualize/artifacts:/app/Visualize/artifacts
-      - ./docs/architecture/k5_evidence:/app/docs/architecture/k5_evidence:ro
-    command:
-      [
-        "python",
-        "-m",
-        "Visualize.tools.projector_live_consumer",
-        "--no-shadow",
-        "--namespace",
-        "production",
-        "--write-mode",
-        "active",
-      ]
+      - ./Visualize/artifacts/runs:/app/Visualize/artifacts/runs:ro
+      - v1-projector-data:/app/Visualize/artifacts/projector
+    command: ["python", "-m", "tools.v1_projector_consumer"]
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8092/ready', timeout=2)",
-        ]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8092/ready', timeout=2)"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
 
 volumes:
+  v1-projector-data:
+  v1-replay-mongo:
   mongo-data:
   shared-run-artifacts:
   clickhouse-data:
