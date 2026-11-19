@@ -57,6 +57,7 @@ SEG_BYTES=134217728
 create_or_verify "traffic.entity-events.v2" 3 "${RET_MS}" "${RET_BYTES}" "${SEG_BYTES}"
 create_or_verify "traffic.entity-events.quarantine.v2" 1 "${RET_MS}" "${RET_BYTES}" "${SEG_BYTES}"
 create_or_verify "traffic.entity-events.dlq.v2" 1 "${RET_MS}" "${RET_BYTES}" "${SEG_BYTES}"
+create_or_verify "traffic.observations.v1" 3 "${RET_MS}" "${RET_BYTES}" "${SEG_BYTES}"
 
 echo "kafka-init: topics OK"
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --list

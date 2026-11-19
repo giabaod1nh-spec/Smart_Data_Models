@@ -210,6 +210,13 @@ KAFKA_PUBLISH_ENABLED = os.getenv("KAFKA_PUBLISH_ENABLED", "false").lower() in (
 )
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "traffic.entity-events.v2")
+V1_PUBLISH_ENABLED = os.getenv("V1_PUBLISH_ENABLED", "false").lower() in (
+    "1", "true", "yes", "on",
+)
+V1_KAFKA_TOPIC = os.getenv("V1_KAFKA_TOPIC", "traffic.observations.v1")
+V1_OUTBOX_DB = Path(os.getenv(
+    "V1_OUTBOX_DB", str(ARTIFACT_ROOT / "kafka_outbox" / "v1-outbox.sqlite3"),
+))
 KAFKA_CLIENT_ID = os.getenv("KAFKA_CLIENT_ID", "visualize-kafka-producer")
 KAFKA_PRODUCER_ID = os.getenv("KAFKA_PRODUCER_ID", "visualize-traci")
 KAFKA_LINGER_MS = int(os.getenv("KAFKA_LINGER_MS", "10"))

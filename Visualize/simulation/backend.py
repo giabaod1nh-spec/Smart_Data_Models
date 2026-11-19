@@ -9,6 +9,7 @@ import os
 import shutil
 import uuid
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -16,7 +17,8 @@ import configuration.config as cfg
 from control.runtime_state import SimulationRuntimeState
 from control.command_executor import drain_with_tracking
 from configuration.model_params import get_registry
-from runtime.run_manifest import build_and_write_manifest
+from runtime.run_manifest import atomic_write_json, build_and_write_manifest, read_verified_v1_manifest
+from runtime.active_run_registry import ActiveRunRegistry
 from simulation.scenario_manager import SumoScenarioManager
 from simulation.signal_controller import SumoSignalController
 from observation.snapshot_provider import SumoSnapshotProvider
@@ -36,7 +38,10 @@ class SumoBackend:
         publish_nodes: Optional[List[str]] = None,
         simulation_run_id: Optional[str] = None,
         v1_observations: bool = False,
+        v1_publishing: bool = False,
     ):
+        if v1_publishing and not v1_observations:
+            raise ValueError("V1 publishing requires V1 observation generation")
         self.sumo_config = cfg.SUMO_CONFIG if sumo_config is None else sumo_config
         self.use_gui = cfg.SUMO_GUI if use_gui is None else use_gui
         nodes = publish_nodes or cfg.PUBLISH_NODES
@@ -92,6 +97,11 @@ class SumoBackend:
         self._observation_seq: int = 0
         self._completed_simulation_steps: int = 0
         self.v1_observations_enabled = v1_observations
+        self.v1_publishing = v1_publishing
+        self.v1_run_registry = None
+        self.v1_run_generation = None
+        self.v1_failed_cycle_count = 0
+        self.v1_successful_cycle_count = 0
         self.v1_topology_context = None
         self.last_v1_cycle = None
         self._last_v1_failure_logged = None
@@ -158,43 +168,31 @@ class SumoBackend:
         )
         topo_hash = None
         cat_path = cfg.GENERATED_ROOT / "network_topology_catalog.json"
-        if cat_path.is_file():
+        if self._v1_runtime_catalog_bytes is not None:
+            topo_hash = json.loads(self._v1_runtime_catalog_bytes).get("topology_hash")
+        elif cat_path.is_file():
             try:
                 topo_hash = json.loads(cat_path.read_text(encoding="utf-8")).get("topology_hash")
             except Exception:
                 topo_hash = None
-        self.run_manifest = build_and_write_manifest(
-            registry=reg,
-            artifacts_root=cfg.ARTIFACTS_DIR,
-            simulation_run_id=self.simulation_run_id,
-            scenario=self.runtime.state.demand_profile_id,
-            sumo_seed=cfg.SIM_SEED,
-            python_random_seed=cfg.SIM_SEED,
-            allow_missing_manifest=allow_missing,
-            network_hash_mismatch_mode=os.getenv("NETWORK_HASH_MODE", "compat"),
-            demand_seed=int(reg.insertion_policy().get("demand_seed", cfg.SIM_SEED)),
-            control_mode=self.control_mode,
-            topology_hash=topo_hash,
-        )
         run_dir = cfg.ARTIFACTS_DIR / "runs" / self.simulation_run_id
         run_dir.mkdir(parents=True, exist_ok=True)
-        if cat_path.is_file():
+        if not self.v1_observations_enabled and cat_path.is_file():
             dest_cat = run_dir / "network_topology_catalog.json"
             shutil.copy2(cat_path, dest_cat)
             try:
                 copied = json.loads(dest_cat.read_text(encoding="utf-8"))
                 copied_hash = copied.get("topology_hash")
-                manifest_hash = (self.run_manifest or {}).get("topology_hash")
-                if manifest_hash and copied_hash and manifest_hash != copied_hash:
+                if topo_hash and copied_hash and topo_hash != copied_hash:
                     raise RuntimeError(
-                        f"topology_hash mismatch: manifest={manifest_hash} "
+                        f"topology_hash mismatch: runtime={topo_hash} "
                         f"catalog={copied_hash}"
                     )
             except RuntimeError:
                 raise
             except Exception as e:
                 log.warning("Could not verify topology_hash after copy: %s", e)
-        else:
+        elif not self.v1_observations_enabled:
             log.warning("Topology catalog missing at %s — run package incomplete", cat_path)
         if self.v1_observations_enabled and self._v1_runtime_catalog_bytes:
             from observation.canonical_cycle import freeze_run_catalog
@@ -203,14 +201,20 @@ class SumoBackend:
             # Never re-read the mutable generated file to derive V1 topology.
             runtime_catalog = json.loads(self._v1_runtime_catalog_bytes)
             dest_cat = run_dir / "network_topology_catalog.json"
-            try:
-                self.v1_topology_context = freeze_run_catalog(
-                    self.simulation_run_id, runtime_catalog, dest_cat,
-                )
-            except Exception as e:
-                # A V1 provenance failure must not take down the active V2 run.
-                self.v1_topology_context = None
-                log.error("V1 catalog freeze failed: %s", e)
+            self.v1_topology_context = freeze_run_catalog(
+                self.simulation_run_id, runtime_catalog, dest_cat,
+            )
+            if self.v1_topology_context.archive_ready:
+                archived_errors = verify_against_net(net_path, dest_cat)
+                if archived_errors:
+                    self.v1_topology_context = self.v1_topology_context.__class__(
+                        self.v1_topology_context.simulation_run_id,
+                        self.v1_topology_context.catalog_json,
+                        self.v1_topology_context.topology_digest,
+                        self.v1_topology_context.archive_path,
+                        False,
+                        "archived catalog/net mismatch: " + "; ".join(archived_errors),
+                    )
             mappings_differ = dict(runtime_catalog.get("node_to_tls", {})) != cfg.NODE_TO_TLS or any(
                 tuple(runtime_catalog.get("node_to_tls_groups", {}).get(n, ())) != cfg.tls_ids_for_node(n)
                 for n in self._v1_participating_nodes
@@ -234,6 +238,40 @@ class SumoBackend:
                 log.error("V1 catalog not ready: %s", self.v1_topology_context.error)
         elif self.v1_observations_enabled:
             log.error("V1 catalog not ready: %s", self._v1_catalog_freeze_error)
+        if self.v1_publishing and (
+            self.v1_topology_context is None or not self.v1_topology_context.archive_ready
+        ):
+            reason = self.v1_topology_context.error if self.v1_topology_context else self._v1_catalog_freeze_error
+            raise RuntimeError(f"V1 catalog archive is not ready: {reason}")
+        if self.v1_publishing:
+            self.v1_run_registry = ActiveRunRegistry(cfg.ARTIFACTS_DIR / "runs" / "active_run.sqlite3")
+            self.v1_run_generation = self.v1_run_registry.next_generation()
+        self.run_manifest = build_and_write_manifest(
+            registry=reg,
+            artifacts_root=cfg.ARTIFACTS_DIR,
+            simulation_run_id=self.simulation_run_id,
+            scenario=self.runtime.state.demand_profile_id,
+            sumo_seed=cfg.SIM_SEED,
+            python_random_seed=cfg.SIM_SEED,
+            allow_missing_manifest=allow_missing and not self.v1_publishing,
+            network_hash_mismatch_mode=os.getenv("NETWORK_HASH_MODE", "compat"),
+            demand_seed=int(reg.insertion_policy().get("demand_seed", cfg.SIM_SEED)),
+            control_mode=self.control_mode,
+            topology_hash=topo_hash,
+            topology_digest=(self.v1_topology_context.topology_digest
+                             if self.v1_topology_context and self.v1_topology_context.archive_ready else None),
+            participating_intersection_ids=(list(self._v1_participating_nodes)
+                                            if self.v1_topology_context and self.v1_topology_context.archive_ready else None),
+            run_generation=self.v1_run_generation,
+            run_status="READY" if self.v1_publishing else None,
+        )
+        if self.v1_publishing:
+            read_verified_v1_manifest(
+                run_dir / "run_manifest.json", run_id=self.simulation_run_id,
+                topology_digest=self.v1_topology_context.topology_digest,
+                participants=self._v1_participating_nodes,
+                generation=self.v1_run_generation,
+            )
         self.runtime.attach_run_dir(run_dir)
         log.info(
             "Run provenance: run_id=%s demand_profile=%s config_hash=%s schema=%s",
@@ -277,7 +315,24 @@ class SumoBackend:
             for signal in self.signals.values():
                 signal.initialize(traci)
             self.runtime.on_start(traci)
+            if self.v1_publishing:
+                self.v1_run_registry.activate(self.run_manifest)
+                self.run_manifest["runStatus"] = "RUNNING"
+                atomic_write_json(run_dir / "run_manifest.json", self.run_manifest)
+                read_verified_v1_manifest(
+                    run_dir / "run_manifest.json", run_id=self.simulation_run_id,
+                    topology_digest=self.v1_topology_context.topology_digest,
+                    participants=self._v1_participating_nodes,
+                    generation=self.v1_run_generation,
+                )
         except Exception:
+            if self.v1_publishing and self.v1_run_registry:
+                try:
+                    selected = self.v1_run_registry.selected()
+                    if selected and selected["run_id"] == self.simulation_run_id:
+                        self.set_v1_run_status("INCOMPLETE", reason="SUMO startup failed")
+                except Exception as status_error:
+                    log.error("Could not record failed V1 startup: %s", status_error)
             try:
                 traci.close()
             except Exception as close_error:
@@ -503,6 +558,30 @@ class SumoBackend:
                 self._traci = None
                 self._started = False
                 self._runtime_state = SimulationRuntimeState.STOPPED
+
+    def set_v1_run_status(self, status: str, *, failed_cycle=None, reason: str | None = None) -> None:
+        """Record the run outcome outside the observation-only Kafka topic."""
+        if not self.v1_publishing or self.v1_run_registry is None:
+            return
+        run_dir = cfg.ARTIFACTS_DIR / "runs" / self.simulation_run_id
+        if status == "INCOMPLETE":
+            self.v1_failed_cycle_count += 1
+            failure = {
+                "simulationRunId": self.simulation_run_id,
+                "cycleSequence": getattr(failed_cycle, "cycle_sequence", None),
+                "failureCode": getattr(failed_cycle, "failure_code", None) or (
+                    "PERSISTENCE_FAILURE" if failed_cycle is not None else "RUNTIME_FAILURE"
+                ),
+                "reason": reason or getattr(failed_cycle, "failure_reason", None),
+                "failedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "failedCycleCount": self.v1_failed_cycle_count,
+            }
+            atomic_write_json(run_dir / "v1_failed_cycle.json", failure)
+        self.v1_run_registry.set_status(self.simulation_run_id, status)
+        if self.run_manifest is not None:
+            self.run_manifest["runStatus"] = status
+            self.run_manifest["failedCycleCount"] = self.v1_failed_cycle_count
+            atomic_write_json(run_dir / "run_manifest.json", self.run_manifest)
 
     def _attach_publish_identity(self, node_id: str, snap: dict) -> dict:
         """Ensure Orion mapper always sees run/scenario identity (RT-DE Contract v1)."""
@@ -899,6 +978,10 @@ class SumoBackend:
                 "failure_code": result.failure_code if result else None,
                 "failure_reason": result.failure_reason if result else None,
                 "observation_count": len(result.observations) if result else 0,
+                "successful_cycle_count": self.v1_successful_cycle_count,
+                "failed_cycle_count": self.v1_failed_cycle_count,
+                "run_generation": self.v1_run_generation,
+                "run_status": (self.run_manifest or {}).get("runStatus"),
             }
         self._stats_cache = out
         return dict(out)

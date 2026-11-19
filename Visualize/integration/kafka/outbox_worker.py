@@ -11,7 +11,7 @@ from integration.kafka.outbox_store import (
     KafkaOutboxStore,
     compute_next_retry_at,
 )
-from integration.kafka.outbox_schema import EVENT_KIND_RUN_STARTED
+from integration.kafka.outbox_schema import EVENT_KIND_OBSERVATION_V1, EVENT_KIND_RUN_STARTED
 
 log = logging.getLogger(__name__)
 
@@ -170,6 +170,19 @@ class OutboxDeliveryWorker:
                 return f"payload parse: {e}"
             if body.get("eventType") != "TrafficSimulationRunStarted":
                 return "run_started eventType mismatch"
+            return None
+        if kind == EVENT_KIND_OBSERVATION_V1:
+            try:
+                from contracts.traffic_observation import TOPIC, observation_key, validate_observation
+
+                body = json.loads(rec.payload_json)
+                validate_observation(body)
+                if rec.topic != TOPIC or rec.event_id != body["eventId"]:
+                    return "V1 topic or event ID mismatch"
+                if rec.payload_hash != body["payloadHash"] or rec.event_key != observation_key(body):
+                    return "V1 frozen row identity mismatch"
+            except Exception as exc:
+                return f"V1 payload defect: {exc}"
             return None
         try:
             body = json.loads(rec.payload_json)

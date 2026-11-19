@@ -14,8 +14,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from contracts.traffic_observation import TOPIC as V1_OBSERVATION_TOPIC
 from integration.kafka.outbox_schema import (
     EVENT_KIND_ENTITY,
+    EVENT_KIND_OBSERVATION_V1,
     EVENT_KIND_RUN_STARTED,
     PENDING_STATUSES,
     REDRIVE_STATUSES,
@@ -71,6 +73,22 @@ class OutboxAppendError(Exception):
 
 class OutboxDuplicateError(OutboxAppendError):
     """Duplicate event_id — cycle rolled back."""
+
+
+class OutboxIdentityConflictError(OutboxAppendError):
+    """An existing event ID names different immutable V1 content."""
+
+
+class OutboxTransientError(OutboxAppendError):
+    """A bounded retry may succeed with the same frozen cycle."""
+
+
+@dataclass(frozen=True)
+class V1AppendResult:
+    inserted: int
+    reused_pending: int
+    already_delivered: int
+    duration_ms: float
 
 
 def _utc_now_iso() -> str:
@@ -395,6 +413,91 @@ class KafkaOutboxStore:
             self._record_bounded(self._append_insert_ms, insert_ms)
             self._record_bounded(self._append_commit_ms, commit_ms)
         return ms
+
+    def append_v1_cycle(self, rows: Sequence[OutboxRow]) -> V1AppendResult:
+        """Atomically insert or reuse a complete frozen V1 cycle."""
+        if not rows:
+            raise OutboxAppendError("empty V1 cycle")
+        if len({r.event_id for r in rows}) != len(rows):
+            raise OutboxIdentityConflictError("duplicate event ID within V1 cycle")
+        if len({r.simulation_run_id for r in rows}) != 1 or len({r.cycle_sequence for r in rows}) != 1:
+            raise OutboxIdentityConflictError("mixed run or sequence within V1 cycle")
+        if any(r.topic != V1_OBSERVATION_TOPIC or r.event_kind != EVENT_KIND_OBSERVATION_V1 for r in rows):
+            raise OutboxIdentityConflictError("V1 cycle contains a non-observation row")
+        if self._faulted:
+            raise OutboxAppendError(self._fault_message or "outbox faulted")
+        if self.check_disk()["faulted"]:
+            raise OutboxAppendError(self._fault_message or "disk full")
+        conn = self._conn
+        start = time.perf_counter()
+        inserted = reused = delivered = 0
+        try:
+            with self._write_gate.priority():
+                conn.execute("BEGIN IMMEDIATE")
+                missing = []
+                for row in rows:
+                    existing = conn.execute(
+                        "SELECT * FROM kafka_outbox WHERE event_id = ?", (row.event_id,),
+                    ).fetchone()
+                    if existing is None:
+                        missing.append(row)
+                        continue
+                    identity = (
+                        "simulation_run_id", "cycle_sequence", "event_key",
+                        "topic", "payload_json", "payload_hash", "event_kind",
+                    )
+                    incoming = (
+                        row.simulation_run_id, row.cycle_sequence, row.event_key,
+                        row.topic, row.payload_json, row.payload_hash, row.event_kind,
+                    )
+                    if tuple(existing[key] for key in identity) != incoming:
+                        raise OutboxIdentityConflictError(
+                            f"event ID {row.event_id} has conflicting frozen V1 content"
+                        )
+                    if existing["status"] == STATUS_ACKED:
+                        delivered += 1
+                    else:
+                        reused += 1
+                seq = self._reserve_outbox_sequences(len(missing)) if missing else 0
+                now = _utc_now_iso()
+                for offset, row in enumerate(missing):
+                    conn.execute(
+                        """INSERT INTO kafka_outbox (
+                            event_id, simulation_run_id, cycle_sequence, entity_sequence,
+                            event_key, topic, payload_json, payload_hash, status,
+                            attempt_count, created_at, updated_at, event_kind, outbox_sequence
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
+                        (
+                            row.event_id, row.simulation_run_id, row.cycle_sequence,
+                            row.entity_sequence, row.event_key, row.topic,
+                            row.payload_json, row.payload_hash, STATUS_OUTBOXED,
+                            now, now, row.event_kind, seq + offset,
+                        ),
+                    )
+                    inserted += 1
+                conn.execute("COMMIT")
+        except OutboxIdentityConflictError:
+            self._rollback_quiet(conn)
+            raise
+        except sqlite3.OperationalError as exc:
+            self._rollback_quiet(conn)
+            if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+                raise OutboxTransientError(str(exc)) from exc
+            with self._state_lock:
+                self._faulted = True
+                self._fault_message = f"V1 append/COMMIT fail: {exc}"
+            raise OutboxAppendError(self._fault_message) from exc
+        except Exception as exc:
+            self._rollback_quiet(conn)
+            with self._state_lock:
+                self._faulted = True
+                self._fault_message = f"V1 append/COMMIT fail: {exc}"
+            raise OutboxAppendError(self._fault_message) from exc
+        duration = (time.perf_counter() - start) * 1000.0
+        with self._state_lock:
+            self._last_append_ms = duration
+            self._record_bounded(self._append_durations_ms, duration)
+        return V1AppendResult(inserted, reused, delivered, duration)
 
     def append_run_started(
         self,

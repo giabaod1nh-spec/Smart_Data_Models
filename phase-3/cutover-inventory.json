@@ -1,0 +1,13 @@
+{
+  "source": "D:\\DO_AN_TTTN_v0\\Visualize\\artifacts\\kafka_outbox\\outbox.sqlite3",
+  "archive": "D:\\DO_AN_TTTN_v0\\Visualize\\artifacts\\kafka_outbox\\archives\\outbox-v2-2026-11-19.sqlite3",
+  "archivedAt": "2026-11-19T07:30:27.044279Z",
+  "integrityCheck": "ok",
+  "sha256": "db1f4703bbb670256344f53cec3c27ee1123ab7cc67b8ae390737167f013e5d3",
+  "totalRecords": 93247,
+  "pendingRecords": 0,
+  "ackedRecords": 93247,
+  "statusDistribution": {
+    "ACKED": 93247
+  }
+}
