@@ -92,3 +92,23 @@ export interface LiveNetworkMessage {
 export type LiveWsStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 export type LiveWsMessage = LiveFrame | LiveNetworkMessage
+
+/** Cooperative DQN agent status (Control API /rl/status). */
+export interface LiveAgentStatus {
+  id: string
+  phase?: string | null
+  action?: string | null
+  action_id?: number
+  queue?: number
+  waiting?: number
+  reward?: number
+  neighbors?: string[]
+  spillback_detected?: boolean
+}
+
+export interface LiveGlobalMetrics {
+  globalReward?: number
+  spillbackPenalty?: number
+  averageQueue?: number
+  averageWaitingTime?: number
+}

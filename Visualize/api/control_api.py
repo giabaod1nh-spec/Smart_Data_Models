@@ -89,7 +89,7 @@ class OverlayRequest(BaseModel):
 
 
 class ControlModeRequest(BaseModel):
-    mode: str = Field(..., pattern="^(FIXED|PREEMPTION_ENABLED|MANUAL)$")
+    mode: str = Field(..., pattern="^(FIXED|PREEMPTION_ENABLED|MANUAL|ADAPTIVE)$")
 
 
 class OrionPublishRequest(BaseModel):
@@ -370,8 +370,31 @@ def link_state(link_id: str):
 @app.post("/control-mode")
 def set_control_mode(req: ControlModeRequest):
     eng = _require_engine()
-    _enqueue_wait(eng, "set_control_mode", mode=req.mode)
+    try:
+        _enqueue_wait(eng, "set_control_mode", mode=req.mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except RuntimeError as e:
+        # e.g. ADAPTIVE requested but DQN controller deps missing
+        raise HTTPException(502, str(e)) from e
     return {"queued": False, "applied": True, "mode": req.mode}
+
+
+@app.get("/rl/status")
+def rl_status():
+    """Cooperative DQN agent status (ADAPTIVE mode). Cheap when disabled —
+    never triggers the TensorFlow import."""
+    eng = engine
+    mode = eng.control_mode if eng else None
+    ctrl = getattr(eng, "_rl_controller", None) if eng else None
+    if ctrl is None:
+        return {"enabled": False, "mode": mode, "agents": [], "globalMetrics": {}}
+    return {
+        "enabled": ctrl.enabled,
+        "mode": mode,
+        "agents": ctrl.get_agent_status(),
+        "globalMetrics": ctrl.get_global_metrics(),
+    }
 
 
 @app.post("/phase")

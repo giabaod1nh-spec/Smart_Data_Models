@@ -40,28 +40,46 @@ class EmergencyActuator:
         vtype = str(meta.get("insert_vtype", "ambulance"))
         if not force and sim_t - self._last_insert_s < interval:
             return None
-        # Routes that pass through C: ns_w (C→A), sn_w (A→C), we_n (C→D), ew_n (D→C)
-        routes = {
-            "C": [("N1J3", "J1S1"), ("S1J1", "J3N1"), ("W2J3", "J4E2"), ("E2J4", "J3W2")],
-            "A": [("W1J1", "J2E1"), ("S1J1", "J3N1")],
-            "B": [("W1J1", "J2E1"), ("E1J2", "J1W1")],
-            "D": [("N2J4", "J2S2"), ("E2J4", "J3W2")],
-        }
-        pairs = routes.get(target_intersection) or routes["C"]
-        fr, to = pairs[0]
+        if target_intersection not in cfg.NODE_TO_TLS:
+            raise ValueError(f"Unknown emergency target {target_intersection!r}")
+        tls = cfg.NODE_TO_TLS[target_intersection]
+        direction = cfg.incident_approach_direction(target_intersection)
+        approach = cfg.APPROACH_EDGES[tls][direction]
+        exits = [edge for edge in cfg.OUTGOING_EDGES[tls]
+                 if cfg.TURN_BY_OD.get((approach, edge)) == "straight"]
+        if not exits:
+            raise RuntimeError(f"No straight emergency exit at {target_intersection}/{direction}")
+        exit_edge = exits[0]
+        sources = get_registry().boundary_sources().values()
+        source_edges = sorted({str(src["source_edge"]) for src in sources})
+        destination_edges = sorted({str(dest["to_edge"]) for src in sources
+                                    for dest in src["destinations"]})
+
+        def best_path(candidates: List[str], destination: str, reverse: bool = False) -> List[str]:
+            paths: List[List[str]] = []
+            for candidate in candidates:
+                try:
+                    start, end = (destination, candidate) if reverse else (candidate, destination)
+                    route = traci_module.simulation.findRoute(start, end)
+                    edges = list(route.edges)
+                    if edges and edges[0] == start and edges[-1] == end:
+                        paths.append(edges)
+                except Exception:
+                    continue
+            if not paths:
+                raise RuntimeError(f"No boundary route through {target_intersection}/{direction}")
+            return min(paths, key=lambda edges: (len(edges), edges))
+
+        prefix = best_path(source_edges, approach)
+        suffix = best_path(destination_edges, exit_edge, reverse=True)
+        route_edges = prefix + [exit_edge] + suffix[1:]
+        fr, to = route_edges[0], route_edges[-1]
         self._seq += 1
         rid = f"ev_route_{target_intersection}_{self._seq}"
         vid = f"ev_{vtype}_{target_intersection}_{self._seq}"
         try:
             if rid not in traci_module.route.getIDList():
-                edges = [fr, to]
-                try:
-                    found = traci_module.simulation.findRoute(fr, to)
-                    if found and getattr(found, "edges", None):
-                        edges = list(found.edges)
-                except Exception:
-                    pass
-                traci_module.route.add(rid, edges)
+                traci_module.route.add(rid, route_edges)
             traci_module.vehicle.add(vid, rid, typeID=vtype, depart="now")
             ev = EmergencyVehicle(vid, target_intersection, rid, sim_t)
             self.active.append(ev)
@@ -82,10 +100,9 @@ class EmergencyActuator:
                 lane = traci_module.vehicle.getLaneID(ev.vehicle_id)
                 tls = cfg.NODE_TO_TLS.get(ev.target_intersection)
                 if tls:
-                    for edge in cfg.APPROACH_EDGES[tls].values():
-                        if lane.startswith(edge):
-                            ev.seen_on_approach = True
-                            break
+                    sensed_edges = {edge for corridor in cfg.SENSING_EDGES[tls].values()
+                                    for edge in corridor}
+                    ev.seen_on_approach |= lane.rsplit("_", 1)[0] in sensed_edges
                 alive.append(ev)
             except Exception:
                 ev.cleared = True

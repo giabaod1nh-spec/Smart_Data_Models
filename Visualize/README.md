@@ -30,8 +30,8 @@ python traci_runner.py --gui --no-orion
 # Headless smoke 30s
 python traci_runner.py --no-gui --no-orion --no-api --max-sim-time 30
 
-# All nodes A–D + Control API :9090
-$env:PUBLISH_NODES = "A,B,C,D"
+# All selected nodes A, B, C, D, M + Control API :9090
+$env:PUBLISH_NODES = "A,B,C,D,M"
 python traci_runner.py --gui --no-orion
 
 # With Orion
@@ -41,12 +41,15 @@ python traci_runner.py --gui
 
 ## Mapping
 
-| NGSI | SUMO TLS |
-|------|----------|
-| A | J1 |
-| B | J2 |
-| C | J3 |
-| D | J4 |
+The five AI/NGSI nodes control these physical intersections in the cropped OSM network:
+
+- A → `411926415`
+- B → cluster around `(253.65, 236.76)` (`14203086108`, `14203086109`, `14203086112`)
+- C → cluster above the old C (`14203056181`, `14203056185`, `14203056187`, `14203056189`)
+- D → `411925926`
+- M → center cluster (`14203056194`, `14203056195`, `14203056196`, `14203056197`)
+
+The split OSM clusters are synchronized as one virtual four-phase intersection.
 
 Lane convention (ADR-002): `_0=right`, `_1=through`, `_2=left`.
 
@@ -69,7 +72,7 @@ pytest tests/ -v
 
 ## Tools
 
-- `tools/regen_net.ps1` — netconvert from nod/edg
+- `Visualize/intersection.net.xml` — cropped real-world OSM network (`map_crop3`)
 - `tools/generate_rou.py` — weighted demand baseline (ADR-007 experimental)
 - `tools/generate_topology_catalog.py` — `generated/network_topology_catalog.json`
 - `tools/generate_detectors.py` — E1/E2 XML

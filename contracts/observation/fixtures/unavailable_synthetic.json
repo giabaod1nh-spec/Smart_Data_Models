@@ -1,0 +1,69 @@
+{
+  "eventId": "2590b780c1442dea8df7780bffb0866b469582f9971c14c8b5a33795f8aeca3a",
+  "eventType": "IntersectionObservation",
+  "schemaVersion": 1,
+  "simulationRunId": "run-contract",
+  "intersectionId": "A",
+  "scenarioId": "normal",
+  "cycleSequence": 4,
+  "simulationStep": 1200,
+  "simulationTimeSeconds": 12.0,
+  "capturedAt": "2026-01-01T00:00:12Z",
+  "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+  "payloadHash": "e059c8827ff177e68df96102857a285341a920b90535ea0fc51c7a9c652e0ad9",
+  "payload": {
+    "node_id": "A",
+    "simulation_run_id": "run-contract",
+    "simulation_time_sec": 12.0,
+    "scenario": "normal",
+    "control_mode": "FIXED",
+    "phase": "NS_GREEN",
+    "incidents": [],
+    "colors": {
+      "East": "green",
+      "South": "green",
+      "West": "green"
+    },
+    "directions": {
+      "East": {
+        "vehicle_count": 0,
+        "pcu_equivalent": 0.0,
+        "left_count": 0,
+        "straight_count": 0,
+        "right_count": 0,
+        "average_speed_kmh": 0.0,
+        "waiting_vehicle_count": 0,
+        "queue_length_m": 0.0,
+        "occupancy_pct": null,
+        "metric_availability": {
+          "occupancy_pct": "UNAVAILABLE"
+        },
+        "vehicle_class_composition": {}
+      },
+      "South": {
+        "vehicle_count": 0,
+        "pcu_equivalent": 0.0,
+        "left_count": 0,
+        "straight_count": 0,
+        "right_count": 0,
+        "average_speed_kmh": 0.0,
+        "waiting_vehicle_count": 0,
+        "queue_length_m": 0.0,
+        "occupancy_pct": 0.0,
+        "vehicle_class_composition": {}
+      },
+      "West": {
+        "vehicle_count": 0,
+        "pcu_equivalent": 0.0,
+        "left_count": 0,
+        "straight_count": 0,
+        "right_count": 0,
+        "average_speed_kmh": 0.0,
+        "waiting_vehicle_count": 0,
+        "queue_length_m": 0.0,
+        "occupancy_pct": 0.0,
+        "vehicle_class_composition": {}
+      }
+    }
+  }
+}

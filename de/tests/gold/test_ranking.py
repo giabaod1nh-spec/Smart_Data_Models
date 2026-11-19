@@ -10,7 +10,7 @@ def _result(intersection, score, congestion, queue):
 
 
 def test_ranking_uses_all_locked_tie_breakers():
-    rows = (_result("J2", 80, 70, 50), _result("J1", 80, 70, 50), _result("J3", 70, 90, 90))
+    rows = (_result("B", 80, 70, 50), _result("A", 80, 70, 50), _result("C", 70, 90, 90))
     ranked = {item.intersection_id: item.rank for item in rank_priorities(rows)}
-    assert ranked == {"J1": 1, "J2": 2, "J3": 3}
+    assert ranked == {"A": 1, "B": 2, "C": 3}
 

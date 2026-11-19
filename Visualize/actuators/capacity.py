@@ -1,12 +1,11 @@
 """ScenarioCapacityActuator — scoped lane/edge overlays with ResourceStateRegistry."""
 from __future__ import annotations
 
-import json
+import copy
 import logging
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import configuration.config as cfg
@@ -14,17 +13,6 @@ from configuration.model_params import get_registry
 from actuators.resource_state import ResourcePatch, ResourceStateRegistry
 
 log = logging.getLogger(__name__)
-
-OPPOSITE = {"North": "South", "South": "North", "East": "West", "West": "East"}
-
-# Outbound edge by TLS + cardinal direction (through-exit for opposite approach).
-EXIT_EDGES: Dict[str, Dict[str, str]] = {
-    "J1": {"North": "J1J3", "East": "J1J2", "South": "J1S1", "West": "J1W1"},
-    "J2": {"North": "J2J4", "East": "J2E1", "South": "J2S2", "West": "J2J1"},
-    "J3": {"North": "J3N1", "East": "J3J4", "South": "J3J1", "West": "J3W2"},
-    "J4": {"North": "J4N2", "East": "J4E2", "South": "J4J2", "West": "J4J3"},
-}
-
 
 class OverlayLifecycle(str, Enum):
     CREATED = "CREATED"
@@ -50,17 +38,15 @@ class OverlayInstance:
 
 
 def _load_catalog() -> Dict[str, Any]:
-    path = cfg.GENERATED_ROOT / "network_topology_catalog.json"
-    if not path.is_file():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    # Use the same import-time catalog as cfg's TLS and approach maps.
+    return copy.deepcopy(cfg._TOPOLOGY_CATALOG)
 
 
 class ScenarioCapacityActuator:
-    def __init__(self) -> None:
+    def __init__(self, catalog: Optional[Dict[str, Any]] = None) -> None:
         self.registry = ResourceStateRegistry()
         self.overlays: Dict[str, OverlayInstance] = {}
-        self._catalog = _load_catalog()
+        self._catalog = copy.deepcopy(catalog) if catalog is not None else _load_catalog()
 
     def _edge_from_catalog(
         self, intersection_id: str, direction: str, segment_role: str
@@ -73,14 +59,13 @@ class ScenarioCapacityActuator:
                 if link.get("to_node") == intersection_id and link.get("to_approach") == direction:
                     return link.get("edge")
             tls = cfg.NODE_TO_TLS[intersection_id]
-            return cfg.APPROACH_EDGES[tls].get(direction)
-        # downstream_exit: through exit opposite the named approach direction
-        out_dir = OPPOSITE.get(direction, direction)
-        for link in links.values():
-            if link.get("from_node") == intersection_id and link.get("from_approach") == out_dir:
-                return link.get("edge")
+            return (cfg.sensing_edge_for_direction(tls, direction)
+                    if direction in cfg.APPROACH_EDGES[tls] else None)
+        # Through exit for the named incoming approach, from actual SUMO connections.
         tls = cfg.NODE_TO_TLS[intersection_id]
-        return EXIT_EDGES.get(tls, {}).get(out_dir)
+        rows = (self._catalog.get("movements_by_approach") or {}).get(tls, {}).get(direction, [])
+        straight = [row["to"] for row in rows if row["movement"] == "straight"]
+        return straight[0] if straight else None
 
     def _resolve_lanes(
         self,
@@ -97,26 +82,27 @@ class ScenarioCapacityActuator:
             edge = target_edge or target_lanes[0].rsplit("_", 1)[0]
             return edge, list(target_lanes), []
         if target_edge:
-            lanes = [f"{target_edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)]
+            lanes = cfg.edge_lane_ids(target_edge)
             return target_edge, lanes, []
 
         if overlay_type == "heavy_rain":
             tls = cfg.NODE_TO_TLS[intersection_id]
             edges: List[str] = []
             lanes = []
-            for direction in cfg.DIRECTIONS:
-                edge = cfg.APPROACH_EDGES[tls][direction]
-                edges.append(edge)
-                lanes.extend([f"{edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)])
+            for direction in cfg.directions_for_node(intersection_id):
+                for edge in cfg.SENSING_EDGES[tls][direction]:
+                    edges.append(edge)
+                    lanes.extend(cfg.edge_lane_ids(edge))
             return None, lanes, edges
 
         if not direction:
-            direction = "North"
+            direction = cfg.incident_approach_direction(intersection_id)
         edge = self._edge_from_catalog(intersection_id, direction, segment_role)
         if not edge:
             tls = cfg.NODE_TO_TLS[intersection_id]
-            edge = cfg.APPROACH_EDGES[tls][direction]
-        lanes = [f"{edge}_{i}" for i in range(cfg.LANES_PER_APPROACH)]
+            edge = (cfg.sensing_edge_for_direction(tls, direction)
+                    if direction in cfg.APPROACH_EDGES[tls] else None)
+        lanes = cfg.edge_lane_ids(edge) if edge else []
         return edge, lanes, []
 
     def add_overlay(

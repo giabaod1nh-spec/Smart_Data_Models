@@ -7,6 +7,7 @@ This module remains a compatibility facade for topology / publish / env wiring.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -25,6 +26,22 @@ GENERATED_ROOT = VISUALIZE_DIR / "generated"
 ARTIFACT_ROOT = VISUALIZE_DIR / "artifacts"
 ARTIFACTS_DIR = ARTIFACT_ROOT  # compat alias
 DEFAULT_SUMO_CONFIG = SUMO_ASSET_ROOT / "intersection.sumocfg"
+TOPOLOGY_CATALOG_PATH = GENERATED_ROOT / "network_topology_catalog.json"
+
+
+def _load_topology_catalog() -> Dict[str, object]:
+    if not TOPOLOGY_CATALOG_PATH.is_file():
+        raise FileNotFoundError(
+            f"Generated SUMO topology catalog not found: {TOPOLOGY_CATALOG_PATH}"
+        )
+    with TOPOLOGY_CATALOG_PATH.open("r", encoding="utf-8") as stream:
+        catalog = json.load(stream)
+    if not isinstance(catalog, dict):
+        raise ValueError(f"Invalid topology catalog root: {TOPOLOGY_CATALOG_PATH}")
+    return catalog
+
+
+_TOPOLOGY_CATALOG = _load_topology_catalog()
 
 VERSION = (
     (VISUALIZE_DIR / "VERSION").read_text(encoding="utf-8").splitlines()[0].split("=", 1)[-1].strip()
@@ -72,10 +89,14 @@ DIR_CODE = {"North": "N", "South": "S", "East": "E", "West": "W"}
 
 # ── NGSI node metadata ─────────────────────────────────────────────
 INTERSECTION_META: Dict[str, Dict[str, object]] = {
-    "A": {"name": "Nguyen Hue - Le Loi", "lat": 10.7769, "lng": 106.7009},
-    "B": {"name": "Dien Bien Phu - Hai Ba Trung", "lat": 10.7889, "lng": 106.6917},
-    "C": {"name": "Cong Hoa - Hoang Van Thu", "lat": 10.8005, "lng": 106.6520},
-    "D": {"name": "Vo Van Kiet - Nguyen Tri Phuong", "lat": 10.7550, "lng": 106.6700},
+    str(node_id): {
+        "name": f"OSM Intersection {node_id}",
+        "lat": float(location["lat"]),
+        "lng": float(location["lng"]),
+        "sumo_x": float(location["x"]),
+        "sumo_y": float(location["y"]),
+    }
+    for node_id, location in dict(_TOPOLOGY_CATALOG["node_locations"]).items()
 }
 
 DENSITY_TO_TRAFFIC_STATUS: Dict[str, str] = {
@@ -107,7 +128,7 @@ SUMO_STEP_LENGTH = float(
 PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", "1.0"))
 PUBLISH_NODES = [
     n.strip()
-    for n in os.getenv("PUBLISH_NODES", os.getenv("PUBLISH_NODE", "A")).split(",")
+    for n in os.getenv("PUBLISH_NODES", os.getenv("PUBLISH_NODE", "A,B,C,D,M")).split(",")
     if n.strip()
 ]
 PUBLISH_NODE = PUBLISH_NODES[0]
@@ -134,10 +155,10 @@ ORION_PUBLISH_RETRY_MAX = int(os.getenv("ORION_PUBLISH_RETRY_MAX", "10"))
 ORION_PUBLISH_RETRY_BASE_SEC = float(os.getenv("ORION_PUBLISH_RETRY_BASE_SEC", "0.5"))
 ORION_PUBLISH_RETRY_SLOW_SEC = float(os.getenv("ORION_PUBLISH_RETRY_SLOW_SEC", "5"))
 ORION_PUBLISH_HTTP_TIMEOUT_SEC = float(os.getenv("ORION_PUBLISH_HTTP_TIMEOUT_SEC", "5"))
-# Publish mode: sequential (default) | batch. Bound at AsyncOrionPublisher construct time.
-_ORION_PUBLISH_MODE_RAW = os.getenv("ORION_PUBLISH_MODE", "sequential").strip().lower()
+# Direct Orion publisher remains available for local runs; batch is its default.
+_ORION_PUBLISH_MODE_RAW = os.getenv("ORION_PUBLISH_MODE", "batch").strip().lower()
 ORION_PUBLISH_MODE = (
-    _ORION_PUBLISH_MODE_RAW if _ORION_PUBLISH_MODE_RAW in ("sequential", "batch") else "sequential"
+    _ORION_PUBLISH_MODE_RAW if _ORION_PUBLISH_MODE_RAW in ("sequential", "batch") else "batch"
 )
 ORION_BATCH_OPTIONS = os.getenv("ORION_BATCH_OPTIONS", "update").strip().lower() or "update"
 ORION_PUBLISH_BATCH_TIMEOUT_SEC = float(
@@ -189,6 +210,13 @@ KAFKA_PUBLISH_ENABLED = os.getenv("KAFKA_PUBLISH_ENABLED", "false").lower() in (
 )
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "traffic.entity-events.v2")
+V1_PUBLISH_ENABLED = os.getenv("V1_PUBLISH_ENABLED", "false").lower() in (
+    "1", "true", "yes", "on",
+)
+V1_KAFKA_TOPIC = os.getenv("V1_KAFKA_TOPIC", "traffic.observations.v1")
+V1_OUTBOX_DB = Path(os.getenv(
+    "V1_OUTBOX_DB", str(ARTIFACT_ROOT / "kafka_outbox" / "v1-outbox.sqlite3"),
+))
 KAFKA_CLIENT_ID = os.getenv("KAFKA_CLIENT_ID", "visualize-kafka-producer")
 KAFKA_PRODUCER_ID = os.getenv("KAFKA_PRODUCER_ID", "visualize-traci")
 KAFKA_LINGER_MS = int(os.getenv("KAFKA_LINGER_MS", "10"))
@@ -201,7 +229,7 @@ KAFKA_EVIDENCE_ROOT = Path(
     )
 )
 
-# ── Kafka durable outbox (K-2b) — default OFF; supersedes K-2a produce when on ─
+# ── Kafka durable outbox (K-2b) — opt-in; supersedes K-2a produce ─
 KAFKA_OUTBOX_ENABLED = os.getenv("KAFKA_OUTBOX_ENABLED", "false").lower() in (
     "1",
     "true",
@@ -232,37 +260,106 @@ HALTING_SPEED_MS = float(
 )
 
 # ── TopologyConfig (ADR-002/003) — structural, not model PCE ───────
-LANES_PER_APPROACH = 3
-MOVEMENT_BY_LANE_INDEX = {0: "right", 1: "straight", 2: "left"}
+LANES_PER_APPROACH = 3  # retained for external compatibility
 
 NODE_TO_TLS: Dict[str, str] = {
-    "A": "J1",
-    "B": "J2",
-    "C": "J3",
-    "D": "J4",
+    str(node_id): str(tls_id)
+    for node_id, tls_id in dict(_TOPOLOGY_CATALOG["node_to_tls"]).items()
 }
-TLS_TO_NODE: Dict[str, str] = {v: k for k, v in NODE_TO_TLS.items()}
+
+# A physical intersection imported from OSM can be split into several SUMO TLS
+# controllers.  NODE_TO_TLS keeps one primary ID for backwards-compatible
+# snapshots/detectors; NODE_TO_TLS_GROUPS lists every controller that must move
+# together for that physical intersection.
+NODE_TO_TLS_GROUPS: Dict[str, Tuple[str, ...]] = {
+    str(node_id): tuple(str(tls_id) for tls_id in tls_ids)
+    for node_id, tls_ids in dict(_TOPOLOGY_CATALOG["node_to_tls_groups"]).items()
+}
+
+# Physical controllers assigned to the virtual NS/EW axes used by the common
+# four-phase agent action vocabulary.
+GROUPED_TLS_AXES: Dict[str, Dict[str, Tuple[str, ...]]] = {
+    str(node_id): {
+        str(axis): tuple(str(tls_id) for tls_id in tls_ids)
+        for axis, tls_ids in dict(axes).items()
+    }
+    for node_id, axes in dict(_TOPOLOGY_CATALOG["grouped_tls_axes"]).items()
+}
+
+TLS_TO_NODE: Dict[str, str] = {
+    str(tls_id): str(node_id)
+    for tls_id, node_id in dict(_TOPOLOGY_CATALOG["tls_to_node"]).items()
+}
+
+
+def tls_ids_for_node(node_id: str) -> Tuple[str, ...]:
+    return NODE_TO_TLS_GROUPS.get(node_id, (NODE_TO_TLS[node_id],))
 
 APPROACH_EDGES: Dict[str, Dict[str, str]] = {
-    "J1": {"North": "J3J1", "East": "J2J1", "South": "S1J1", "West": "W1J1"},
-    "J2": {"North": "J4J2", "East": "E1J2", "South": "S2J2", "West": "J1J2"},
-    "J3": {"North": "N1J3", "East": "J4J3", "South": "J1J3", "West": "W2J3"},
-    "J4": {"North": "N2J4", "East": "E2J4", "South": "J2J4", "West": "J3J4"},
+    str(tls_id): {str(direction): str(edge_id) for direction, edge_id in dict(edges).items()}
+    for tls_id, edges in dict(_TOPOLOGY_CATALOG["approach_edges"]).items()
+}
+SENSING_EDGES: Dict[str, Dict[str, List[str]]] = {
+    str(tls_id): {str(direction): list(edges) for direction, edges in dirs.items()}
+    for tls_id, dirs in _TOPOLOGY_CATALOG["sensing_edges"].items()
 }
 
+
+def sensing_edge_for_direction(tls_id: str, direction: str) -> str:
+    """Return the upstream observation/staging edge for a selected approach."""
+    return SENSING_EDGES[tls_id][direction][0]
+
 OUTGOING_EDGES: Dict[str, List[str]] = {
-    "J1": ["J1J2", "J1J3", "J1S1", "J1W1"],
-    "J2": ["J2J1", "J2J4", "J2E1", "J2S2"],
-    "J3": ["J3J1", "J3J4", "J3N1", "J3W2"],
-    "J4": ["J4J2", "J4J3", "J4N2", "J4E2"],
+    str(tls_id): [str(edge_id) for edge_id in edges]
+    for tls_id, edges in dict(_TOPOLOGY_CATALOG["outgoing_edges"]).items()
+}
+
+EDGE_LANE_COUNTS: Dict[str, int] = {
+    str(edge["id"]): int(edge["numLanes"])
+    for edge in _TOPOLOGY_CATALOG["edges"]
+}
+LANE_SPEED_MPS: Dict[str, float] = {
+    f"{edge['id']}_{index}": float(speed)
+    for edge in _TOPOLOGY_CATALOG["edges"]
+    for index, speed in enumerate(edge["laneSpeedsMps"])
 }
 
 DIRECTIONS: List[str] = ["North", "South", "East", "West"]
 
 
+def directions_for_node(node_id: str) -> Tuple[str, ...]:
+    """Directions that physically exist at a logical OSM intersection."""
+    tls_id = NODE_TO_TLS[node_id]
+    approaches = APPROACH_EDGES.get(tls_id, {})
+    return tuple(direction for direction in DIRECTIONS if direction in approaches)
+
+
 def approach_lane_ids(tls_id: str, direction: str) -> List[str]:
-    edge = APPROACH_EDGES[tls_id][direction]
-    return [f"{edge}_{i}" for i in range(LANES_PER_APPROACH)]
+    return [lane for edge in SENSING_EDGES.get(tls_id, {}).get(direction, ())
+            for lane in edge_lane_ids(edge)]
+
+
+def edge_lane_ids(edge: Optional[str]) -> List[str]:
+    if not edge:
+        return []
+    if edge not in EDGE_LANE_COUNTS:
+        raise KeyError(f"Edge {edge!r} is not in the generated SUMO catalog")
+    return [f"{edge}_{i}" for i in range(EDGE_LANE_COUNTS[edge])]
+
+
+_LANE_MOVEMENTS: Dict[Tuple[str, int], set[str]] = {}
+for _row in _TOPOLOGY_CATALOG["connections"]:
+    _dir = str(_row["dir"])
+    if _dir in ("l", "s", "r"):
+        _key = (str(_row["from"]), int(_row["fromLane"]))
+        _LANE_MOVEMENTS.setdefault(_key, set()).add(
+            {"l": "left", "s": "straight", "r": "right"}[_dir]
+        )
+
+
+def movement_for_lane(edge: str, lane_index: int) -> str:
+    movements = _LANE_MOVEMENTS.get((edge, lane_index), set())
+    return next(iter(movements)) if len(movements) == 1 else "mixed"
 
 
 def detector_id_e1(tls_id: str, direction: str, lane_index: int) -> str:
@@ -278,30 +375,22 @@ def detector_id_e2_out(tls_id: str, edge: str, lane_index: int) -> str:
 
 
 TURN_BY_OD: Dict[Tuple[str, str], str] = {
-    ("J3J1", "J1W1"): "right", ("J3J1", "J1S1"): "straight", ("J3J1", "J1J2"): "left", ("J3J1", "J1J3"): "straight",
-    ("J2J1", "J1J3"): "right", ("J2J1", "J1W1"): "straight", ("J2J1", "J1S1"): "left", ("J2J1", "J1J2"): "straight",
-    ("S1J1", "J1J2"): "right", ("S1J1", "J1J3"): "straight", ("S1J1", "J1W1"): "left", ("S1J1", "J1S1"): "straight",
-    ("W1J1", "J1S1"): "right", ("W1J1", "J1J2"): "straight", ("W1J1", "J1J3"): "left", ("W1J1", "J1W1"): "straight",
-    ("J4J2", "J2J1"): "right", ("J4J2", "J2S2"): "straight", ("J4J2", "J2E1"): "left", ("J4J2", "J2J4"): "straight",
-    ("E1J2", "J2J4"): "right", ("E1J2", "J2J1"): "straight", ("E1J2", "J2S2"): "left", ("E1J2", "J2E1"): "straight",
-    ("S2J2", "J2E1"): "right", ("S2J2", "J2J4"): "straight", ("S2J2", "J2J1"): "left", ("S2J2", "J2S2"): "straight",
-    ("J1J2", "J2S2"): "right", ("J1J2", "J2E1"): "straight", ("J1J2", "J2J4"): "left", ("J1J2", "J2J1"): "straight",
-    ("N1J3", "J3W2"): "right", ("N1J3", "J3J1"): "straight", ("N1J3", "J3J4"): "left", ("N1J3", "J3N1"): "straight",
-    ("J4J3", "J3N1"): "right", ("J4J3", "J3W2"): "straight", ("J4J3", "J3J1"): "left", ("J4J3", "J3J4"): "straight",
-    ("J1J3", "J3J4"): "right", ("J1J3", "J3N1"): "straight", ("J1J3", "J3W2"): "left", ("J1J3", "J3J1"): "straight",
-    ("W2J3", "J3J1"): "right", ("W2J3", "J3J4"): "straight", ("W2J3", "J3N1"): "left", ("W2J3", "J3W2"): "straight",
-    ("N2J4", "J4J3"): "right", ("N2J4", "J4J2"): "straight", ("N2J4", "J4E2"): "left", ("N2J4", "J4N2"): "straight",
-    ("E2J4", "J4N2"): "right", ("E2J4", "J4J3"): "straight", ("E2J4", "J4J2"): "left", ("E2J4", "J4E2"): "straight",
-    ("J2J4", "J4E2"): "right", ("J2J4", "J4N2"): "straight", ("J2J4", "J4J3"): "left", ("J2J4", "J4J2"): "straight",
-    ("J3J4", "J4J2"): "right", ("J3J4", "J4E2"): "straight", ("J3J4", "J4N2"): "left", ("J3J4", "J4J3"): "straight",
+    (str(row["from"]), str(row["to"])): str(row["movement"])
+    for tls_moves in _TOPOLOGY_CATALOG["movements_by_approach"].values()
+    for rows in tls_moves.values() for row in rows
+    if row["movement"] in ("left", "straight", "right")
 }
 
-PHASE_INDEX_TO_NAME: Dict[int, str] = {
-    0: "NS_GREEN",
-    1: "NS_YELLOW",
-    2: "EW_GREEN",
-    3: "EW_YELLOW",
+PHASE_NAME_TO_INDEX_BY_NODE: Dict[str, Dict[str, int]] = {
+    str(node): {str(name): int(index) for name, index in phases.items()}
+    for node, phases in _TOPOLOGY_CATALOG["phase_name_to_index"].items()
 }
+PHASE_INDEX_TO_NAME_BY_NODE: Dict[str, Dict[int, str]] = {
+    node: {index: name for name, index in phases.items()}
+    for node, phases in PHASE_NAME_TO_INDEX_BY_NODE.items()
+}
+
+PHASE_INDEX_TO_NAME: Dict[int, str] = PHASE_INDEX_TO_NAME_BY_NODE["A"]
 PHASE_NAME_TO_INDEX: Dict[str, int] = {v: k for k, v in PHASE_INDEX_TO_NAME.items()}
 PHASE_SEQUENCE: List[str] = ["NS_GREEN", "NS_YELLOW", "EW_GREEN", "EW_YELLOW"]
 
@@ -378,10 +467,11 @@ DEMAND_PROFILE_IDS = frozenset(
 
 # Deterministic incident approach per node (no UI direction picker).
 INCIDENT_APPROACH_BY_NODE: Dict[str, str] = {
-    "A": "North",
+    "A": "South",
     "B": "East",
-    "C": "West",
-    "D": "South",
+    "C": "North",
+    "D": "North",
+    "M": "West",
 }
 
 

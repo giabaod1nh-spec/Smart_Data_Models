@@ -110,14 +110,15 @@ export const PHASE_LABELS: Record<PhaseId, string> = {
   EW_YELLOW: 'E/W Yellow',
 }
 
-/** Control modes — FIXED=auto cycle, MANUAL=officer hold, PREEMPTION=EV */
-export const CONTROL_MODES = ['FIXED', 'PREEMPTION_ENABLED', 'MANUAL'] as const
+/** Control modes — FIXED=auto cycle, MANUAL=officer hold, PREEMPTION=EV, ADAPTIVE=DQN agents */
+export const CONTROL_MODES = ['FIXED', 'PREEMPTION_ENABLED', 'MANUAL', 'ADAPTIVE'] as const
 export type ControlMode = (typeof CONTROL_MODES)[number]
 
 export const CONTROL_MODE_LABELS: Record<ControlMode, string> = {
   FIXED: 'Automatic',
   MANUAL: 'Manual (Officer)',
   PREEMPTION_ENABLED: 'Preemption',
+  ADAPTIVE: 'DQN Agent',
 }
 
 /** Green duration bounds — verified from GreenDurationRequest Field(ge=10, le=120) */

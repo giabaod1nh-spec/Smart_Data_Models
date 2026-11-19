@@ -1,0 +1,3150 @@
+{
+  "schema_version": "1.0.0",
+  "source_net": "Visualize/intersection.net.xml",
+  "topology_hash": "a3ac1e8962383708bc06f96adb55c6f4c270454b8f17a09183b7eb44c7930c1b",
+  "node_to_tls": {
+    "A": "J1",
+    "B": "J2",
+    "C": "J3",
+    "D": "J4"
+  },
+  "tls_to_node": {
+    "J1": "A",
+    "J2": "B",
+    "J3": "C",
+    "J4": "D"
+  },
+  "approach_edges": {
+    "J1": {
+      "North": "J3J1",
+      "East": "J2J1",
+      "South": "S1J1",
+      "West": "W1J1"
+    },
+    "J2": {
+      "North": "J4J2",
+      "East": "E1J2",
+      "South": "S2J2",
+      "West": "J1J2"
+    },
+    "J3": {
+      "North": "N1J3",
+      "East": "J4J3",
+      "South": "J1J3",
+      "West": "W2J3"
+    },
+    "J4": {
+      "North": "N2J4",
+      "East": "E2J4",
+      "South": "J2J4",
+      "West": "J3J4"
+    }
+  },
+  "outgoing_edges": {
+    "J1": [
+      "J1J2",
+      "J1J3",
+      "J1S1",
+      "J1W1"
+    ],
+    "J2": [
+      "J2J1",
+      "J2J4",
+      "J2E1",
+      "J2S2"
+    ],
+    "J3": [
+      "J3J1",
+      "J3J4",
+      "J3N1",
+      "J3W2"
+    ],
+    "J4": [
+      "J4J2",
+      "J4J3",
+      "J4N2",
+      "J4E2"
+    ]
+  },
+  "inter_node_links": {
+    "A_E_to_B_W": {
+      "edge": "J1J2",
+      "from_node": "A",
+      "to_node": "B",
+      "from_approach": "East",
+      "to_approach": "West",
+      "segment_role_note": "A East exit and B West approach",
+      "numLanes": 3,
+      "from_junction": "J1",
+      "to_junction": "J2"
+    },
+    "B_W_to_A_E": {
+      "edge": "J2J1",
+      "from_node": "B",
+      "to_node": "A",
+      "from_approach": "West",
+      "to_approach": "East",
+      "segment_role_note": "B West exit and A East approach",
+      "numLanes": 3,
+      "from_junction": "J2",
+      "to_junction": "J1"
+    },
+    "A_N_to_C_S": {
+      "edge": "J1J3",
+      "from_node": "A",
+      "to_node": "C",
+      "from_approach": "North",
+      "to_approach": "South",
+      "segment_role_note": "A North exit and C South approach",
+      "numLanes": 3,
+      "from_junction": "J1",
+      "to_junction": "J3"
+    },
+    "C_S_to_A_N": {
+      "edge": "J3J1",
+      "from_node": "C",
+      "to_node": "A",
+      "from_approach": "South",
+      "to_approach": "North",
+      "segment_role_note": "C South exit and A North approach",
+      "numLanes": 3,
+      "from_junction": "J3",
+      "to_junction": "J1"
+    },
+    "B_N_to_D_S": {
+      "edge": "J2J4",
+      "from_node": "B",
+      "to_node": "D",
+      "from_approach": "North",
+      "to_approach": "South",
+      "segment_role_note": "B North exit and D South approach",
+      "numLanes": 3,
+      "from_junction": "J2",
+      "to_junction": "J4"
+    },
+    "D_S_to_B_N": {
+      "edge": "J4J2",
+      "from_node": "D",
+      "to_node": "B",
+      "from_approach": "South",
+      "to_approach": "North",
+      "segment_role_note": "D South exit and B North approach",
+      "numLanes": 3,
+      "from_junction": "J4",
+      "to_junction": "J2"
+    },
+    "C_E_to_D_W": {
+      "edge": "J3J4",
+      "from_node": "C",
+      "to_node": "D",
+      "from_approach": "East",
+      "to_approach": "West",
+      "segment_role_note": "C East exit and D West approach",
+      "numLanes": 3,
+      "from_junction": "J3",
+      "to_junction": "J4"
+    },
+    "D_W_to_C_E": {
+      "edge": "J4J3",
+      "from_node": "D",
+      "to_node": "C",
+      "from_approach": "West",
+      "to_approach": "East",
+      "segment_role_note": "D West exit and C East approach",
+      "numLanes": 3,
+      "from_junction": "J4",
+      "to_junction": "J3"
+    }
+  },
+  "edges": [
+    {
+      "id": "E1J2",
+      "from": "E1",
+      "to": "J2",
+      "numLanes": 3
+    },
+    {
+      "id": "E2J4",
+      "from": "E2",
+      "to": "J4",
+      "numLanes": 3
+    },
+    {
+      "id": "J1J2",
+      "from": "J1",
+      "to": "J2",
+      "numLanes": 3
+    },
+    {
+      "id": "J1J3",
+      "from": "J1",
+      "to": "J3",
+      "numLanes": 3
+    },
+    {
+      "id": "J1S1",
+      "from": "J1",
+      "to": "S1",
+      "numLanes": 3
+    },
+    {
+      "id": "J1W1",
+      "from": "J1",
+      "to": "W1",
+      "numLanes": 3
+    },
+    {
+      "id": "J2E1",
+      "from": "J2",
+      "to": "E1",
+      "numLanes": 3
+    },
+    {
+      "id": "J2J1",
+      "from": "J2",
+      "to": "J1",
+      "numLanes": 3
+    },
+    {
+      "id": "J2J4",
+      "from": "J2",
+      "to": "J4",
+      "numLanes": 3
+    },
+    {
+      "id": "J2S2",
+      "from": "J2",
+      "to": "S2",
+      "numLanes": 3
+    },
+    {
+      "id": "J3J1",
+      "from": "J3",
+      "to": "J1",
+      "numLanes": 3
+    },
+    {
+      "id": "J3J4",
+      "from": "J3",
+      "to": "J4",
+      "numLanes": 3
+    },
+    {
+      "id": "J3N1",
+      "from": "J3",
+      "to": "N1",
+      "numLanes": 3
+    },
+    {
+      "id": "J3W2",
+      "from": "J3",
+      "to": "W2",
+      "numLanes": 3
+    },
+    {
+      "id": "J4E2",
+      "from": "J4",
+      "to": "E2",
+      "numLanes": 3
+    },
+    {
+      "id": "J4J2",
+      "from": "J4",
+      "to": "J2",
+      "numLanes": 3
+    },
+    {
+      "id": "J4J3",
+      "from": "J4",
+      "to": "J3",
+      "numLanes": 3
+    },
+    {
+      "id": "J4N2",
+      "from": "J4",
+      "to": "N2",
+      "numLanes": 3
+    },
+    {
+      "id": "N1J3",
+      "from": "N1",
+      "to": "J3",
+      "numLanes": 3
+    },
+    {
+      "id": "N2J4",
+      "from": "N2",
+      "to": "J4",
+      "numLanes": 3
+    },
+    {
+      "id": "S1J1",
+      "from": "S1",
+      "to": "J1",
+      "numLanes": 3
+    },
+    {
+      "id": "S2J2",
+      "from": "S2",
+      "to": "J2",
+      "numLanes": 3
+    },
+    {
+      "id": "W1J1",
+      "from": "W1",
+      "to": "J1",
+      "numLanes": 3
+    },
+    {
+      "id": "W2J3",
+      "from": "W2",
+      "to": "J3",
+      "numLanes": 3
+    }
+  ],
+  "connections": [
+    {
+      "from": ":E1_0",
+      "to": "E1J2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":E2_0",
+      "to": "E2J4",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":J1_0",
+      "to": "J1W1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J1_1",
+      "to": "J1S1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_1",
+      "to": "J1S1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_1",
+      "to": "J1S1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_10",
+      "to": "J1J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J1_11",
+      "to": "J1J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_11",
+      "to": "J1J3",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_11",
+      "to": "J1J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_14",
+      "to": "J1W1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J1_22_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_15",
+      "to": "J1S1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J1_16",
+      "to": "J1J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_16",
+      "to": "J1J2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_16",
+      "to": "J1J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_19",
+      "to": "J1J3",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J1_23_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_20",
+      "to": "J1J2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_21",
+      "to": "J1S1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_22",
+      "to": "J1W1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_23",
+      "to": "J1J3",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_4",
+      "to": "J1J2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J1_20_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J1_5",
+      "to": "J1J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J1_6",
+      "to": "J1W1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_6",
+      "to": "J1W1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_6",
+      "to": "J1W1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J1_9",
+      "to": "J1S1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J1_21_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_0",
+      "to": "J2J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J2_1",
+      "to": "J2S2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_1",
+      "to": "J2S2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_1",
+      "to": "J2S2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_10",
+      "to": "J2E1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J2_11",
+      "to": "J2J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_11",
+      "to": "J2J4",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_11",
+      "to": "J2J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_14",
+      "to": "J2J1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J2_22_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_15",
+      "to": "J2S2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J2_16",
+      "to": "J2E1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_16",
+      "to": "J2E1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_16",
+      "to": "J2E1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_19",
+      "to": "J2J4",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J2_23_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_20",
+      "to": "J2E1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_21",
+      "to": "J2S2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_22",
+      "to": "J2J1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_23",
+      "to": "J2J4",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_4",
+      "to": "J2E1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J2_20_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J2_5",
+      "to": "J2J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J2_6",
+      "to": "J2J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_6",
+      "to": "J2J1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_6",
+      "to": "J2J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J2_9",
+      "to": "J2S2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J2_21_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_0",
+      "to": "J3W2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J3_1",
+      "to": "J3J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_1",
+      "to": "J3J1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_1",
+      "to": "J3J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_10",
+      "to": "J3J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J3_11",
+      "to": "J3N1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_11",
+      "to": "J3N1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_11",
+      "to": "J3N1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_14",
+      "to": "J3W2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J3_22_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_15",
+      "to": "J3J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J3_16",
+      "to": "J3J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_16",
+      "to": "J3J4",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_16",
+      "to": "J3J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_19",
+      "to": "J3N1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J3_23_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_20",
+      "to": "J3J4",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_21",
+      "to": "J3J1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_22",
+      "to": "J3W2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_23",
+      "to": "J3N1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_4",
+      "to": "J3J4",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J3_20_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J3_5",
+      "to": "J3N1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J3_6",
+      "to": "J3W2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_6",
+      "to": "J3W2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_6",
+      "to": "J3W2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J3_9",
+      "to": "J3J1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J3_21_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_0",
+      "to": "J4J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J4_1",
+      "to": "J4J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_1",
+      "to": "J4J2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_1",
+      "to": "J4J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_10",
+      "to": "J4E2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J4_11",
+      "to": "J4N2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_11",
+      "to": "J4N2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_11",
+      "to": "J4N2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_14",
+      "to": "J4J3",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J4_22_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_15",
+      "to": "J4J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J4_16",
+      "to": "J4E2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_16",
+      "to": "J4E2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_16",
+      "to": "J4E2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_19",
+      "to": "J4N2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J4_23_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_20",
+      "to": "J4E2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_21",
+      "to": "J4J2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_22",
+      "to": "J4J3",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_23",
+      "to": "J4N2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_4",
+      "to": "J4E2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J4_20_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":J4_5",
+      "to": "J4N2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "r"
+    },
+    {
+      "from": ":J4_6",
+      "to": "J4J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_6",
+      "to": "J4J3",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_6",
+      "to": "J4J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "s"
+    },
+    {
+      "from": ":J4_9",
+      "to": "J4J2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": ":J4_21_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "l"
+    },
+    {
+      "from": ":N1_0",
+      "to": "N1J3",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":N2_0",
+      "to": "N2J4",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":S1_0",
+      "to": "S1J1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":S2_0",
+      "to": "S2J2",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":W1_0",
+      "to": "W1J1",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": ":W2_0",
+      "to": "W2J3",
+      "fromLane": 0,
+      "toLane": 2,
+      "via": null,
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "E1J2",
+      "to": "J2J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_6_0",
+      "tl": "J2",
+      "linkIndex": 6,
+      "dir": "s"
+    },
+    {
+      "from": "E1J2",
+      "to": "J2J1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J2_6_1",
+      "tl": "J2",
+      "linkIndex": 7,
+      "dir": "s"
+    },
+    {
+      "from": "E1J2",
+      "to": "J2J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_6_2",
+      "tl": "J2",
+      "linkIndex": 8,
+      "dir": "s"
+    },
+    {
+      "from": "E1J2",
+      "to": "J2J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_5_0",
+      "tl": "J2",
+      "linkIndex": 5,
+      "dir": "r"
+    },
+    {
+      "from": "E1J2",
+      "to": "J2S2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_9_0",
+      "tl": "J2",
+      "linkIndex": 9,
+      "dir": "l"
+    },
+    {
+      "from": "E2J4",
+      "to": "J4J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_9_0",
+      "tl": "J4",
+      "linkIndex": 9,
+      "dir": "l"
+    },
+    {
+      "from": "E2J4",
+      "to": "J4J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_6_0",
+      "tl": "J4",
+      "linkIndex": 6,
+      "dir": "s"
+    },
+    {
+      "from": "E2J4",
+      "to": "J4J3",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J4_6_1",
+      "tl": "J4",
+      "linkIndex": 7,
+      "dir": "s"
+    },
+    {
+      "from": "E2J4",
+      "to": "J4J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_6_2",
+      "tl": "J4",
+      "linkIndex": 8,
+      "dir": "s"
+    },
+    {
+      "from": "E2J4",
+      "to": "J4N2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_5_0",
+      "tl": "J4",
+      "linkIndex": 5,
+      "dir": "r"
+    },
+    {
+      "from": "J1J2",
+      "to": "J2E1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_16_0",
+      "tl": "J2",
+      "linkIndex": 16,
+      "dir": "s"
+    },
+    {
+      "from": "J1J2",
+      "to": "J2E1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J2_16_1",
+      "tl": "J2",
+      "linkIndex": 17,
+      "dir": "s"
+    },
+    {
+      "from": "J1J2",
+      "to": "J2E1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_16_2",
+      "tl": "J2",
+      "linkIndex": 18,
+      "dir": "s"
+    },
+    {
+      "from": "J1J2",
+      "to": "J2J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_19_0",
+      "tl": "J2",
+      "linkIndex": 19,
+      "dir": "l"
+    },
+    {
+      "from": "J1J2",
+      "to": "J2S2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_15_0",
+      "tl": "J2",
+      "linkIndex": 15,
+      "dir": "r"
+    },
+    {
+      "from": "J1J3",
+      "to": "J3J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_10_0",
+      "tl": "J3",
+      "linkIndex": 10,
+      "dir": "r"
+    },
+    {
+      "from": "J1J3",
+      "to": "J3N1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_11_0",
+      "tl": "J3",
+      "linkIndex": 11,
+      "dir": "s"
+    },
+    {
+      "from": "J1J3",
+      "to": "J3N1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J3_11_1",
+      "tl": "J3",
+      "linkIndex": 12,
+      "dir": "s"
+    },
+    {
+      "from": "J1J3",
+      "to": "J3N1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_11_2",
+      "tl": "J3",
+      "linkIndex": 13,
+      "dir": "s"
+    },
+    {
+      "from": "J1J3",
+      "to": "J3W2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_14_0",
+      "tl": "J3",
+      "linkIndex": 14,
+      "dir": "l"
+    },
+    {
+      "from": "J1S1",
+      "to": "S1J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":S1_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J1W1",
+      "to": "W1J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":W1_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J2E1",
+      "to": "E1J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":E1_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J2J1",
+      "to": "J1J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_5_0",
+      "tl": "J1",
+      "linkIndex": 5,
+      "dir": "r"
+    },
+    {
+      "from": "J2J1",
+      "to": "J1S1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_9_0",
+      "tl": "J1",
+      "linkIndex": 9,
+      "dir": "l"
+    },
+    {
+      "from": "J2J1",
+      "to": "J1W1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_6_0",
+      "tl": "J1",
+      "linkIndex": 6,
+      "dir": "s"
+    },
+    {
+      "from": "J2J1",
+      "to": "J1W1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J1_6_1",
+      "tl": "J1",
+      "linkIndex": 7,
+      "dir": "s"
+    },
+    {
+      "from": "J2J1",
+      "to": "J1W1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_6_2",
+      "tl": "J1",
+      "linkIndex": 8,
+      "dir": "s"
+    },
+    {
+      "from": "J2J4",
+      "to": "J4E2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_10_0",
+      "tl": "J4",
+      "linkIndex": 10,
+      "dir": "r"
+    },
+    {
+      "from": "J2J4",
+      "to": "J4J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_14_0",
+      "tl": "J4",
+      "linkIndex": 14,
+      "dir": "l"
+    },
+    {
+      "from": "J2J4",
+      "to": "J4N2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_11_0",
+      "tl": "J4",
+      "linkIndex": 11,
+      "dir": "s"
+    },
+    {
+      "from": "J2J4",
+      "to": "J4N2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J4_11_1",
+      "tl": "J4",
+      "linkIndex": 12,
+      "dir": "s"
+    },
+    {
+      "from": "J2J4",
+      "to": "J4N2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_11_2",
+      "tl": "J4",
+      "linkIndex": 13,
+      "dir": "s"
+    },
+    {
+      "from": "J2S2",
+      "to": "S2J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":S2_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J3J1",
+      "to": "J1J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_4_0",
+      "tl": "J1",
+      "linkIndex": 4,
+      "dir": "l"
+    },
+    {
+      "from": "J3J1",
+      "to": "J1S1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_1_0",
+      "tl": "J1",
+      "linkIndex": 1,
+      "dir": "s"
+    },
+    {
+      "from": "J3J1",
+      "to": "J1S1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J1_1_1",
+      "tl": "J1",
+      "linkIndex": 2,
+      "dir": "s"
+    },
+    {
+      "from": "J3J1",
+      "to": "J1S1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_1_2",
+      "tl": "J1",
+      "linkIndex": 3,
+      "dir": "s"
+    },
+    {
+      "from": "J3J1",
+      "to": "J1W1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_0_0",
+      "tl": "J1",
+      "linkIndex": 0,
+      "dir": "r"
+    },
+    {
+      "from": "J3J4",
+      "to": "J4E2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_16_0",
+      "tl": "J4",
+      "linkIndex": 16,
+      "dir": "s"
+    },
+    {
+      "from": "J3J4",
+      "to": "J4E2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J4_16_1",
+      "tl": "J4",
+      "linkIndex": 17,
+      "dir": "s"
+    },
+    {
+      "from": "J3J4",
+      "to": "J4E2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_16_2",
+      "tl": "J4",
+      "linkIndex": 18,
+      "dir": "s"
+    },
+    {
+      "from": "J3J4",
+      "to": "J4J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_15_0",
+      "tl": "J4",
+      "linkIndex": 15,
+      "dir": "r"
+    },
+    {
+      "from": "J3J4",
+      "to": "J4N2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_19_0",
+      "tl": "J4",
+      "linkIndex": 19,
+      "dir": "l"
+    },
+    {
+      "from": "J3N1",
+      "to": "N1J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":N1_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J3W2",
+      "to": "W2J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":W2_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J4E2",
+      "to": "E2J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":E2_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "J4J2",
+      "to": "J2E1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_4_0",
+      "tl": "J2",
+      "linkIndex": 4,
+      "dir": "l"
+    },
+    {
+      "from": "J4J2",
+      "to": "J2J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_0_0",
+      "tl": "J2",
+      "linkIndex": 0,
+      "dir": "r"
+    },
+    {
+      "from": "J4J2",
+      "to": "J2S2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_1_0",
+      "tl": "J2",
+      "linkIndex": 1,
+      "dir": "s"
+    },
+    {
+      "from": "J4J2",
+      "to": "J2S2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J2_1_1",
+      "tl": "J2",
+      "linkIndex": 2,
+      "dir": "s"
+    },
+    {
+      "from": "J4J2",
+      "to": "J2S2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_1_2",
+      "tl": "J2",
+      "linkIndex": 3,
+      "dir": "s"
+    },
+    {
+      "from": "J4J3",
+      "to": "J3J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_9_0",
+      "tl": "J3",
+      "linkIndex": 9,
+      "dir": "l"
+    },
+    {
+      "from": "J4J3",
+      "to": "J3N1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_5_0",
+      "tl": "J3",
+      "linkIndex": 5,
+      "dir": "r"
+    },
+    {
+      "from": "J4J3",
+      "to": "J3W2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_6_0",
+      "tl": "J3",
+      "linkIndex": 6,
+      "dir": "s"
+    },
+    {
+      "from": "J4J3",
+      "to": "J3W2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J3_6_1",
+      "tl": "J3",
+      "linkIndex": 7,
+      "dir": "s"
+    },
+    {
+      "from": "J4J3",
+      "to": "J3W2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_6_2",
+      "tl": "J3",
+      "linkIndex": 8,
+      "dir": "s"
+    },
+    {
+      "from": "J4N2",
+      "to": "N2J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":N2_0_0",
+      "tl": null,
+      "linkIndex": null,
+      "dir": "t"
+    },
+    {
+      "from": "N1J3",
+      "to": "J3J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_1_0",
+      "tl": "J3",
+      "linkIndex": 1,
+      "dir": "s"
+    },
+    {
+      "from": "N1J3",
+      "to": "J3J1",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J3_1_1",
+      "tl": "J3",
+      "linkIndex": 2,
+      "dir": "s"
+    },
+    {
+      "from": "N1J3",
+      "to": "J3J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_1_2",
+      "tl": "J3",
+      "linkIndex": 3,
+      "dir": "s"
+    },
+    {
+      "from": "N1J3",
+      "to": "J3J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_4_0",
+      "tl": "J3",
+      "linkIndex": 4,
+      "dir": "l"
+    },
+    {
+      "from": "N1J3",
+      "to": "J3W2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_0_0",
+      "tl": "J3",
+      "linkIndex": 0,
+      "dir": "r"
+    },
+    {
+      "from": "N2J4",
+      "to": "J4E2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_4_0",
+      "tl": "J4",
+      "linkIndex": 4,
+      "dir": "l"
+    },
+    {
+      "from": "N2J4",
+      "to": "J4J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_1_0",
+      "tl": "J4",
+      "linkIndex": 1,
+      "dir": "s"
+    },
+    {
+      "from": "N2J4",
+      "to": "J4J2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J4_1_1",
+      "tl": "J4",
+      "linkIndex": 2,
+      "dir": "s"
+    },
+    {
+      "from": "N2J4",
+      "to": "J4J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J4_1_2",
+      "tl": "J4",
+      "linkIndex": 3,
+      "dir": "s"
+    },
+    {
+      "from": "N2J4",
+      "to": "J4J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J4_0_0",
+      "tl": "J4",
+      "linkIndex": 0,
+      "dir": "r"
+    },
+    {
+      "from": "S1J1",
+      "to": "J1J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_10_0",
+      "tl": "J1",
+      "linkIndex": 10,
+      "dir": "r"
+    },
+    {
+      "from": "S1J1",
+      "to": "J1J3",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_11_0",
+      "tl": "J1",
+      "linkIndex": 11,
+      "dir": "s"
+    },
+    {
+      "from": "S1J1",
+      "to": "J1J3",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J1_11_1",
+      "tl": "J1",
+      "linkIndex": 12,
+      "dir": "s"
+    },
+    {
+      "from": "S1J1",
+      "to": "J1J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_11_2",
+      "tl": "J1",
+      "linkIndex": 13,
+      "dir": "s"
+    },
+    {
+      "from": "S1J1",
+      "to": "J1W1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_14_0",
+      "tl": "J1",
+      "linkIndex": 14,
+      "dir": "l"
+    },
+    {
+      "from": "S2J2",
+      "to": "J2E1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_10_0",
+      "tl": "J2",
+      "linkIndex": 10,
+      "dir": "r"
+    },
+    {
+      "from": "S2J2",
+      "to": "J2J1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_14_0",
+      "tl": "J2",
+      "linkIndex": 14,
+      "dir": "l"
+    },
+    {
+      "from": "S2J2",
+      "to": "J2J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J2_11_0",
+      "tl": "J2",
+      "linkIndex": 11,
+      "dir": "s"
+    },
+    {
+      "from": "S2J2",
+      "to": "J2J4",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J2_11_1",
+      "tl": "J2",
+      "linkIndex": 12,
+      "dir": "s"
+    },
+    {
+      "from": "S2J2",
+      "to": "J2J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J2_11_2",
+      "tl": "J2",
+      "linkIndex": 13,
+      "dir": "s"
+    },
+    {
+      "from": "W1J1",
+      "to": "J1J2",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_16_0",
+      "tl": "J1",
+      "linkIndex": 16,
+      "dir": "s"
+    },
+    {
+      "from": "W1J1",
+      "to": "J1J2",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J1_16_1",
+      "tl": "J1",
+      "linkIndex": 17,
+      "dir": "s"
+    },
+    {
+      "from": "W1J1",
+      "to": "J1J2",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_16_2",
+      "tl": "J1",
+      "linkIndex": 18,
+      "dir": "s"
+    },
+    {
+      "from": "W1J1",
+      "to": "J1J3",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J1_19_0",
+      "tl": "J1",
+      "linkIndex": 19,
+      "dir": "l"
+    },
+    {
+      "from": "W1J1",
+      "to": "J1S1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J1_15_0",
+      "tl": "J1",
+      "linkIndex": 15,
+      "dir": "r"
+    },
+    {
+      "from": "W2J3",
+      "to": "J3J1",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_15_0",
+      "tl": "J3",
+      "linkIndex": 15,
+      "dir": "r"
+    },
+    {
+      "from": "W2J3",
+      "to": "J3J4",
+      "fromLane": 0,
+      "toLane": 0,
+      "via": ":J3_16_0",
+      "tl": "J3",
+      "linkIndex": 16,
+      "dir": "s"
+    },
+    {
+      "from": "W2J3",
+      "to": "J3J4",
+      "fromLane": 1,
+      "toLane": 1,
+      "via": ":J3_16_1",
+      "tl": "J3",
+      "linkIndex": 17,
+      "dir": "s"
+    },
+    {
+      "from": "W2J3",
+      "to": "J3J4",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_16_2",
+      "tl": "J3",
+      "linkIndex": 18,
+      "dir": "s"
+    },
+    {
+      "from": "W2J3",
+      "to": "J3N1",
+      "fromLane": 2,
+      "toLane": 2,
+      "via": ":J3_19_0",
+      "tl": "J3",
+      "linkIndex": 19,
+      "dir": "l"
+    }
+  ],
+  "movements_by_approach": {
+    "J1": {
+      "North": [
+        {
+          "from": "J3J1",
+          "to": "J1W1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_0_0",
+          "tl": "J1",
+          "linkIndex": 0,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J3J1",
+          "to": "J1S1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_1_0",
+          "tl": "J1",
+          "linkIndex": 1,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J3J1",
+          "to": "J1S1",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J1_1_1",
+          "tl": "J1",
+          "linkIndex": 2,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J3J1",
+          "to": "J1S1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_1_2",
+          "tl": "J1",
+          "linkIndex": 3,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J3J1",
+          "to": "J1J2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_4_0",
+          "tl": "J1",
+          "linkIndex": 4,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "East": [
+        {
+          "from": "J2J1",
+          "to": "J1J3",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_5_0",
+          "tl": "J1",
+          "linkIndex": 5,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J2J1",
+          "to": "J1W1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_6_0",
+          "tl": "J1",
+          "linkIndex": 6,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J2J1",
+          "to": "J1W1",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J1_6_1",
+          "tl": "J1",
+          "linkIndex": 7,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J2J1",
+          "to": "J1W1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_6_2",
+          "tl": "J1",
+          "linkIndex": 8,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J2J1",
+          "to": "J1S1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_9_0",
+          "tl": "J1",
+          "linkIndex": 9,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "South": [
+        {
+          "from": "S1J1",
+          "to": "J1J2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_10_0",
+          "tl": "J1",
+          "linkIndex": 10,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "S1J1",
+          "to": "J1J3",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_11_0",
+          "tl": "J1",
+          "linkIndex": 11,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "S1J1",
+          "to": "J1J3",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J1_11_1",
+          "tl": "J1",
+          "linkIndex": 12,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "S1J1",
+          "to": "J1J3",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_11_2",
+          "tl": "J1",
+          "linkIndex": 13,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "S1J1",
+          "to": "J1W1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_14_0",
+          "tl": "J1",
+          "linkIndex": 14,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "West": [
+        {
+          "from": "W1J1",
+          "to": "J1S1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_15_0",
+          "tl": "J1",
+          "linkIndex": 15,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "W1J1",
+          "to": "J1J2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J1_16_0",
+          "tl": "J1",
+          "linkIndex": 16,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "W1J1",
+          "to": "J1J2",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J1_16_1",
+          "tl": "J1",
+          "linkIndex": 17,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "W1J1",
+          "to": "J1J2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_16_2",
+          "tl": "J1",
+          "linkIndex": 18,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "W1J1",
+          "to": "J1J3",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J1_19_0",
+          "tl": "J1",
+          "linkIndex": 19,
+          "dir": "l",
+          "movement": "left"
+        }
+      ]
+    },
+    "J2": {
+      "North": [
+        {
+          "from": "J4J2",
+          "to": "J2J1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_0_0",
+          "tl": "J2",
+          "linkIndex": 0,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J4J2",
+          "to": "J2S2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_1_0",
+          "tl": "J2",
+          "linkIndex": 1,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J4J2",
+          "to": "J2S2",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J2_1_1",
+          "tl": "J2",
+          "linkIndex": 2,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J4J2",
+          "to": "J2S2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_1_2",
+          "tl": "J2",
+          "linkIndex": 3,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J4J2",
+          "to": "J2E1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_4_0",
+          "tl": "J2",
+          "linkIndex": 4,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "East": [
+        {
+          "from": "E1J2",
+          "to": "J2J4",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_5_0",
+          "tl": "J2",
+          "linkIndex": 5,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "E1J2",
+          "to": "J2J1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_6_0",
+          "tl": "J2",
+          "linkIndex": 6,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "E1J2",
+          "to": "J2J1",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J2_6_1",
+          "tl": "J2",
+          "linkIndex": 7,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "E1J2",
+          "to": "J2J1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_6_2",
+          "tl": "J2",
+          "linkIndex": 8,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "E1J2",
+          "to": "J2S2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_9_0",
+          "tl": "J2",
+          "linkIndex": 9,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "South": [
+        {
+          "from": "S2J2",
+          "to": "J2E1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_10_0",
+          "tl": "J2",
+          "linkIndex": 10,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "S2J2",
+          "to": "J2J4",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_11_0",
+          "tl": "J2",
+          "linkIndex": 11,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "S2J2",
+          "to": "J2J4",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J2_11_1",
+          "tl": "J2",
+          "linkIndex": 12,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "S2J2",
+          "to": "J2J4",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_11_2",
+          "tl": "J2",
+          "linkIndex": 13,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "S2J2",
+          "to": "J2J1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_14_0",
+          "tl": "J2",
+          "linkIndex": 14,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "West": [
+        {
+          "from": "J1J2",
+          "to": "J2S2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_15_0",
+          "tl": "J2",
+          "linkIndex": 15,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J1J2",
+          "to": "J2E1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J2_16_0",
+          "tl": "J2",
+          "linkIndex": 16,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J1J2",
+          "to": "J2E1",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J2_16_1",
+          "tl": "J2",
+          "linkIndex": 17,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J1J2",
+          "to": "J2E1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_16_2",
+          "tl": "J2",
+          "linkIndex": 18,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J1J2",
+          "to": "J2J4",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J2_19_0",
+          "tl": "J2",
+          "linkIndex": 19,
+          "dir": "l",
+          "movement": "left"
+        }
+      ]
+    },
+    "J3": {
+      "North": [
+        {
+          "from": "N1J3",
+          "to": "J3W2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_0_0",
+          "tl": "J3",
+          "linkIndex": 0,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "N1J3",
+          "to": "J3J1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_1_0",
+          "tl": "J3",
+          "linkIndex": 1,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "N1J3",
+          "to": "J3J1",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J3_1_1",
+          "tl": "J3",
+          "linkIndex": 2,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "N1J3",
+          "to": "J3J1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_1_2",
+          "tl": "J3",
+          "linkIndex": 3,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "N1J3",
+          "to": "J3J4",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_4_0",
+          "tl": "J3",
+          "linkIndex": 4,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "East": [
+        {
+          "from": "J4J3",
+          "to": "J3N1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_5_0",
+          "tl": "J3",
+          "linkIndex": 5,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J4J3",
+          "to": "J3W2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_6_0",
+          "tl": "J3",
+          "linkIndex": 6,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J4J3",
+          "to": "J3W2",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J3_6_1",
+          "tl": "J3",
+          "linkIndex": 7,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J4J3",
+          "to": "J3W2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_6_2",
+          "tl": "J3",
+          "linkIndex": 8,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J4J3",
+          "to": "J3J1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_9_0",
+          "tl": "J3",
+          "linkIndex": 9,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "South": [
+        {
+          "from": "J1J3",
+          "to": "J3J4",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_10_0",
+          "tl": "J3",
+          "linkIndex": 10,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J1J3",
+          "to": "J3N1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_11_0",
+          "tl": "J3",
+          "linkIndex": 11,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J1J3",
+          "to": "J3N1",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J3_11_1",
+          "tl": "J3",
+          "linkIndex": 12,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J1J3",
+          "to": "J3N1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_11_2",
+          "tl": "J3",
+          "linkIndex": 13,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J1J3",
+          "to": "J3W2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_14_0",
+          "tl": "J3",
+          "linkIndex": 14,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "West": [
+        {
+          "from": "W2J3",
+          "to": "J3J1",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_15_0",
+          "tl": "J3",
+          "linkIndex": 15,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "W2J3",
+          "to": "J3J4",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J3_16_0",
+          "tl": "J3",
+          "linkIndex": 16,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "W2J3",
+          "to": "J3J4",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J3_16_1",
+          "tl": "J3",
+          "linkIndex": 17,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "W2J3",
+          "to": "J3J4",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_16_2",
+          "tl": "J3",
+          "linkIndex": 18,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "W2J3",
+          "to": "J3N1",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J3_19_0",
+          "tl": "J3",
+          "linkIndex": 19,
+          "dir": "l",
+          "movement": "left"
+        }
+      ]
+    },
+    "J4": {
+      "North": [
+        {
+          "from": "N2J4",
+          "to": "J4J3",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_0_0",
+          "tl": "J4",
+          "linkIndex": 0,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "N2J4",
+          "to": "J4J2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_1_0",
+          "tl": "J4",
+          "linkIndex": 1,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "N2J4",
+          "to": "J4J2",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J4_1_1",
+          "tl": "J4",
+          "linkIndex": 2,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "N2J4",
+          "to": "J4J2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_1_2",
+          "tl": "J4",
+          "linkIndex": 3,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "N2J4",
+          "to": "J4E2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_4_0",
+          "tl": "J4",
+          "linkIndex": 4,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "East": [
+        {
+          "from": "E2J4",
+          "to": "J4N2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_5_0",
+          "tl": "J4",
+          "linkIndex": 5,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "E2J4",
+          "to": "J4J3",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_6_0",
+          "tl": "J4",
+          "linkIndex": 6,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "E2J4",
+          "to": "J4J3",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J4_6_1",
+          "tl": "J4",
+          "linkIndex": 7,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "E2J4",
+          "to": "J4J3",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_6_2",
+          "tl": "J4",
+          "linkIndex": 8,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "E2J4",
+          "to": "J4J2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_9_0",
+          "tl": "J4",
+          "linkIndex": 9,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "South": [
+        {
+          "from": "J2J4",
+          "to": "J4E2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_10_0",
+          "tl": "J4",
+          "linkIndex": 10,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J2J4",
+          "to": "J4N2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_11_0",
+          "tl": "J4",
+          "linkIndex": 11,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J2J4",
+          "to": "J4N2",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J4_11_1",
+          "tl": "J4",
+          "linkIndex": 12,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J2J4",
+          "to": "J4N2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_11_2",
+          "tl": "J4",
+          "linkIndex": 13,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J2J4",
+          "to": "J4J3",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_14_0",
+          "tl": "J4",
+          "linkIndex": 14,
+          "dir": "l",
+          "movement": "left"
+        }
+      ],
+      "West": [
+        {
+          "from": "J3J4",
+          "to": "J4J2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_15_0",
+          "tl": "J4",
+          "linkIndex": 15,
+          "dir": "r",
+          "movement": "right"
+        },
+        {
+          "from": "J3J4",
+          "to": "J4E2",
+          "fromLane": 0,
+          "toLane": 0,
+          "via": ":J4_16_0",
+          "tl": "J4",
+          "linkIndex": 16,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J3J4",
+          "to": "J4E2",
+          "fromLane": 1,
+          "toLane": 1,
+          "via": ":J4_16_1",
+          "tl": "J4",
+          "linkIndex": 17,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J3J4",
+          "to": "J4E2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_16_2",
+          "tl": "J4",
+          "linkIndex": 18,
+          "dir": "s",
+          "movement": "straight"
+        },
+        {
+          "from": "J3J4",
+          "to": "J4N2",
+          "fromLane": 2,
+          "toLane": 2,
+          "via": ":J4_19_0",
+          "tl": "J4",
+          "linkIndex": 19,
+          "dir": "l",
+          "movement": "left"
+        }
+      ]
+    }
+  },
+  "lane_movement_convention_note": "ADR-002 lane index convention is project guidance only; movements_by_approach is SSOT from net <connection> (a lane may have multiple dirs)."
+}

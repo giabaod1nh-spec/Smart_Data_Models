@@ -1,0 +1,54 @@
+{
+  "K_JAM": 200.0,
+  "actual_network_hash": "457da9d705b6d08a6a922569ed7cf1056d326ef989d3bf0c22f58882beb6a4e7",
+  "assets": {
+    "net_file": {
+      "path": "Visualize/intersection.net.xml",
+      "sha256": "457da9d705b6d08a6a922569ed7cf1056d326ef989d3bf0c22f58882beb6a4e7"
+    },
+    "rou_file": {
+      "path": "Visualize/intersection.rou.xml",
+      "sha256": "3a5958858c0627cfed56e26789ad4602119bcce115e1a78ba744925dc008be01"
+    },
+    "sumocfg_file": {
+      "path": "Visualize/intersection.sumocfg",
+      "sha256": "3e1b52fc76536d9dace057a3ea91b42bb12cc5ef3ee21d6a90de96fa46a987e2"
+    }
+  },
+  "config_hash": "2fe814b057020e5e629f4960e6a73ca51b680d4901b2c020d8961cca4e5364d9",
+  "control_mode": "FIXED",
+  "demand_profile_id": "normal",
+  "demand_seed": 42,
+  "detector_geometry_version": "2",
+  "detector_profile_id": "approach_detector_v2_stopline",
+  "experiment_description": "",
+  "git_commit": "01f47e0d0e8e11d278c7811cc9da67143492cbe8",
+  "motorcycle_pcu": 0.24,
+  "network_hash": "457da9d705b6d08a6a922569ed7cf1056d326ef989d3bf0c22f58882beb6a4e7",
+  "network_hash_mismatch": {
+    "actual_network_hash": "457da9d705b6d08a6a922569ed7cf1056d326ef989d3bf0c22f58882beb6a4e7",
+    "expected_network_hash": "BDC620D966302B1595C5688AD6013A0579639F662A865127D9E6CA3ADA381C5D"
+  },
+  "network_id": "intersection_grid_j1_j4",
+  "network_version": "1.8.0-geom",
+  "numpy_random_seed": null,
+  "parameter_profile": "hanoi_signalized_mixed_traffic_pce_024",
+  "profile_id": "hanoi_signalized_mixed_traffic_pce_024",
+  "profile_version": "1.0.0",
+  "python_random_seed": 42,
+  "route_generation_seed": null,
+  "route_hash": "3a5958858c0627cfed56e26789ad4602119bcce115e1a78ba744925dc008be01",
+  "run_id": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+  "scenario": "normal",
+  "scenario_profile": "experimental_scenario_scales_v1",
+  "schema_version": "1.8.1-provenance",
+  "seed": 42,
+  "simulation_run_id": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+  "sumo_seed": 42,
+  "sumo_version": "Eclipse SUMO sumo 1.27.1",
+  "sumocfg_hash": "3e1b52fc76536d9dace057a3ea91b42bb12cc5ef3ee21d6a90de96fa46a987e2",
+  "threshold_profile": "thresholds",
+  "timestamp": "2026-08-10T09:22:32Z",
+  "topology_hash": "a3ac1e8962383708bc06f96adb55c6f4c270454b8f17a09183b7eb44c7930c1b",
+  "traci_version": "0.0.0"
+}

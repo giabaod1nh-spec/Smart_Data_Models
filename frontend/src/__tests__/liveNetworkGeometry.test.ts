@@ -4,9 +4,9 @@ import { expandEdgeLanes, enrichNetworkGeometry } from '@/utils/liveNetworkGeome
 describe('liveNetworkGeometry', () => {
   it('expandEdgeLanes creates 3 lanes from legacy edge', () => {
     const lanes = expandEdgeLanes({
-      id: 'W1J1',
-      from: 'W1',
-      to: 'J1',
+      id: '408246393#6',
+      from: '411926403',
+      to: '411926415',
       numLanes: 3,
       shape: [
         [0, 142],
@@ -23,9 +23,9 @@ describe('liveNetworkGeometry', () => {
     const enriched = enrichNetworkGeometry({
       bounds: { minX: 0, minY: 0, maxX: 800, maxY: 800, projParameter: '!', geoReferenced: false },
       junctions: [],
-      edges: [{ id: 'W1J1', from: 'W1', to: 'J1', numLanes: 3, shape: [[0, 142], [136, 142]] }],
+      edges: [{ id: '408246393#6', from: '411926403', to: '411926415', numLanes: 3, shape: [[0, 142], [136, 142]] }],
     })
-    const w = enriched.edges.find((e) => e.id === 'W1J1')
+    const w = enriched.edges.find((e) => e.id === '408246393#6')
     expect(w?.lanes).toHaveLength(3)
   })
 })

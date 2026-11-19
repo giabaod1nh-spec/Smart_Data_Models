@@ -183,7 +183,7 @@ $env:KAFKA_OUTBOX_ENABLED = "true"
 $env:KAFKA_PUBLISH_ENABLED = "false"
 $env:KAFKA_BOOTSTRAP_SERVERS = "localhost:29092"
 $env:PYTHONUNBUFFERED = "1"
-.\.venv\Scripts\python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D --realtime --log-level INFO
+.\.venv\Scripts\python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D,M --realtime --log-level INFO
 ~~~
 
 Các biến trên buộc đường realtime dùng durable outbox → Kafka và không bật publish trực tiếp vào Orion. Giữ Terminal A chạy trong lúc xem demo; nhấn Ctrl+C để kết thúc run. Nếu không mở GUI, dùng --no-gui thay cho --gui.
@@ -310,6 +310,15 @@ docker compose down chỉ xóa container/network, không xóa named volume nếu
 
 ## 13. Tóm tắt lệnh theo thứ tự
 
+Shortcut với [Task](https://taskfile.dev) (từ root repo, sau `winget install Task.Task`):
+
+~~~powershell
+task spring   # cd server + mvnw
+task sumo     # cd Visualize + traci_runner (set env §7 trước)
+task fe       # cd frontend + npm run dev
+task check    # ping health URLs (mục 10.1)
+~~~
+
 ~~~powershell
 # Terminal 1 — hạ tầng
 docker compose up -d --build
@@ -321,7 +330,7 @@ $env:ORION_SYNC_PUBLISH="false"
 $env:KAFKA_OUTBOX_ENABLED="true"
 $env:KAFKA_PUBLISH_ENABLED="false"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
-.\.venv\Scripts\python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D --realtime
+.\.venv\Scripts\python.exe -m app.traci_runner --gui --no-orion --nodes A,B,C,D,M --realtime
 
 # Terminal 3 — Spring Server :8081
 Set-Location server
@@ -372,7 +381,7 @@ $env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
 ..\.venv\Scripts\python.exe -m app.traci_runner `
   --gui `
   --no-orion `
-  --nodes A,B,C,D `
+  --nodes A,B,C,D,M `
   --realtime `
   --publish-interval 5 `
   --log-level INFO
@@ -515,7 +524,7 @@ $env:KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
 python -m app.traci_runner `
   --gui `
   --no-orion `
-  --nodes A,B,C,D `
+  --nodes A,B,C,D,M `
   --realtime `
   --publish-interval 5 `
   --log-level INFO

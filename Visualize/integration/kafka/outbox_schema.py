@@ -3,6 +3,7 @@ from __future__ import annotations
 
 EVENT_KIND_ENTITY = "entity"
 EVENT_KIND_RUN_STARTED = "run_started"
+EVENT_KIND_OBSERVATION_V1 = "observation_v1"
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS kafka_outbox (

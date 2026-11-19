@@ -7,6 +7,7 @@ Sync mode (--sync-publish): publish_once() blocks TraCI (debug / parity).
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -295,6 +296,15 @@ def _resolve_async_mode(args: argparse.Namespace) -> bool:
 
 def run(args: argparse.Namespace) -> int:
     setup_logging(args.log_level or cfg.LOG_LEVEL)
+    if getattr(args, "v1_capture_file", None) and not getattr(args, "v1_observations", False):
+        raise ValueError("--v1-capture-file requires --v1-observations")
+    from runtime.v1_startup import validate_v1_publish_mode
+
+    try:
+        v1_publish_mode = validate_v1_publish_mode(args=args, cfg=cfg)
+    except ValueError as exc:
+        log.error("%s", exc)
+        return 2
 
     # Architecture profile validation (no-op when ARCHITECTURE_PROFILE=none)
     try:
@@ -308,7 +318,7 @@ def run(args: argparse.Namespace) -> int:
         ProfileValidationError = None
         validate_env = None
 
-    if validate_env is not None:
+    if validate_env is not None and not v1_publish_mode:
         env_map = dict(os.environ)
         env_map.setdefault(
             "ORION_PUBLISH_ENABLED",
@@ -354,10 +364,20 @@ def run(args: argparse.Namespace) -> int:
         publish_orion = False
     elif not getattr(cfg, "ORION_PUBLISH_ENABLED", True):
         publish_orion = False
+    if v1_publish_mode:
+        publish_orion = False
     kafka_wanted = bool(
+        not v1_publish_mode and (
         getattr(cfg, "KAFKA_OUTBOX_ENABLED", False)
         or getattr(cfg, "KAFKA_PUBLISH_ENABLED", False)
+        )
     )
+    if publish_orion and kafka_wanted and profile_name != "migration":
+        log.error(
+            "Direct Orion and Kafka projection paths cannot both be active "
+            "outside the migration profile"
+        )
+        return 2
     use_async = _resolve_async_mode(args) if publish_orion else False
     # Sync path does not fanout Kafka — forbidden under locked profiles (validated above).
     if getattr(args, "sync_publish", False) and kafka_wanted:
@@ -447,10 +467,8 @@ def run(args: argparse.Namespace) -> int:
                 )
             except Exception as e:
                 log.error("Kafka outbox failed to start: %s", e, exc_info=True)
-                if profile_name in ("k5-cutover", "final", "migration"):
-                    log.error("Outbox mandatory under profile=%s — aborting", profile_name)
-                    return 2
-                kafka_outbox = None
+                log.error("Configured durable Outbox is unavailable — aborting")
+                return 2
         elif getattr(cfg, "KAFKA_PUBLISH_ENABLED", False):
             try:
                 from integration.kafka.producer import AsyncKafkaProducer
@@ -486,6 +504,8 @@ def run(args: argparse.Namespace) -> int:
         use_gui=use_gui,
         publish_nodes=nodes,
         simulation_run_id=getattr(args, "simulation_run_id", None),
+        v1_observations=getattr(args, "v1_observations", False),
+        v1_publishing=v1_publish_mode,
     )
     if getattr(args, "control_mode", None):
         backend.set_control_mode(args.control_mode)
@@ -493,6 +513,10 @@ def run(args: argparse.Namespace) -> int:
     publish_interval = float(args.publish_interval or cfg.PUBLISH_INTERVAL)
     last_publish_sim_t = -1e9
     step_count = 0
+    v1_capture_written = False
+    v1_last_sequence = 0
+    v1_run_finished = False
+    v1_run_failed = False
     pace_realtime = use_gui and not getattr(args, "fast", False)
     if getattr(args, "realtime", False):
         pace_realtime = True
@@ -505,6 +529,27 @@ def run(args: argparse.Namespace) -> int:
 
     try:
         backend.start()
+        if v1_publish_mode:
+            from contracts.traffic_observation import TOPIC
+            from integration.kafka.v1_publisher import V1DurablePublisher
+
+            kafka_outbox = V1DurablePublisher(
+                db_path=cfg.V1_OUTBOX_DB,
+                bootstrap_servers=cfg.KAFKA_BOOTSTRAP_SERVERS,
+                topic=TOPIC,
+                client_id=f"{cfg.KAFKA_CLIENT_ID}-v1-outbox",
+                producer_id=cfg.KAFKA_PRODUCER_ID,
+                linger_ms=cfg.KAFKA_LINGER_MS,
+                delivery_timeout_ms=cfg.KAFKA_DELIVERY_TIMEOUT_MS,
+                request_timeout_ms=cfg.KAFKA_REQUEST_TIMEOUT_MS,
+                max_in_flight=cfg.KAFKA_OUTBOX_MAX_IN_FLIGHT,
+                acked_retention_days=cfg.KAFKA_OUTBOX_ACKED_RETENTION_DAYS,
+                disk_warn_free_bytes=cfg.KAFKA_OUTBOX_DISK_WARN_BYTES,
+                disk_fault_free_bytes=cfg.KAFKA_OUTBOX_DISK_FAULT_BYTES,
+            )
+            kafka_outbox.start()
+            if kafka_outbox.is_faulted:
+                raise RuntimeError(f"V1 Outbox failed to start: {kafka_outbox.health()}")
         if pace_realtime:
             pace_anchor_wall = time.perf_counter()
             pace_anchor_sim = float(backend.simulation_time_sec)
@@ -540,9 +585,15 @@ def run(args: argparse.Namespace) -> int:
 
             # ── backpressure / lag gate (async, only when Orion gate ON) ─
             should_pause = False
-            from integration.orion.publish_gate import is_orion_publish_enabled
+            orion_gate_on = False
+            if (
+                publish_orion
+                and use_async
+                and publisher is not None
+            ):
+                from integration.orion.publish_gate import is_orion_publish_enabled
 
-            orion_gate_on = is_orion_publish_enabled()
+                orion_gate_on = is_orion_publish_enabled()
             if (
                 publish_orion
                 and use_async
@@ -655,6 +706,72 @@ def run(args: argparse.Namespace) -> int:
 
             step_count += 1
             sim_t = backend.simulation_time_sec
+            if v1_publish_mode:
+                result = backend.last_v1_cycle
+                if result is not None and result.cycle_sequence > v1_last_sequence:
+                    v1_last_sequence = result.cycle_sequence
+                    if not result.success:
+                        v1_run_failed = True
+                        backend.set_v1_run_status("INCOMPLETE", failed_cycle=result)
+                        raise RuntimeError(
+                            f"V1 structural cycle {result.cycle_sequence} failed: "
+                            f"{result.failure_code}: {result.failure_reason}"
+                        )
+                    try:
+                        frozen = kafka_outbox.freeze_cycle(
+                            result,
+                            manifest_path=cfg.ARTIFACTS_DIR / "runs" / backend.simulation_run_id / "run_manifest.json",
+                            context=backend.v1_topology_context,
+                            registry=backend.v1_run_registry,
+                        )
+                        from integration.kafka.outbox_store import OutboxTransientError
+
+                        for attempt in range(3):
+                            try:
+                                appended = kafka_outbox.persist_frozen(frozen)
+                                log.info(
+                                    "V1 cycle committed run=%s generation=%s sequence=%s inserted=%s reused=%s",
+                                    backend.simulation_run_id, backend.v1_run_generation,
+                                    result.cycle_sequence, appended.inserted,
+                                    appended.reused_pending + appended.already_delivered,
+                                )
+                                backend.v1_successful_cycle_count += 1
+                                break
+                            except OutboxTransientError:
+                                if attempt == 2:
+                                    raise
+                                time.sleep(0.1 * (attempt + 1))
+                    except Exception as exc:
+                        v1_run_failed = True
+                        backend.set_v1_run_status("INCOMPLETE", failed_cycle=result, reason=str(exc))
+                        raise
+                    backend.clear_publish_asap()
+            if getattr(args, "v1_capture_file", None) and not v1_capture_written:
+                result = backend.last_v1_cycle
+                if result is not None and result.success and result.snapshot.simulation_time_seconds >= getattr(args, "v1_capture_after", 0.0):
+                    from contracts.traffic_observation import validate_observation
+
+                    for observation in result.observations:
+                        validate_observation(observation)
+                    context = backend.v1_topology_context
+                    evidence = {
+                        "source": "local SUMO/TraCI post-step capture",
+                        "sumoConfig": str(backend.sumo_config),
+                        "catalogArchive": str(context.archive_path),
+                        "catalogArchiveReady": context.archive_ready,
+                        "catalogDigest": context.topology_digest,
+                        "participatingIntersections": list(backend._v1_participating_nodes),
+                        "canonicalSnapshot": result.snapshot.to_dict(),
+                        "observations": list(result.observations),
+                        "structuralValidation": "PASS",
+                        "semanticValidation": "PASS",
+                        "observationCount": len(result.observations),
+                    }
+                    capture_path = Path(args.v1_capture_file)
+                    capture_path.parent.mkdir(parents=True, exist_ok=True)
+                    capture_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
+                    v1_capture_written = True
+                    log.info("Captured non-publishing V1 cycle %s at %s", result.cycle_sequence, capture_path)
 
             if demo and not demo_applied and sim_t >= 5.0:
                 try:
@@ -696,7 +813,7 @@ def run(args: argparse.Namespace) -> int:
             )
             publish_asap = backend.should_publish_asap()
             publish_due = publish_asap or (sim_t - last_publish_sim_t) >= publish_interval
-            if publish_active and publish_due:
+            if not v1_publish_mode and publish_active and publish_due:
                 if publish_asap:
                     log.info(
                         "publish_asap requested (scenario/demand change) sim_t=%.3f",
@@ -800,6 +917,9 @@ def run(args: argparse.Namespace) -> int:
 
                         if isinstance(e, OutboxAppendError):
                             log.error("Kafka outbox FAULTED: %s", e)
+                            # Reliable mode must not silently advance SUMO after
+                            # a snapshot failed to reach durable local storage.
+                            raise
                         else:
                             log.error("Kafka-only capture failed: %s", e, exc_info=True)
                 elif publish_orion:
@@ -826,10 +946,12 @@ def run(args: argparse.Namespace) -> int:
 
             if args.max_sim_time and sim_t >= args.max_sim_time:
                 log.info("Reached max_sim_time=%.1f — stopping.", args.max_sim_time)
+                v1_run_finished = True
                 break
 
             if not use_gui and not cont and sim_t >= cfg.SIM_END_SEC:
                 log.info("Simulation ended at t=%.2f", sim_t)
+                v1_run_finished = True
                 break
 
             if pace_realtime and pace_anchor_wall is not None:
@@ -846,8 +968,17 @@ def run(args: argparse.Namespace) -> int:
         log.info("Interrupted by user (Ctrl+C).")
     except Exception as e:
         log.error("Fatal runtime error: %s", e, exc_info=True)
+        v1_run_failed = True
         return 1
     finally:
+        if v1_publish_mode and backend.v1_run_registry and backend.simulation_run_id:
+            selected = backend.v1_run_registry.selected()
+            if selected and selected["run_id"] == backend.simulation_run_id and selected["status"] == "RUNNING":
+                try:
+                    status = "INCOMPLETE" if v1_run_failed else ("COMPLETE" if v1_run_finished else "STOPPED")
+                    backend.set_v1_run_status(status, reason="runtime stopped before completion" if status == "INCOMPLETE" else None)
+                except Exception as exc:
+                    log.error("Could not finalize V1 run status: %s", exc, exc_info=True)
         if publisher is not None:
             if pending_cycle is not None:
                 try:
@@ -890,6 +1021,15 @@ def run(args: argparse.Namespace) -> int:
         backend.stop()
         log.info("Shutdown complete. steps=%d", step_count)
 
+    if getattr(args, "v1_capture_file", None) and not v1_capture_written:
+        result = backend.last_v1_cycle
+        log.error(
+            "No successful V1 cycle captured: last=%s %s; requested after %.2f s",
+            result.failure_code if result else "NONE",
+            result.failure_reason if result else "no sampling attempt",
+            getattr(args, "v1_capture_after", 0.0),
+        )
+        return 2
     return 0
 
 
@@ -901,7 +1041,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-gui", action="store_true")
     p.add_argument("--no-orion", action="store_true")
     p.add_argument("--no-api", action="store_true", help="Do not start Control API")
-    p.add_argument("--nodes", default=None, help="Comma list e.g. A,B,C,D")
+    p.add_argument("--v1-observations", action="store_true", help="Build and validate V1 cycles")
+    p.add_argument("--v1-publish", action="store_true", help="Publish V1 cycles through the durable Outbox (requires --v1-observations --no-orion)")
+    p.add_argument("--v1-capture-file", default=None, help="Write the first successful V1 cycle as JSON (requires --v1-observations)")
+    p.add_argument("--v1-capture-after", type=float, default=0.0, help="Minimum SUMO time for the captured V1 fixture")
+    p.add_argument("--nodes", default=None, help="Comma list e.g. A,B,C,D,M")
     p.add_argument("--publish-interval", type=float, default=None)
     p.add_argument("--max-sim-time", type=float, default=None)
     p.add_argument(

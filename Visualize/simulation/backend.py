@@ -8,6 +8,8 @@ import json
 import os
 import shutil
 import uuid
+import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -15,7 +17,8 @@ import configuration.config as cfg
 from control.runtime_state import SimulationRuntimeState
 from control.command_executor import drain_with_tracking
 from configuration.model_params import get_registry
-from runtime.run_manifest import build_and_write_manifest
+from runtime.run_manifest import atomic_write_json, build_and_write_manifest, read_verified_v1_manifest
+from runtime.active_run_registry import ActiveRunRegistry
 from simulation.scenario_manager import SumoScenarioManager
 from simulation.signal_controller import SumoSignalController
 from observation.snapshot_provider import SumoSnapshotProvider
@@ -34,7 +37,11 @@ class SumoBackend:
         publish_node: Optional[str] = None,
         publish_nodes: Optional[List[str]] = None,
         simulation_run_id: Optional[str] = None,
+        v1_observations: bool = False,
+        v1_publishing: bool = False,
     ):
+        if v1_publishing and not v1_observations:
+            raise ValueError("V1 publishing requires V1 observation generation")
         self.sumo_config = cfg.SUMO_CONFIG if sumo_config is None else sumo_config
         self.use_gui = cfg.SUMO_GUI if use_gui is None else use_gui
         nodes = publish_nodes or cfg.PUBLISH_NODES
@@ -56,7 +63,12 @@ class SumoBackend:
         self.snapshots: Dict[str, SumoSnapshotProvider] = {}
         for node in self.publish_nodes:
             tls = cfg.NODE_TO_TLS[node]
-            self.signals[node] = SumoSignalController(tls)
+            self.signals[node] = SumoSignalController(
+                tls,
+                node_id=node,
+                tls_ids=cfg.tls_ids_for_node(node),
+                grouped_axes=cfg.GROUPED_TLS_AXES.get(node),
+            )
             self.scenarios[node] = SumoScenarioManager(tls)
             self.snapshots[node] = SumoSnapshotProvider(tls, node)
 
@@ -83,11 +95,38 @@ class SumoBackend:
         self._cache_interval_sec: float = float(os.getenv("OBSERVATION_INTERVAL_SEC", "1.0"))
         self._last_obs_sim_t: float = -1e9
         self._observation_seq: int = 0
+        self._completed_simulation_steps: int = 0
+        self.v1_observations_enabled = v1_observations
+        self.v1_publishing = v1_publishing
+        self.v1_run_registry = None
+        self.v1_run_generation = None
+        self.v1_failed_cycle_count = 0
+        self.v1_successful_cycle_count = 0
+        self.v1_topology_context = None
+        self.last_v1_cycle = None
+        self._last_v1_failure_logged = None
+        self._v1_participating_nodes = tuple(self.publish_nodes)
+        self._v1_runtime_catalog_bytes = None
+        self._v1_catalog_freeze_error = None
+        if v1_observations:
+            try:
+                self._v1_runtime_catalog_bytes = json.dumps(
+                    cfg._TOPOLOGY_CATALOG, sort_keys=True, ensure_ascii=False, allow_nan=False,
+                ).encode("utf-8")
+            except (TypeError, ValueError) as exc:
+                self._v1_catalog_freeze_error = str(exc)
+                log.error("V1 catalog freeze failed: %s", exc)
         self.simulation_run_id: Optional[str] = None
         self.requested_simulation_run_id = simulation_run_id
         self.run_manifest: Optional[dict] = None
-        self.runtime = NetworkRuntimeController(self.publish_nodes)
+        self.runtime = NetworkRuntimeController(
+            self.publish_nodes,
+            **({"catalog": json.loads(self._v1_runtime_catalog_bytes)} if self._v1_runtime_catalog_bytes else {}),
+        )
         self.control_mode = "FIXED"
+        # Cooperative DQN controller (AI_Control_Traffic_Light) — lazy-loaded on
+        # first switch to ADAPTIVE because it pulls in TensorFlow.
+        self._rl_controller = None
         self.runtime.set_control_mode("FIXED")
         for sig in self.signals.values():
             sig.preemption_enabled = False
@@ -98,7 +137,8 @@ class SumoBackend:
         if not os.environ.get("SUMO_HOME", "").strip():
             log.warning("SUMO_HOME is not set. TraCI import may fail.")
         try:
-            import traci
+            from simulation.traci_adapter import TraCIAdapter
+            traci = TraCIAdapter()
         except ImportError as e:
             raise RuntimeError(
                 "Cannot import traci. Set SUMO_HOME. Detail: " + str(e)
@@ -108,6 +148,15 @@ class SumoBackend:
         config_path = str(self.sumo_config)
         if not os.path.isfile(config_path):
             raise FileNotFoundError(f"SUMO config not found: {config_path}")
+        config_xml = ET.parse(config_path).getroot()
+        net_setting = config_xml.find("./input/net-file")
+        if net_setting is None or not net_setting.get("value"):
+            raise ValueError(f"SUMO config has no input/net-file: {config_path}")
+        net_path = (Path(config_path).resolve().parent / net_setting.get("value")).resolve()
+        from topology.catalog import verify_against_net
+        topology_errors = verify_against_net(net_path, cfg.TOPOLOGY_CATALOG_PATH)
+        if topology_errors:
+            raise RuntimeError("SUMO topology preflight failed: " + "; ".join(topology_errors))
 
         self.simulation_run_id = self.requested_simulation_run_id or str(uuid.uuid4())
         for snap in self.snapshots.values():
@@ -119,11 +168,84 @@ class SumoBackend:
         )
         topo_hash = None
         cat_path = cfg.GENERATED_ROOT / "network_topology_catalog.json"
-        if cat_path.is_file():
+        if self._v1_runtime_catalog_bytes is not None:
+            topo_hash = json.loads(self._v1_runtime_catalog_bytes).get("topology_hash")
+        elif cat_path.is_file():
             try:
                 topo_hash = json.loads(cat_path.read_text(encoding="utf-8")).get("topology_hash")
             except Exception:
                 topo_hash = None
+        run_dir = cfg.ARTIFACTS_DIR / "runs" / self.simulation_run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        if not self.v1_observations_enabled and cat_path.is_file():
+            dest_cat = run_dir / "network_topology_catalog.json"
+            shutil.copy2(cat_path, dest_cat)
+            try:
+                copied = json.loads(dest_cat.read_text(encoding="utf-8"))
+                copied_hash = copied.get("topology_hash")
+                if topo_hash and copied_hash and topo_hash != copied_hash:
+                    raise RuntimeError(
+                        f"topology_hash mismatch: runtime={topo_hash} "
+                        f"catalog={copied_hash}"
+                    )
+            except RuntimeError:
+                raise
+            except Exception as e:
+                log.warning("Could not verify topology_hash after copy: %s", e)
+        elif not self.v1_observations_enabled:
+            log.warning("Topology catalog missing at %s — run package incomplete", cat_path)
+        if self.v1_observations_enabled and self._v1_runtime_catalog_bytes:
+            from observation.canonical_cycle import freeze_run_catalog
+
+            # cfg mappings were derived from this in-memory catalog at import time.
+            # Never re-read the mutable generated file to derive V1 topology.
+            runtime_catalog = json.loads(self._v1_runtime_catalog_bytes)
+            dest_cat = run_dir / "network_topology_catalog.json"
+            self.v1_topology_context = freeze_run_catalog(
+                self.simulation_run_id, runtime_catalog, dest_cat,
+            )
+            if self.v1_topology_context.archive_ready:
+                archived_errors = verify_against_net(net_path, dest_cat)
+                if archived_errors:
+                    self.v1_topology_context = self.v1_topology_context.__class__(
+                        self.v1_topology_context.simulation_run_id,
+                        self.v1_topology_context.catalog_json,
+                        self.v1_topology_context.topology_digest,
+                        self.v1_topology_context.archive_path,
+                        False,
+                        "archived catalog/net mismatch: " + "; ".join(archived_errors),
+                    )
+            mappings_differ = dict(runtime_catalog.get("node_to_tls", {})) != cfg.NODE_TO_TLS or any(
+                tuple(runtime_catalog.get("node_to_tls_groups", {}).get(n, ())) != cfg.tls_ids_for_node(n)
+                for n in self._v1_participating_nodes
+            ) or any(
+                runtime_catalog.get("approach_edges", {}).get(cfg.NODE_TO_TLS[n], {})
+                != cfg.APPROACH_EDGES.get(cfg.NODE_TO_TLS[n], {})
+                or runtime_catalog.get("sensing_edges", {}).get(cfg.NODE_TO_TLS[n], {})
+                != cfg.SENSING_EDGES.get(cfg.NODE_TO_TLS[n], {})
+                for n in self._v1_participating_nodes
+            ) or topo_hash != runtime_catalog.get("topology_hash")
+            if mappings_differ and self.v1_topology_context is not None:
+                self.v1_topology_context = self.v1_topology_context.__class__(
+                    self.v1_topology_context.simulation_run_id,
+                    self.v1_topology_context.catalog_json,
+                    self.v1_topology_context.topology_digest,
+                    self.v1_topology_context.archive_path,
+                    False,
+                    "runtime topology mappings differ from frozen catalog",
+                )
+            if self.v1_topology_context is not None and not self.v1_topology_context.archive_ready:
+                log.error("V1 catalog not ready: %s", self.v1_topology_context.error)
+        elif self.v1_observations_enabled:
+            log.error("V1 catalog not ready: %s", self._v1_catalog_freeze_error)
+        if self.v1_publishing and (
+            self.v1_topology_context is None or not self.v1_topology_context.archive_ready
+        ):
+            reason = self.v1_topology_context.error if self.v1_topology_context else self._v1_catalog_freeze_error
+            raise RuntimeError(f"V1 catalog archive is not ready: {reason}")
+        if self.v1_publishing:
+            self.v1_run_registry = ActiveRunRegistry(cfg.ARTIFACTS_DIR / "runs" / "active_run.sqlite3")
+            self.v1_run_generation = self.v1_run_registry.next_generation()
         self.run_manifest = build_and_write_manifest(
             registry=reg,
             artifacts_root=cfg.ARTIFACTS_DIR,
@@ -131,32 +253,25 @@ class SumoBackend:
             scenario=self.runtime.state.demand_profile_id,
             sumo_seed=cfg.SIM_SEED,
             python_random_seed=cfg.SIM_SEED,
-            allow_missing_manifest=allow_missing,
+            allow_missing_manifest=allow_missing and not self.v1_publishing,
             network_hash_mismatch_mode=os.getenv("NETWORK_HASH_MODE", "compat"),
             demand_seed=int(reg.insertion_policy().get("demand_seed", cfg.SIM_SEED)),
             control_mode=self.control_mode,
             topology_hash=topo_hash,
+            topology_digest=(self.v1_topology_context.topology_digest
+                             if self.v1_topology_context and self.v1_topology_context.archive_ready else None),
+            participating_intersection_ids=(list(self._v1_participating_nodes)
+                                            if self.v1_topology_context and self.v1_topology_context.archive_ready else None),
+            run_generation=self.v1_run_generation,
+            run_status="READY" if self.v1_publishing else None,
         )
-        run_dir = cfg.ARTIFACTS_DIR / "runs" / self.simulation_run_id
-        run_dir.mkdir(parents=True, exist_ok=True)
-        if cat_path.is_file():
-            dest_cat = run_dir / "network_topology_catalog.json"
-            shutil.copy2(cat_path, dest_cat)
-            try:
-                copied = json.loads(dest_cat.read_text(encoding="utf-8"))
-                copied_hash = copied.get("topology_hash")
-                manifest_hash = (self.run_manifest or {}).get("topology_hash")
-                if manifest_hash and copied_hash and manifest_hash != copied_hash:
-                    raise RuntimeError(
-                        f"topology_hash mismatch: manifest={manifest_hash} "
-                        f"catalog={copied_hash}"
-                    )
-            except RuntimeError:
-                raise
-            except Exception as e:
-                log.warning("Could not verify topology_hash after copy: %s", e)
-        else:
-            log.warning("Topology catalog missing at %s — run package incomplete", cat_path)
+        if self.v1_publishing:
+            read_verified_v1_manifest(
+                run_dir / "run_manifest.json", run_id=self.simulation_run_id,
+                topology_digest=self.v1_topology_context.topology_digest,
+                participants=self._v1_participating_nodes,
+                generation=self.v1_run_generation,
+            )
         self.runtime.attach_run_dir(run_dir)
         log.info(
             "Run provenance: run_id=%s demand_profile=%s config_hash=%s schema=%s",
@@ -173,12 +288,61 @@ class SumoBackend:
             sumo_cmd.extend(["--step-length", str(cfg.SUMO_STEP_LENGTH)])
 
         log.info("Starting SUMO: %s", " ".join(sumo_cmd))
-        traci.start(sumo_cmd)
-        self._traci = traci
+        try:
+            traci.connect(sumo_cmd)
+            self._traci = traci
+            missing_tls = set(cfg.NODE_TO_TLS.values()) - set(traci.trafficlight.getIDList())
+            if missing_tls:
+                raise RuntimeError(f"Selected TLS missing from TraCI: {sorted(missing_tls)}")
+            e1_ids = set(traci.inductionloop.getIDList())
+            e2_ids = set(traci.lanearea.getIDList())
+            missing_detectors = []
+            for tls_id in cfg.NODE_TO_TLS.values():
+                for direction, edge in cfg.APPROACH_EDGES[tls_id].items():
+                    for i, _ in enumerate(cfg.edge_lane_ids(edge)):
+                        if cfg.detector_id_e1(tls_id, direction, i) not in e1_ids:
+                            missing_detectors.append(cfg.detector_id_e1(tls_id, direction, i))
+                        if cfg.detector_id_e2(tls_id, direction, i) not in e2_ids:
+                            missing_detectors.append(cfg.detector_id_e2(tls_id, direction, i))
+                for edge in cfg.OUTGOING_EDGES[tls_id]:
+                    for i, _ in enumerate(cfg.edge_lane_ids(edge)):
+                        detector_id = cfg.detector_id_e2_out(tls_id, edge, i)
+                        if detector_id not in e2_ids:
+                            missing_detectors.append(detector_id)
+            if missing_detectors:
+                raise RuntimeError(f"Selected detectors missing from TraCI: {missing_detectors[:8]}")
+            self.simulation_time_sec = float(traci.simulation.getTime())
+            for signal in self.signals.values():
+                signal.initialize(traci)
+            self.runtime.on_start(traci)
+            if self.v1_publishing:
+                self.v1_run_registry.activate(self.run_manifest)
+                self.run_manifest["runStatus"] = "RUNNING"
+                atomic_write_json(run_dir / "run_manifest.json", self.run_manifest)
+                read_verified_v1_manifest(
+                    run_dir / "run_manifest.json", run_id=self.simulation_run_id,
+                    topology_digest=self.v1_topology_context.topology_digest,
+                    participants=self._v1_participating_nodes,
+                    generation=self.v1_run_generation,
+                )
+        except Exception:
+            if self.v1_publishing and self.v1_run_registry:
+                try:
+                    selected = self.v1_run_registry.selected()
+                    if selected and selected["run_id"] == self.simulation_run_id:
+                        self.set_v1_run_status("INCOMPLETE", reason="SUMO startup failed")
+                except Exception as status_error:
+                    log.error("Could not record failed V1 startup: %s", status_error)
+            try:
+                traci.close()
+            except Exception as close_error:
+                log.warning("TraCI cleanup after start failure: %s", close_error)
+            self._traci = None
+            self._started = False
+            self._runtime_state = SimulationRuntimeState.FAILED
+            raise
         self._started = True
         self._runtime_state = SimulationRuntimeState.RUNNING
-        self.simulation_time_sec = float(traci.simulation.getTime())
-        self.runtime.on_start(traci)
         # Live WebSocket stream (additive — does not affect Orion/demand/TLS control)
         try:
             from streaming.live_vehicle_stream import init_live_stream
@@ -235,7 +399,12 @@ class SumoBackend:
 
         # --- simulationStep ---
         phases.append("simulationStep")
-        traci.simulationStep()
+        try:
+            traci.simulation_step()
+            self._completed_simulation_steps += 1
+        except Exception:
+            self._runtime_state = SimulationRuntimeState.FAILED
+            raise
         for sig in self.signals.values():
             sig.tick_pending(traci)
             if sig.manual_mode:
@@ -246,6 +415,10 @@ class SumoBackend:
         if tracker is not None:
             tracker.tick(self)
         self.simulation_time_sec = float(traci.simulation.getTime())
+
+        # --- ADAPTIVE mode: DQN agents decide every decision_interval_sec ---
+        if self.control_mode == "ADAPTIVE" and self._rl_controller is not None:
+            self._rl_controller.maybe_tick(self)
 
         # --- live vehicle stream (throttled; never blocks TraCI on WS I/O) ---
         if cfg.LIVE_STREAM_ENABLED:
@@ -284,11 +457,19 @@ class SumoBackend:
             self._observation_seq += 1
             obs_seq = self._observation_seq
             fresh_snaps: Dict[str, dict] = {}
+            v1_sources: Dict[str, dict] = {}
             for node_id in self.publish_nodes:
                 try:
-                    phys = self._build_physical_snapshot_dict(node_id)
+                    phys = self._build_physical_snapshot_dict(
+                        node_id, capture_quality=self.v1_observations_enabled,
+                    )
                     phys["observation_seq"] = obs_seq
                     phys["source_observation_seq"] = obs_seq
+                    if self.v1_observations_enabled:
+                        v1_sources[node_id] = phys
+                        # V2 compatibility view receives its original numeric values.
+                        phys = dict(phys)
+                        phys.pop("_measurement_quality", None)
                     fresh_snaps[node_id] = phys
                 except Exception as e:
                     log.debug("physical snapshot %s: %s", node_id, e)
@@ -315,6 +496,34 @@ class SumoBackend:
                 except Exception as e:
                     log.debug("traffic RF annotate %s: %s", node_id, e)
                 self._snapshot_cache[node_id] = merged
+            if self.v1_observations_enabled:
+                from observation.canonical_cycle import generate_v1_cycle
+
+                # Attach the same context and identity as V2, while retaining
+                # quality metadata from the single physical TraCI collection.
+                cycle_sources = {}
+                for node_id, raw in v1_sources.items():
+                    merged = self._snapshot_cache.get(node_id)
+                    if merged is not None and merged.get("observation_seq") == obs_seq:
+                        source = self._attach_publish_identity(node_id, merged)
+                        source["_measurement_quality"] = raw["_measurement_quality"]
+                        cycle_sources[node_id] = source
+                self.last_v1_cycle = generate_v1_cycle(
+                    context=self.v1_topology_context,
+                    participating_nodes=self._v1_participating_nodes,
+                    sources=cycle_sources,
+                    simulation_time_seconds=self.simulation_time_sec,
+                    simulation_step=self._completed_simulation_steps,
+                    cycle_sequence=obs_seq,
+                )
+                if not self.last_v1_cycle.success:
+                    failure = (self.last_v1_cycle.failure_code, self.last_v1_cycle.failure_reason)
+                    if failure != self._last_v1_failure_logged:
+                        log.warning("V1 cycle %s failed: %s: %s", obs_seq, *failure)
+                        self._last_v1_failure_logged = failure
+                elif self._last_v1_failure_logged is not None:
+                    log.info("V1 cycle %s recovered", obs_seq)
+                    self._last_v1_failure_logged = None
             try:
                 self._stats_cache = self._build_stats_now()
                 self._stats_cache["last_tick_phases"] = list(phases)
@@ -339,6 +548,7 @@ class SumoBackend:
 
     def stop(self) -> None:
         if self._traci is not None:
+            self._runtime_state = SimulationRuntimeState.STOPPING
             try:
                 self._traci.close()
                 log.info("TraCI closed.")
@@ -347,6 +557,31 @@ class SumoBackend:
             finally:
                 self._traci = None
                 self._started = False
+                self._runtime_state = SimulationRuntimeState.STOPPED
+
+    def set_v1_run_status(self, status: str, *, failed_cycle=None, reason: str | None = None) -> None:
+        """Record the run outcome outside the observation-only Kafka topic."""
+        if not self.v1_publishing or self.v1_run_registry is None:
+            return
+        run_dir = cfg.ARTIFACTS_DIR / "runs" / self.simulation_run_id
+        if status == "INCOMPLETE":
+            self.v1_failed_cycle_count += 1
+            failure = {
+                "simulationRunId": self.simulation_run_id,
+                "cycleSequence": getattr(failed_cycle, "cycle_sequence", None),
+                "failureCode": getattr(failed_cycle, "failure_code", None) or (
+                    "PERSISTENCE_FAILURE" if failed_cycle is not None else "RUNTIME_FAILURE"
+                ),
+                "reason": reason or getattr(failed_cycle, "failure_reason", None),
+                "failedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "failedCycleCount": self.v1_failed_cycle_count,
+            }
+            atomic_write_json(run_dir / "v1_failed_cycle.json", failure)
+        self.v1_run_registry.set_status(self.simulation_run_id, status)
+        if self.run_manifest is not None:
+            self.run_manifest["runStatus"] = status
+            self.run_manifest["failedCycleCount"] = self.v1_failed_cycle_count
+            atomic_write_json(run_dir / "run_manifest.json", self.run_manifest)
 
     def _attach_publish_identity(self, node_id: str, snap: dict) -> dict:
         """Ensure Orion mapper always sees run/scenario identity (RT-DE Contract v1)."""
@@ -358,6 +593,8 @@ class SumoBackend:
             out["timing_mode"] = "MANUAL"
         elif self.control_mode == "PREEMPTION_ENABLED":
             out["timing_mode"] = "EMERGENCY_PRIORITY"
+        elif self.control_mode == "ADAPTIVE":
+            out["timing_mode"] = "ADAPTIVE"
         else:
             out["timing_mode"] = "FIXED_TIME"
         return out
@@ -382,10 +619,11 @@ class SumoBackend:
         """Force rebuild from TraCI — call only from the simulation thread."""
         return self.get_snapshot(node_id, fresh=True)
 
-    def _build_physical_snapshot_dict(self, node_id: str) -> dict:
+    def _build_physical_snapshot_dict(self, node_id: str, *, capture_quality: bool = False) -> dict:
         """Post-step physical observation only (no context merge yet)."""
         snap = self.snapshots[node_id].build_snapshot(
             self._traci, self.signals[node_id], self.scenarios[node_id],
+            **({"capture_quality": True} if capture_quality else {}),
         )
         snap["node_id"] = node_id
         return snap
@@ -610,10 +848,32 @@ class SumoBackend:
         return ok if ok else True  # idempotent success when overlay missing
 
     def set_control_mode(self, mode: str) -> None:
-        """FIXED=auto cycle, MANUAL=officer hold, PREEMPTION_ENABLED=EV override."""
-        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL"):
-            raise ValueError("control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL")
+        """FIXED=auto cycle, MANUAL=officer hold, PREEMPTION_ENABLED=EV override,
+        ADAPTIVE=cooperative DQN agents (AI_Control_Traffic_Light)."""
+        if mode not in ("FIXED", "PREEMPTION_ENABLED", "MANUAL", "ADAPTIVE"):
+            raise ValueError(
+                "control_mode must be FIXED|PREEMPTION_ENABLED|MANUAL|ADAPTIVE"
+            )
         self._require_started()
+
+        if mode == "ADAPTIVE":
+            controller = self._get_rl_controller()
+            self.runtime.set_control_mode(mode)
+            self.control_mode = mode
+            # Agents hold phases via the manual-hold machinery and act each
+            # decision interval from backend.step().
+            controller.enable(self)
+            self._invalidate_caches()
+            self.request_publish_asap()
+            return
+
+        # Leaving ADAPTIVE: release the agent hold before applying the new mode.
+        if self.control_mode == "ADAPTIVE" and self._rl_controller is not None:
+            try:
+                self._rl_controller.disable(self)
+            except Exception as e:
+                log.warning("RL controller disable failed: %s", e)
+
         self.runtime.set_control_mode(mode)
         self.control_mode = mode
         for sig in self.signals.values():
@@ -628,6 +888,27 @@ class SumoBackend:
                 sig.preemption_active = False
         self._invalidate_caches()
         self.request_publish_asap()
+
+    def _get_rl_controller(self):
+        """Lazy import — TensorFlow only loads when ADAPTIVE is first enabled."""
+        if self._rl_controller is None:
+            import sys
+
+            repo_root = str(Path(__file__).resolve().parents[2])
+            if repo_root not in sys.path:
+                sys.path.insert(0, repo_root)
+            try:
+                from AI_Control_Traffic_Light.runtime.multi_agent_controller import (
+                    get_multi_agent_controller,
+                )
+                self._rl_controller = get_multi_agent_controller()
+            except ImportError as e:
+                raise RuntimeError(
+                    "DQN controller unavailable — install AI module deps "
+                    "(pip install -r AI_Control_Traffic_Light/requirements.txt): "
+                    f"{e}"
+                ) from e
+        return self._rl_controller
 
     def get_network_state(self) -> dict:
         return self.runtime.network_state()
@@ -688,6 +969,20 @@ class SumoBackend:
             "config_hash": cfg.CONFIG_HASH,
             **waiting,
         }
+        if self.v1_observations_enabled:
+            result = self.last_v1_cycle
+            out["v1_observation"] = {
+                "catalog_ready": bool(self.v1_topology_context and self.v1_topology_context.archive_ready),
+                "cycle_sequence": result.cycle_sequence if result else None,
+                "success": result.success if result else None,
+                "failure_code": result.failure_code if result else None,
+                "failure_reason": result.failure_reason if result else None,
+                "observation_count": len(result.observations) if result else 0,
+                "successful_cycle_count": self.v1_successful_cycle_count,
+                "failed_cycle_count": self.v1_failed_cycle_count,
+                "run_generation": self.v1_run_generation,
+                "run_status": (self.run_manifest or {}).get("runStatus"),
+            }
         self._stats_cache = out
         return dict(out)
 

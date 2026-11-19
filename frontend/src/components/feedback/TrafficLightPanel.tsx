@@ -142,9 +142,15 @@ function TrafficLightCard({
           <span style={{
             fontSize: 9,
             fontWeight: 600,
-            color: effectiveLight?.timingMode === 'MANUAL' ? '#F59E0B' : '#FACC15',
+            color: effectiveLight?.timingMode === 'MANUAL'
+              ? '#F59E0B'
+              : effectiveLight?.timingMode === 'ADAPTIVE'
+              ? '#16C7E8'
+              : '#FACC15',
             background: effectiveLight?.timingMode === 'MANUAL'
               ? 'rgba(245,158,11,0.12)'
+              : effectiveLight?.timingMode === 'ADAPTIVE'
+              ? 'rgba(22,199,232,0.12)'
               : 'rgba(250,204,21,0.12)',
             padding: '1px 5px',
             borderRadius: 3,
@@ -152,6 +158,8 @@ function TrafficLightCard({
           }}>
             {effectiveLight?.timingMode === 'MANUAL'
               ? 'Manual'
+              : effectiveLight?.timingMode === 'ADAPTIVE'
+              ? 'DQN'
               : isPaused
               ? 'Delayed'
               : 'Stale'}
@@ -253,6 +261,12 @@ export function TrafficLightPanel({
   isPaused,
   currentPhase,
 }: TrafficLightPanelProps) {
+  const availableDirections = [
+    ...ORDERED_DIRS.filter((dir) => lights.some((light) => light.direction === dir)),
+    ...lights
+      .map((light) => light.direction)
+      .filter((dir) => !ORDERED_DIRS.includes(dir)),
+  ]
   // Determine fallback status per direction from currentPhase
   const phaseUpper = (currentPhase ?? '').toUpperCase()
   const isNSGreen = phaseUpper === 'NS_GREEN'
@@ -290,7 +304,7 @@ export function TrafficLightPanel({
           position: 'relative',
         }}
       >
-        {ORDERED_DIRS.map((dir) => {
+        {availableDirections.map((dir) => {
           const light = lights.find((l) => l.direction === dir)
           const fallback = getFallback(dir)
           return (

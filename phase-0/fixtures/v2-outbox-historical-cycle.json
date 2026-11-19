@@ -1,0 +1,5658 @@
+{
+  "source": "historical local SQLite outbox, not current topology or live broker",
+  "runId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+  "cycleSequence": 32,
+  "records": [
+    {
+      "event_id": "1ed42e552b12bc0562ee0ac8485bda1a9b07495ad775fe8ac187b46933eb2ad9",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "3dc6f46baaabaebc95c9b6cd8189332b5926eb9c34f15611ac909c989c28c891",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51572,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "1ed42e552b12bc0562ee0ac8485bda1a9b07495ad775fe8ac187b46933eb2ad9",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 0,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226447Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "3dc6f46baaabaebc95c9b6cd8189332b5926eb9c34f15611ac909c989c28c891",
+        "entity": {
+          "id": "urn:ngsi-ld:Intersection:A",
+          "type": "Intersection",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "intersectionStatus": {
+            "type": "Property",
+            "value": "ACTIVE"
+          },
+          "numberOfApproaches": {
+            "type": "Property",
+            "value": 4
+          },
+          "frequentCongestion": {
+            "type": "Property",
+            "value": false
+          },
+          "refTrafficLights": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:TrafficLight:A-North",
+              "urn:ngsi-ld:TrafficLight:A-South",
+              "urn:ngsi-ld:TrafficLight:A-East",
+              "urn:ngsi-ld:TrafficLight:A-West"
+            ]
+          },
+          "refCameras": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:Camera:A"
+            ]
+          },
+          "refVehicleSensors": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:A:SOUTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:A:EASTBOUND",
+              "urn:ngsi-ld:VehicleSensor:A:WESTBOUND"
+            ]
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "overallTrafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "totalVehicleCount": {
+            "type": "Property",
+            "value": 30
+          },
+          "hasActiveIncident": {
+            "type": "Property",
+            "value": false
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "BUSY"
+          },
+          "hasSpillback": {
+            "type": "Property",
+            "value": false
+          },
+          "isBoxBlocked": {
+            "type": "Property",
+            "value": false
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "e9a8dca1e823817f7a2726cb179576857aba7bae9aa071a50ba15f7d9ec13789",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "2f3c01a36968dd2c9b8d6b8ba11cbcd40f8f734d1a33c7948eaedbce45211c57",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51573,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "e9a8dca1e823817f7a2726cb179576857aba7bae9aa071a50ba15f7d9ec13789",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 1,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226447Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "2f3c01a36968dd2c9b8d6b8ba11cbcd40f8f734d1a33c7948eaedbce45211c57",
+        "entity": {
+          "id": "urn:ngsi-ld:Camera:A",
+          "type": "Camera",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi overview camera"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "cameraNum": {
+            "type": "Property",
+            "value": 1
+          },
+          "cameraType": {
+            "type": "Property",
+            "value": "FIXED"
+          },
+          "cameraUsage": {
+            "type": "Property",
+            "value": "TRAFFIC"
+          },
+          "cameraStatus": {
+            "type": "Property",
+            "value": "ok"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "ALL_DIRECTIONS"
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 30
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 40.2
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 6.4
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "incidentDetected": {
+            "type": "Property",
+            "value": false
+          },
+          "confidence": {
+            "type": "Property",
+            "value": 1.0
+          },
+          "recommendedSignalAction": {
+            "type": "Property",
+            "value": "KEEP"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "incidentType": {
+            "type": "Property",
+            "value": "NONE"
+          },
+          "incidentSeverity": {
+            "type": "Property",
+            "value": "NONE"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "f7d5254fb4de4bc590c6a5942c41d3f072fbf7082b4b43cb002fd3f552788c1c",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "afb6629361d9162fc3429c61f80b323e556009f38e970cac0ae1a9d433ac9a40",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51574,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "f7d5254fb4de4bc590c6a5942c41d3f072fbf7082b4b43cb002fd3f552788c1c",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 2,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226447Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "afb6629361d9162fc3429c61f80b323e556009f38e970cac0ae1a9d433ac9a40",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:A-North",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi NORTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "2c278186c08ed3a7741ca7bb5b514aa95fa52b0ae460797c17e773977ed317fb",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "2208b930ff6bccfddb5d04ca0157d98de213a26ca9fb805b7e5b6eba641411ca",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51575,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "2c278186c08ed3a7741ca7bb5b514aa95fa52b0ae460797c17e773977ed317fb",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 3,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "2208b930ff6bccfddb5d04ca0157d98de213a26ca9fb805b7e5b6eba641411ca",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:A-South",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi SOUTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "eecf45d286e136c21b44292fbe648d50a1c840f835e8c33b8456b2389129a23e",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "3048f505f60f20d0dd2e937460604cd0fa3b23dd6181aa7f62613a503a16733e",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51576,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "eecf45d286e136c21b44292fbe648d50a1c840f835e8c33b8456b2389129a23e",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 4,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "3048f505f60f20d0dd2e937460604cd0fa3b23dd6181aa7f62613a503a16733e",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:A-East",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi EASTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "9776c9fb0bbdbb4405d4fcfe4056d1efa3c75897e830c5a9532feac4bd7a9190",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "919b4981204125207e0f1286f2504bd30faa042405e006f852e6f4b32bd9b90e",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51577,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "9776c9fb0bbdbb4405d4fcfe4056d1efa3c75897e830c5a9532feac4bd7a9190",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 5,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "919b4981204125207e0f1286f2504bd30faa042405e006f852e6f4b32bd9b90e",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:A-West",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi WESTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "17ed0535fb31348ed1d4e5b9023dd6fc9edb5e676a498ec8fd6b2d2ba8f7f51b",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "9eeef0a2a2d533ca8254653575dff5f083d76b2c04f674ef00e5b3d29a1f75ee",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51578,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "17ed0535fb31348ed1d4e5b9023dd6fc9edb5e676a498ec8fd6b2d2ba8f7f51b",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 6,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "9eeef0a2a2d533ca8254653575dff5f083d76b2c04f674ef00e5b3d29a1f75ee",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:A:NORTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi NORTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:A-North"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 9
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 8.96
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 5
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 4
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 48.163638289614426
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 45.3
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2222,
+              "car": 0.3333,
+              "motorcycle": 0.4444
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "STABLE"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "b5642be3c959517f438f0f48e24b7f208e0d28f73a72743a868c8c833914196b",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "1b1d289089b5c5916d7b3c9ec1542c205ca0a0895581c59478003bf54b13b56e",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51579,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "b5642be3c959517f438f0f48e24b7f208e0d28f73a72743a868c8c833914196b",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 7,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "1b1d289089b5c5916d7b3c9ec1542c205ca0a0895581c59478003bf54b13b56e",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:A:SOUTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi SOUTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:A-South"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 1.48
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 48.002869020775734
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 2.2
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 1
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 47.3
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "CONGESTION"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "car": 0.3333,
+              "motorcycle": 0.6667
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "1dd62cb35f6fa2ebb509390b6aa65c63788b1a1d24f332757956333a2d272f80",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "3d6f4a0777ad352795dde958b287535bf96b0513f0633443873e0b879569d3f4",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51580,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "1dd62cb35f6fa2ebb509390b6aa65c63788b1a1d24f332757956333a2d272f80",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 8,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "3d6f4a0777ad352795dde958b287535bf96b0513f0633443873e0b879569d3f4",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:A:EASTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi EASTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:A-East"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 3.74
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 45.638443103967994
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 48.0
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.3333,
+              "car": 0.3333,
+              "motorcycle": 0.3333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "ab747e622143581be3a45e9ca76940fa6e9ba1c4a2b510b724208f1fbfc4f58f",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:A",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "3b0dfbfffdfbc67c2fd252b01f99862c12f5faef7748aa5e0d182e254e362987",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51581,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "ab747e622143581be3a45e9ca76940fa6e9ba1c4a2b510b724208f1fbfc4f58f",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "A",
+        "cycleSequence": 32,
+        "entitySequence": 9,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "3b0dfbfffdfbc67c2fd252b01f99862c12f5faef7748aa5e0d182e254e362987",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:A:WESTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Nguyen Hue - Le Loi WESTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.7009,
+                10.7769
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:A"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:A"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:A-West"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 15
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 14.18
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 4
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 11
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 19.04535073748778
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 11
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 44.6
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 19.5
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 44.6
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 4.5
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 23.5
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 11,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 24.0
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "RED_PHASE"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2,
+              "car": 0.3333,
+              "motorcycle": 0.4667
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "BUSY"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "2fbc9fd1bd0ead5d98373d86237e02a77e14a9a19c776417cf445866b3b33357",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "32defa03108d7f8a24581e211638870c2b612543aa2abbbba7ec1e5f8b66ddf1",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20902,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "2fbc9fd1bd0ead5d98373d86237e02a77e14a9a19c776417cf445866b3b33357",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 10,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "32defa03108d7f8a24581e211638870c2b612543aa2abbbba7ec1e5f8b66ddf1",
+        "entity": {
+          "id": "urn:ngsi-ld:Intersection:B",
+          "type": "Intersection",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "intersectionStatus": {
+            "type": "Property",
+            "value": "ACTIVE"
+          },
+          "numberOfApproaches": {
+            "type": "Property",
+            "value": 4
+          },
+          "frequentCongestion": {
+            "type": "Property",
+            "value": false
+          },
+          "refTrafficLights": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:TrafficLight:B-North",
+              "urn:ngsi-ld:TrafficLight:B-South",
+              "urn:ngsi-ld:TrafficLight:B-East",
+              "urn:ngsi-ld:TrafficLight:B-West"
+            ]
+          },
+          "refCameras": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:Camera:B"
+            ]
+          },
+          "refVehicleSensors": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:VehicleSensor:B:NORTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:B:SOUTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:B:EASTBOUND",
+              "urn:ngsi-ld:VehicleSensor:B:WESTBOUND"
+            ]
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "overallTrafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "totalVehicleCount": {
+            "type": "Property",
+            "value": 29
+          },
+          "hasActiveIncident": {
+            "type": "Property",
+            "value": false
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "CONGESTED"
+          },
+          "hasSpillback": {
+            "type": "Property",
+            "value": false
+          },
+          "isBoxBlocked": {
+            "type": "Property",
+            "value": false
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "2fad010efc2abcc0109882823ae7b2f391470f9815c8a639960e3ab31a412846",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "ade5fe37b66008403ca0d1f41a28c14d97fdcf1c0f53689ea25313f1021eb254",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20903,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "2fad010efc2abcc0109882823ae7b2f391470f9815c8a639960e3ab31a412846",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 11,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "ade5fe37b66008403ca0d1f41a28c14d97fdcf1c0f53689ea25313f1021eb254",
+        "entity": {
+          "id": "urn:ngsi-ld:Camera:B",
+          "type": "Camera",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung overview camera"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "cameraNum": {
+            "type": "Property",
+            "value": 1
+          },
+          "cameraType": {
+            "type": "Property",
+            "value": "FIXED"
+          },
+          "cameraUsage": {
+            "type": "Property",
+            "value": "TRAFFIC"
+          },
+          "cameraStatus": {
+            "type": "Property",
+            "value": "ok"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "ALL_DIRECTIONS"
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 29
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 43.8
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 6.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "incidentDetected": {
+            "type": "Property",
+            "value": false
+          },
+          "confidence": {
+            "type": "Property",
+            "value": 1.0
+          },
+          "recommendedSignalAction": {
+            "type": "Property",
+            "value": "KEEP"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "incidentType": {
+            "type": "Property",
+            "value": "NONE"
+          },
+          "incidentSeverity": {
+            "type": "Property",
+            "value": "NONE"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "7e19916064e9d23e1aca738480d265abf84e72d944a0a0690a60424bd1da0995",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "60723b5cef8dcb8f7b0bf412c66e5288b9895434351dd74c2f206588500af054",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20904,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "7e19916064e9d23e1aca738480d265abf84e72d944a0a0690a60424bd1da0995",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 12,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "60723b5cef8dcb8f7b0bf412c66e5288b9895434351dd74c2f206588500af054",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:B-North",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung NORTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "ff6598fe739460933db73d76d0fa87be407764b58d966b06f30b93ce05040ad8",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "aa6468dab033d31cc8ab57f40380be4ce1292c012b0b6bc0e9828276e88cb517",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20905,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "ff6598fe739460933db73d76d0fa87be407764b58d966b06f30b93ce05040ad8",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 13,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "aa6468dab033d31cc8ab57f40380be4ce1292c012b0b6bc0e9828276e88cb517",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:B-South",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung SOUTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "297599bca1a847d7ee3a759ef8d835a80f2fa695ce1a5ffa30095812db5ed175",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "97b8538cc300c617a9149af96ca94f9fd85a53e258df691aaac9c48a1f239376",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20906,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "297599bca1a847d7ee3a759ef8d835a80f2fa695ce1a5ffa30095812db5ed175",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 14,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "97b8538cc300c617a9149af96ca94f9fd85a53e258df691aaac9c48a1f239376",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:B-East",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung EASTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "75121707981188c2a5fad47f564be6c9cd00c3e9f835bbc63f582aed644efa17",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "5a29f8b470029dda0ec03c1b7a4310c087224f4e25969b2a02815e8d6f7d4442",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20907,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "75121707981188c2a5fad47f564be6c9cd00c3e9f835bbc63f582aed644efa17",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 15,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "5a29f8b470029dda0ec03c1b7a4310c087224f4e25969b2a02815e8d6f7d4442",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:B-West",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung WESTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "a8e50117fee693bf7175df3e5fcc3f746ed9edcbc364cab7383340837e103c2d",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "209391ece5293afac7d316028b7a149f412ff32990d498d9feaf164ecdbce421",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20908,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "a8e50117fee693bf7175df3e5fcc3f746ed9edcbc364cab7383340837e103c2d",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 16,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "209391ece5293afac7d316028b7a149f412ff32990d498d9feaf164ecdbce421",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:B:NORTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung NORTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:B-North"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 9
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 8.2
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 4
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 5
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 47.73521533023983
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 45.7
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2222,
+              "car": 0.2222,
+              "motorcycle": 0.5556
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "STABLE"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "80c9980397b3a4740ab5fa4dce7f10ffedbb35cbbff62e5cd5e93e185fc4534d",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "5042b35828e3a068bc87dc41b5a2ef62c0a4d916b776ad1f1a81a61f6ec02aa7",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20909,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "80c9980397b3a4740ab5fa4dce7f10ffedbb35cbbff62e5cd5e93e185fc4534d",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 17,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "5042b35828e3a068bc87dc41b5a2ef62c0a4d916b776ad1f1a81a61f6ec02aa7",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:B:SOUTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung SOUTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:B-South"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 2
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 1.24
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 42.8370166646753
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 1.5
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 1
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 47.7
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "CONGESTION"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "car": 0.5,
+              "motorcycle": 0.5
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "7f33c0fd6e3a8725c5a38291be73abee0b2127d8ea9e78440b2fa0ab31110b0f",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "3eac07c76830db9c10f97ee13d77acfffbe4eb1cefb6536ab9bfdfd4778fde0e",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20910,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "7f33c0fd6e3a8725c5a38291be73abee0b2127d8ea9e78440b2fa0ab31110b0f",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 18,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "3eac07c76830db9c10f97ee13d77acfffbe4eb1cefb6536ab9bfdfd4778fde0e",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:B:EASTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung EASTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:B-East"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 15
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 13.42
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 11
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 4
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 34.883465849016524
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 13
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 49.1
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 19.5
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 10.6
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 49.1
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 22.7
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 13,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 25.4
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "RED_PHASE"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2,
+              "car": 0.2667,
+              "motorcycle": 0.5333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "CONGESTED"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "4839fd93c283e56b971e42183d9977500d90363d3a60a5b0752046d04b61f86c",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:B",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "d00723f1e9ee225759a7cb15bc838a334a76226076f35ac9a7a11c3e3141a618",
+      "status": "ACKED",
+      "kafka_partition": 2,
+      "kafka_offset": 20911,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "4839fd93c283e56b971e42183d9977500d90363d3a60a5b0752046d04b61f86c",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "B",
+        "cycleSequence": 32,
+        "entitySequence": 19,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "d00723f1e9ee225759a7cb15bc838a334a76226076f35ac9a7a11c3e3141a618",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:B:WESTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Dien Bien Phu - Hai Ba Trung WESTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.6917,
+                10.7889
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:B"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:B"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:B-West"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 3.74
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 49.89864802282559
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 48.0
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.3333,
+              "car": 0.3333,
+              "motorcycle": 0.3333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "ee88c1b01aaefad61bd37f6ca4ff25c5cae26fe905de6f0c2ffe3a977066be97",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "d3f67a3cf50541e7a88f46cee9787f7ed56eb647f3a0f164501352f7191a21db",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51582,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "ee88c1b01aaefad61bd37f6ca4ff25c5cae26fe905de6f0c2ffe3a977066be97",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 20,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "d3f67a3cf50541e7a88f46cee9787f7ed56eb647f3a0f164501352f7191a21db",
+        "entity": {
+          "id": "urn:ngsi-ld:Intersection:C",
+          "type": "Intersection",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "intersectionStatus": {
+            "type": "Property",
+            "value": "ACTIVE"
+          },
+          "numberOfApproaches": {
+            "type": "Property",
+            "value": 4
+          },
+          "frequentCongestion": {
+            "type": "Property",
+            "value": false
+          },
+          "refTrafficLights": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:TrafficLight:C-North",
+              "urn:ngsi-ld:TrafficLight:C-South",
+              "urn:ngsi-ld:TrafficLight:C-East",
+              "urn:ngsi-ld:TrafficLight:C-West"
+            ]
+          },
+          "refCameras": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:Camera:C"
+            ]
+          },
+          "refVehicleSensors": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:VehicleSensor:C:NORTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:C:SOUTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:C:EASTBOUND",
+              "urn:ngsi-ld:VehicleSensor:C:WESTBOUND"
+            ]
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "overallTrafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "totalVehicleCount": {
+            "type": "Property",
+            "value": 30
+          },
+          "hasActiveIncident": {
+            "type": "Property",
+            "value": false
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "STABLE"
+          },
+          "hasSpillback": {
+            "type": "Property",
+            "value": false
+          },
+          "isBoxBlocked": {
+            "type": "Property",
+            "value": false
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "d617b731b2c61bd57a42144cf3d850c441287ff9d3c9a7c87daa9a94c266e72f",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "116c81c598e30e440914c0abad33eede6d397f2b7a7ba36e7d377f8141ff0bed",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51583,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "d617b731b2c61bd57a42144cf3d850c441287ff9d3c9a7c87daa9a94c266e72f",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 21,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "116c81c598e30e440914c0abad33eede6d397f2b7a7ba36e7d377f8141ff0bed",
+        "entity": {
+          "id": "urn:ngsi-ld:Camera:C",
+          "type": "Camera",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu overview camera"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "cameraNum": {
+            "type": "Property",
+            "value": 1
+          },
+          "cameraType": {
+            "type": "Property",
+            "value": "FIXED"
+          },
+          "cameraUsage": {
+            "type": "Property",
+            "value": "TRAFFIC"
+          },
+          "cameraStatus": {
+            "type": "Property",
+            "value": "ok"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "ALL_DIRECTIONS"
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 30
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 40.1
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 6.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "incidentDetected": {
+            "type": "Property",
+            "value": false
+          },
+          "confidence": {
+            "type": "Property",
+            "value": 1.0
+          },
+          "recommendedSignalAction": {
+            "type": "Property",
+            "value": "KEEP"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "incidentType": {
+            "type": "Property",
+            "value": "NONE"
+          },
+          "incidentSeverity": {
+            "type": "Property",
+            "value": "NONE"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "1206199c660e2cbc713d247bd48743997b3450843c12ce27ace8cf7c889d211e",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "aa22a86c6e9aa8489b2306d916ae712530a41fff16f35fb5407c8e5e2b42b625",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51584,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "1206199c660e2cbc713d247bd48743997b3450843c12ce27ace8cf7c889d211e",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 22,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "aa22a86c6e9aa8489b2306d916ae712530a41fff16f35fb5407c8e5e2b42b625",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:C-North",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu NORTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "bec5b87022990245c7ec48932dfc15c4d4dccde9fdac5896b14738f664b0644c",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "fc0ae8c469ed9891481893ee86e75ed381301facdbc3398d3a573328e10fcb4a",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51585,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "bec5b87022990245c7ec48932dfc15c4d4dccde9fdac5896b14738f664b0644c",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 23,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.226988Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "fc0ae8c469ed9891481893ee86e75ed381301facdbc3398d3a573328e10fcb4a",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:C-South",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu SOUTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "2f1574f7c5ba3829401104b9e233764b80b7760d62c07efc55ecd2612284f437",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "d99aa82ebf730cd257bd1dcace3cd59a33250b51616aed562c34ac34462650ab",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51586,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "2f1574f7c5ba3829401104b9e233764b80b7760d62c07efc55ecd2612284f437",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 24,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "d99aa82ebf730cd257bd1dcace3cd59a33250b51616aed562c34ac34462650ab",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:C-East",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu EASTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "efb0578fd38f2708a694e81e26b322dfc8a65b9526de9c230a5f1fa7562a5c1e",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "e588591cfb41d3da0f49483987bf5810e9ecc1c1a9ce9eab55c340ad832576ac",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51587,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "efb0578fd38f2708a694e81e26b322dfc8a65b9526de9c230a5f1fa7562a5c1e",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 25,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "e588591cfb41d3da0f49483987bf5810e9ecc1c1a9ce9eab55c340ad832576ac",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:C-West",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu WESTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "26635752827501023576401779b9d84676832fb554441d796bad6807ff522886",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "ee432988263ea0d3b404089ac438c18517adb2d462ae24314dec1bf937989169",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51588,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "26635752827501023576401779b9d84676832fb554441d796bad6807ff522886",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 26,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "ee432988263ea0d3b404089ac438c18517adb2d462ae24314dec1bf937989169",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:C:NORTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu NORTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:C-North"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 1.48
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 2
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 51.06081850031153
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 2.2
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 1
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 47.3
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "CONGESTION"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "car": 0.3333,
+              "motorcycle": 0.6667
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "6494a66b76d7e6221b36bcfb9d0b9f479788f3b1e427cd00d6342aee696ec34c",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "1a2371a2c38551aa8dd2c7ee69930a79fc5c148814389187a182d06ce373e0b8",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51589,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "6494a66b76d7e6221b36bcfb9d0b9f479788f3b1e427cd00d6342aee696ec34c",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 27,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "1a2371a2c38551aa8dd2c7ee69930a79fc5c148814389187a182d06ce373e0b8",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:C:SOUTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu SOUTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:C-South"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 9
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 8.2
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 4
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 5
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 48.01596545960619
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 45.7
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2222,
+              "car": 0.2222,
+              "motorcycle": 0.5556
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "STABLE"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "074a9c49d3084cc5fdfea1d4fe4bca9820c974b04bf22eb91ff546d19b135c65",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "22639553a87c4f7d3f4e75fd94c03b7794e307f9b62994e1d35952d73f4f9305",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51590,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "074a9c49d3084cc5fdfea1d4fe4bca9820c974b04bf22eb91ff546d19b135c65",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 28,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "22639553a87c4f7d3f4e75fd94c03b7794e307f9b62994e1d35952d73f4f9305",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:C:EASTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu EASTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:C-East"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 3.74
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 47.84342915613096
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 48.0
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.3333,
+              "car": 0.3333,
+              "motorcycle": 0.3333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "1f7d468cd1ac1435ac7dfc3aa9cb72193cfc9db39e238e8c337152d7d5de5d51",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:C",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "a2939b2aece921b7c7cdd3a185415a8f0dfcc5d06c5c37f071baebd18b7606e3",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51591,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "1f7d468cd1ac1435ac7dfc3aa9cb72193cfc9db39e238e8c337152d7d5de5d51",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "C",
+        "cycleSequence": 32,
+        "entitySequence": 29,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "a2939b2aece921b7c7cdd3a185415a8f0dfcc5d06c5c37f071baebd18b7606e3",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:C:WESTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Cong Hoa - Hoang Van Thu WESTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.652,
+                10.8005
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:C"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:C"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:C-West"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 15
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 13.42
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 10
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 5
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 13.579664750897063
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 10
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 25.8
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 25.8
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 14.3
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 20.6
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 21.8
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 1.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 10,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 25.4
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "RED_PHASE"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2,
+              "car": 0.2667,
+              "motorcycle": 0.5333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "STABLE"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "22fdb33007689490803fdbbef46e01879f45c850710c360c7f4379edff66667a",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "64f90398730769257265d98e3b4953008e5024a3b1f757c7eb58fa67c7407f09",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51592,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "22fdb33007689490803fdbbef46e01879f45c850710c360c7f4379edff66667a",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 30,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "64f90398730769257265d98e3b4953008e5024a3b1f757c7eb58fa67c7407f09",
+        "entity": {
+          "id": "urn:ngsi-ld:Intersection:D",
+          "type": "Intersection",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "intersectionStatus": {
+            "type": "Property",
+            "value": "ACTIVE"
+          },
+          "numberOfApproaches": {
+            "type": "Property",
+            "value": 4
+          },
+          "frequentCongestion": {
+            "type": "Property",
+            "value": false
+          },
+          "refTrafficLights": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:TrafficLight:D-North",
+              "urn:ngsi-ld:TrafficLight:D-South",
+              "urn:ngsi-ld:TrafficLight:D-East",
+              "urn:ngsi-ld:TrafficLight:D-West"
+            ]
+          },
+          "refCameras": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:Camera:D"
+            ]
+          },
+          "refVehicleSensors": {
+            "type": "Relationship",
+            "object": [
+              "urn:ngsi-ld:VehicleSensor:D:NORTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:D:SOUTHBOUND",
+              "urn:ngsi-ld:VehicleSensor:D:EASTBOUND",
+              "urn:ngsi-ld:VehicleSensor:D:WESTBOUND"
+            ]
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "overallTrafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "totalVehicleCount": {
+            "type": "Property",
+            "value": 29
+          },
+          "hasActiveIncident": {
+            "type": "Property",
+            "value": false
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "CONGESTED"
+          },
+          "hasSpillback": {
+            "type": "Property",
+            "value": false
+          },
+          "isBoxBlocked": {
+            "type": "Property",
+            "value": false
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "ff2b5c0e5d4c7f0781efdd7e6fae62b5d445229f696adde6839d1f3330d588c5",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "f91924cb1c22fdf5a4e19bdb6996ee518537eced9d0832012b0efabcc045ac26",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51593,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.427279Z",
+      "event": {
+        "eventId": "ff2b5c0e5d4c7f0781efdd7e6fae62b5d445229f696adde6839d1f3330d588c5",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 31,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "f91924cb1c22fdf5a4e19bdb6996ee518537eced9d0832012b0efabcc045ac26",
+        "entity": {
+          "id": "urn:ngsi-ld:Camera:D",
+          "type": "Camera",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong overview camera"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "cameraNum": {
+            "type": "Property",
+            "value": 1
+          },
+          "cameraType": {
+            "type": "Property",
+            "value": "FIXED"
+          },
+          "cameraUsage": {
+            "type": "Property",
+            "value": "TRAFFIC"
+          },
+          "cameraStatus": {
+            "type": "Property",
+            "value": "ok"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "ALL_DIRECTIONS"
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 29
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 41.3
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 6.5
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "incidentDetected": {
+            "type": "Property",
+            "value": false
+          },
+          "confidence": {
+            "type": "Property",
+            "value": 1.0
+          },
+          "recommendedSignalAction": {
+            "type": "Property",
+            "value": "KEEP"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "incidentType": {
+            "type": "Property",
+            "value": "NONE"
+          },
+          "incidentSeverity": {
+            "type": "Property",
+            "value": "NONE"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "fd1bf8d327a20f3c3f5a6a42b09ce23ae6dab88d047a16d12013edcc5cbb603d",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "77bd41855d40d20d7361ca5ce1a78957112af54d411e0f7c2a699e3c89b8417e",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51594,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "fd1bf8d327a20f3c3f5a6a42b09ce23ae6dab88d047a16d12013edcc5cbb603d",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 32,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "77bd41855d40d20d7361ca5ce1a78957112af54d411e0f7c2a699e3c89b8417e",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:D-North",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong NORTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "841ee1831bdf32dcb664e73a06404e0c73f723df5642d92dcb86662a1551d24f",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "2f304ecd6dd9e4b25ee5b583c7bc622b3f20664095ac3dec772ccbe9f5eb210c",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51595,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "841ee1831bdf32dcb664e73a06404e0c73f723df5642d92dcb86662a1551d24f",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 33,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "2f304ecd6dd9e4b25ee5b583c7bc622b3f20664095ac3dec772ccbe9f5eb210c",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:D-South",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong SOUTHBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "GREEN"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "f7f0db6a325c464b556aa5d57730cdf76fd371d19b0cf58ca87237793622d60a",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "b0f6cd5dacdc3eed980e313923de567ec21395910ffaa286bc754a6a24374faf",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51596,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "f7f0db6a325c464b556aa5d57730cdf76fd371d19b0cf58ca87237793622d60a",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 34,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "b0f6cd5dacdc3eed980e313923de567ec21395910ffaa286bc754a6a24374faf",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:D-East",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong EASTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "419efa78af6677969ea995f60156285ae0853288262f686fc7298a59435655a1",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "0a117722f2ea957099cf37d80109c08afbc5477f7510e129949cd5148a8a3edd",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51597,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "419efa78af6677969ea995f60156285ae0853288262f686fc7298a59435655a1",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 35,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "0a117722f2ea957099cf37d80109c08afbc5477f7510e129949cd5148a8a3edd",
+        "entity": {
+          "id": "urn:ngsi-ld:TrafficLight:D-West",
+          "type": "TrafficLight",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong WESTBOUND"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "currentStatus": {
+            "type": "Property",
+            "value": "RED"
+          },
+          "currentPhase": {
+            "type": "Property",
+            "value": "NS_GREEN"
+          },
+          "timingMode": {
+            "type": "Property",
+            "value": "FIXED_TIME"
+          },
+          "workingState": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "greenDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "redDurationCurrent": {
+            "type": "Property",
+            "value": 42
+          },
+          "yellowDuration": {
+            "type": "Property",
+            "value": 3
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "42e8b7961bdf6124d28a1e8b18d844472b191b82a585957f1dd789cd16835f3b",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "367816ec7b75b979588f3a5e59bf0bd9f84c0075e5c1f892048b843d71fc35c1",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51598,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "42e8b7961bdf6124d28a1e8b18d844472b191b82a585957f1dd789cd16835f3b",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 36,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "367816ec7b75b979588f3a5e59bf0bd9f84c0075e5c1f892048b843d71fc35c1",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:D:NORTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong NORTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "NORTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:D-North"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 2
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 0.48
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 2
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 51.52827858986346
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 1
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 3.5
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.7
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 1
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 49.1
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "CONGESTION"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "motorcycle": 1.0
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "3381e87f25ab796670a83807929c0f51ee7fa7dfbe2d5809512a898e40a26531",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "33116a5f20f335982236f496a4d1f3f786c09f0c0ea7782003d8dcb42f8fba63",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51599,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "3381e87f25ab796670a83807929c0f51ee7fa7dfbe2d5809512a898e40a26531",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 37,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "33116a5f20f335982236f496a4d1f3f786c09f0c0ea7782003d8dcb42f8fba63",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:D:SOUTHBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong SOUTHBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "SOUTHBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:D-South"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 9
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 8.96
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 6
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 47.35043970047232
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 45.3
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2222,
+              "car": 0.3333,
+              "motorcycle": 0.4444
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "STABLE"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "8d86ea94c78931a573d0e7f2e5c641dcbd93a65303ea7a41f36f4d2c86ec9543",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "5145e3e0cc584b0e5aad251834ef16f33be7a0a31c2264d9600117a54867ea6d",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51600,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "8d86ea94c78931a573d0e7f2e5c641dcbd93a65303ea7a41f36f4d2c86ec9543",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 38,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "5145e3e0cc584b0e5aad251834ef16f33be7a0a31c2264d9600117a54867ea6d",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:D:EASTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong EASTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "EASTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:D-East"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 15
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 14.92
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 4
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 11
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 18.665016627224194
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 12
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 41.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 41.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 25.6
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 34.5
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 25.2
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.24
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 12,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 22.7
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "dominantWaitingReason": {
+            "type": "Property",
+            "value": "RED_PHASE"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.2667,
+              "car": 0.2,
+              "motorcycle": 0.5333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "CONGESTED"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    },
+    {
+      "event_id": "6d8cc1e0ad00ab2628af298c8115efc67580c8384424369fb7c9c5be6cc40a22",
+      "event_key": "e89cc3d9-bc70-4570-ab0e-e13392702dac:D",
+      "topic": "traffic.entity-events.v2",
+      "payload_hash": "9d613ec3d4296cd3ebdbd982fc2437bf18ca0d8607f1365cd7d23f5de3ae510b",
+      "status": "ACKED",
+      "kafka_partition": 0,
+      "kafka_offset": 51601,
+      "created_at": "2026-08-10T09:24:09.231695Z",
+      "acked_at": "2026-08-10T09:24:09.550939Z",
+      "event": {
+        "eventId": "6d8cc1e0ad00ab2628af298c8115efc67580c8384424369fb7c9c5be6cc40a22",
+        "eventVersion": "2.0.0",
+        "contractVersion": "2.0.0",
+        "eventType": "TrafficEntityObserved",
+        "source": "sumo",
+        "simulationRunId": "e89cc3d9-bc70-4570-ab0e-e13392702dac",
+        "simulationTime": 31.04,
+        "scenarioId": "normal",
+        "nodeId": "D",
+        "cycleSequence": 32,
+        "entitySequence": 39,
+        "cycleEntityCount": 40,
+        "capturedAt": "2026-08-10T09:24:09.228015Z",
+        "producerId": "visualize-traci",
+        "producerSessionId": "45321fc0-1599-43e3-9742-a8425dd836a6",
+        "correlationId": "e89cc3d9-bc70-4570-ab0e-e13392702dac:32",
+        "entityPayloadHash": "9d613ec3d4296cd3ebdbd982fc2437bf18ca0d8607f1365cd7d23f5de3ae510b",
+        "entity": {
+          "id": "urn:ngsi-ld:VehicleSensor:D:WESTBOUND",
+          "type": "VehicleSensor",
+          "name": {
+            "type": "Property",
+            "value": "Vo Van Kiet - Nguyen Tri Phuong WESTBOUND approach"
+          },
+          "location": {
+            "type": "GeoProperty",
+            "value": {
+              "type": "Point",
+              "coordinates": [
+                106.67,
+                10.755
+              ]
+            }
+          },
+          "sensorType": {
+            "type": "Property",
+            "value": "VIRTUAL"
+          },
+          "sensorStatus": {
+            "type": "Property",
+            "value": "OK"
+          },
+          "trafficDirection": {
+            "type": "Property",
+            "value": "WESTBOUND"
+          },
+          "refIntersection": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Intersection:D"
+          },
+          "refCamera": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:Camera:D"
+          },
+          "refTrafficLight": {
+            "type": "Relationship",
+            "object": "urn:ngsi-ld:TrafficLight:D-West"
+          },
+          "dateObserved": {
+            "type": "Property",
+            "value": {
+              "@type": "DateTime",
+              "@value": "2026-08-10T09:24:09Z"
+            }
+          },
+          "vehicleCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "pcuEquivalent": {
+            "type": "Property",
+            "value": 3.74
+          },
+          "leftTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "straightCount": {
+            "type": "Property",
+            "value": 3
+          },
+          "rightTurnCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "averageSpeed": {
+            "type": "Property",
+            "value": 47.697447955793756
+          },
+          "waitingVehicleCount": {
+            "type": "Property",
+            "value": 0
+          },
+          "queueLength": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueStraight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueLeft": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "queueRight": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "occupancyRate": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "trafficStatus": {
+            "type": "Property",
+            "value": "LIGHT"
+          },
+          "arrivalRatePcuPerSec": {
+            "type": "Property",
+            "value": 0.0
+          },
+          "waitingReasonCounts": {
+            "type": "Property",
+            "value": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            }
+          },
+          "theoreticalSpeed": {
+            "type": "Property",
+            "value": 48.0
+          },
+          "@context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+          "simulationTime": {
+            "type": "Property",
+            "value": 31.04
+          },
+          "simulationRunId": {
+            "type": "Property",
+            "value": "e89cc3d9-bc70-4570-ab0e-e13392702dac"
+          },
+          "scenarioId": {
+            "type": "Property",
+            "value": "normal"
+          },
+          "vehicleClassComposition": {
+            "type": "Property",
+            "value": {
+              "bus": 0.3333,
+              "car": 0.3333,
+              "motorcycle": 0.3333
+            }
+          },
+          "derivedTrafficState": {
+            "type": "Property",
+            "value": "FREE_FLOW"
+          },
+          "spillbackRisk": {
+            "type": "Property",
+            "value": false
+          },
+          "operationalState": {
+            "type": "Property",
+            "value": {
+              "incident_active": false,
+              "emergency_preemption_active": false,
+              "downstream_restriction_active": false
+            }
+          }
+        },
+        "nodeEntityCount": 10
+      }
+    }
+  ]
+}

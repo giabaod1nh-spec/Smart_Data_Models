@@ -1,0 +1,2113 @@
+{
+  "source": "local SUMO/TraCI post-step capture",
+  "sumoConfig": "D:\\DO_AN_TTTN_v0\\Visualize\\Visualize\\intersection.sumocfg",
+  "catalogArchive": "D:\\DO_AN_TTTN_v0\\Visualize\\artifacts\\runs\\aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4\\network_topology_catalog.json",
+  "catalogArchiveReady": true,
+  "catalogDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+  "participatingIntersections": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "M"
+  ],
+  "canonicalSnapshot": {
+    "simulationRunId": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+    "simulationTimeSeconds": 60.04,
+    "simulationStep": 6004,
+    "cycleSequence": 61,
+    "capturedAt": "2026-11-18T10:30:33.978413Z",
+    "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+    "intersections": [
+      {
+        "intersectionId": "A",
+        "source": {
+          "aggregate_traffic_state": "FREE_FLOW",
+          "blocked_direction": null,
+          "colors": {
+            "East": "red",
+            "South": "green",
+            "West": "red"
+          },
+          "config_hash": "bd565f766927e5fb7adf7c9a4044f7b73360fab859f050972d8d3da315867d4d",
+          "context_schema_version": "2.0.0",
+          "context_source_observation_seq": 61,
+          "control_mode": "FIXED",
+          "derived_aggregate_context": "FREE_FLOW",
+          "derived_phenomena": {
+            "box_blocked": false,
+            "spillback_active": false,
+            "spillback_risk": false
+          },
+          "derived_traffic_state": "FREE_FLOW",
+          "direction_contexts": {
+            "East": "FREE_FLOW",
+            "South": "FREE_FLOW",
+            "West": "FREE_FLOW"
+          },
+          "direction_states": {
+            "East": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "South": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "West": {
+              "pcu": 3.22,
+              "queue_length_m": 3.5,
+              "traffic_state": "FREE_FLOW"
+            }
+          },
+          "directions": {
+            "East": {
+              "approach_length_m": 71.97,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 9.6,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "South": {
+              "approach_length_m": 27.64,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 11.06,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "West": {
+              "approach_length_m": 49.82,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 10.188763285470849,
+              "density": "LOW",
+              "dominant_waiting_reason": "RED_PHASE",
+              "estimated_density_veh_per_km": 64.633,
+              "full_link_halting_count": 2,
+              "full_link_jam_length_m": 7.0,
+              "left_count": 2,
+              "moto_front_pct": 100.0,
+              "nominal_storage_pcu_geometric": 6.64,
+              "occupancy_pct": 36.3,
+              "pcu_equivalent": 3.22,
+              "queue_by_movement": {
+                "left": 3.5,
+                "right": 0.0,
+                "straight": 3.5
+              },
+              "queue_length_m": 3.5,
+              "queue_length_vehicles": 0.47,
+              "right_count": 0,
+              "storage_utilization_lane": 0.1405,
+              "storage_utilization_pcu": 0.4847,
+              "straight_count": 2,
+              "theoretical_speed_kmh": 33.8,
+              "vehicle_class_composition": {
+                "bus": 0.25,
+                "motorcycle": 0.75
+              },
+              "vehicle_count": 4,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 2
+              },
+              "waiting_vehicle_count": 2
+            }
+          },
+          "downstream_edge_full": false,
+          "green_duration": 39,
+          "incidents": [],
+          "intersection_box_blocked": false,
+          "link_states": {},
+          "next_phase": "NS_YELLOW",
+          "node_id": "A",
+          "observation_seq": 61,
+          "operational_state": {
+            "downstream_restriction_active": false,
+            "emergency_preemption_active": false,
+            "incident_active": false
+          },
+          "pcu_profile_id": "hanoi_signalized_mixed_traffic_pce_024",
+          "phase": "NS_GREEN",
+          "phase_duration": 39,
+          "phase_remaining": 23,
+          "physical_snapshot_schema_version": "2.0.0",
+          "preemption_active": false,
+          "probable_causes": [],
+          "red_duration": 39,
+          "scenario": "normal",
+          "schema_version": "1.8.1-provenance",
+          "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+          "simulation_time_sec": 60.04,
+          "source_observation_seq": 61,
+          "spillback_detected": false,
+          "spillback_pressure": 0.0,
+          "timing_mode": "FIXED_TIME",
+          "vehicles_blocked_at_entry": 0,
+          "yellow_commitment_count": 0,
+          "yellow_duration": 6
+        },
+        "quality": {
+          "East": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "South": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "West": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": true,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": [
+              "left_count",
+              "queue_length_m",
+              "right_count",
+              "straight_count"
+            ]
+          },
+          "_top_level": {}
+        }
+      },
+      {
+        "intersectionId": "B",
+        "source": {
+          "aggregate_traffic_state": "FREE_FLOW",
+          "blocked_direction": null,
+          "colors": {
+            "East": "green",
+            "North": "red",
+            "South": "red"
+          },
+          "config_hash": "bd565f766927e5fb7adf7c9a4044f7b73360fab859f050972d8d3da315867d4d",
+          "context_schema_version": "2.0.0",
+          "context_source_observation_seq": 61,
+          "control_mode": "FIXED",
+          "derived_aggregate_context": "FREE_FLOW",
+          "derived_phenomena": {
+            "box_blocked": false,
+            "spillback_active": false,
+            "spillback_risk": false
+          },
+          "derived_traffic_state": "FREE_FLOW",
+          "direction_contexts": {
+            "East": "FREE_FLOW",
+            "North": "FREE_FLOW",
+            "South": "FREE_FLOW"
+          },
+          "direction_states": {
+            "East": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "North": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "South": {
+              "pcu": 2.44,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            }
+          },
+          "directions": {
+            "East": {
+              "approach_length_m": 36.81,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 17.12,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "North": {
+              "approach_length_m": 69.91,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 10.21,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "South": {
+              "approach_length_m": 150.43,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 35.63597757815688,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 16.22,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 100.0,
+              "nominal_storage_pcu_geometric": 20.52,
+              "occupancy_pct": 10.5,
+              "pcu_equivalent": 2.44,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.1189,
+              "straight_count": 7,
+              "theoretical_speed_kmh": 45.9,
+              "vehicle_class_composition": {
+                "car": 0.1429,
+                "motorcycle": 0.8571
+              },
+              "vehicle_count": 7,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            }
+          },
+          "downstream_edge_full": false,
+          "green_duration": 40,
+          "incidents": [],
+          "intersection_box_blocked": false,
+          "link_states": {},
+          "next_phase": "EW_YELLOW",
+          "node_id": "B",
+          "observation_seq": 61,
+          "operational_state": {
+            "downstream_restriction_active": false,
+            "emergency_preemption_active": false,
+            "incident_active": false
+          },
+          "pcu_profile_id": "hanoi_signalized_mixed_traffic_pce_024",
+          "phase": "EW_GREEN",
+          "phase_duration": 40,
+          "phase_remaining": 24,
+          "physical_snapshot_schema_version": "2.0.0",
+          "preemption_active": false,
+          "probable_causes": [],
+          "red_duration": 40,
+          "scenario": "normal",
+          "schema_version": "1.8.1-provenance",
+          "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+          "simulation_time_sec": 60.04,
+          "source_observation_seq": 61,
+          "spillback_detected": false,
+          "spillback_pressure": 0.0,
+          "timing_mode": "FIXED_TIME",
+          "vehicles_blocked_at_entry": 0,
+          "yellow_commitment_count": 0,
+          "yellow_duration": 5
+        },
+        "quality": {
+          "East": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "North": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "South": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": true,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": [
+              "left_count",
+              "queue_length_m",
+              "right_count",
+              "straight_count"
+            ]
+          },
+          "_top_level": {}
+        }
+      },
+      {
+        "intersectionId": "C",
+        "source": {
+          "aggregate_traffic_state": "FREE_FLOW",
+          "blocked_direction": null,
+          "colors": {
+            "East": "red",
+            "North": "green",
+            "South": "green",
+            "West": "red"
+          },
+          "config_hash": "bd565f766927e5fb7adf7c9a4044f7b73360fab859f050972d8d3da315867d4d",
+          "context_schema_version": "2.0.0",
+          "context_source_observation_seq": 61,
+          "control_mode": "FIXED",
+          "derived_aggregate_context": "FREE_FLOW",
+          "derived_phenomena": {
+            "box_blocked": false,
+            "spillback_active": false,
+            "spillback_risk": false
+          },
+          "derived_traffic_state": "FREE_FLOW",
+          "direction_contexts": {
+            "East": "FREE_FLOW",
+            "North": "FREE_FLOW",
+            "South": "FREE_FLOW",
+            "West": "FREE_FLOW"
+          },
+          "direction_states": {
+            "East": {
+              "pcu": 0.48,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "North": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "South": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "West": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            }
+          },
+          "directions": {
+            "East": {
+              "approach_length_m": 54.15,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 12.405279474747044,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 8.864,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 100.0,
+              "nominal_storage_pcu_geometric": 8.45,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.48,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 2,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0568,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 47.8,
+              "vehicle_class_composition": {
+                "motorcycle": 1.0
+              },
+              "vehicle_count": 2,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "North": {
+              "approach_length_m": 37.52,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 5.87,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "South": {
+              "approach_length_m": 36.4,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 5.06,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "West": {
+              "approach_length_m": 71.7,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 9.59,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            }
+          },
+          "downstream_edge_full": false,
+          "green_duration": 40,
+          "incidents": [],
+          "intersection_box_blocked": false,
+          "link_states": {},
+          "next_phase": "NS_YELLOW",
+          "node_id": "C",
+          "observation_seq": 61,
+          "operational_state": {
+            "downstream_restriction_active": false,
+            "emergency_preemption_active": false,
+            "incident_active": false
+          },
+          "pcu_profile_id": "hanoi_signalized_mixed_traffic_pce_024",
+          "phase": "NS_GREEN",
+          "phase_duration": 40,
+          "phase_remaining": 24,
+          "physical_snapshot_schema_version": "2.0.0",
+          "preemption_active": false,
+          "probable_causes": [],
+          "red_duration": 40,
+          "scenario": "normal",
+          "schema_version": "1.8.1-provenance",
+          "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+          "simulation_time_sec": 60.04,
+          "source_observation_seq": 61,
+          "spillback_detected": false,
+          "spillback_pressure": 0.0,
+          "timing_mode": "FIXED_TIME",
+          "vehicles_blocked_at_entry": 0,
+          "yellow_commitment_count": 0,
+          "yellow_duration": 5
+        },
+        "quality": {
+          "East": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": true,
+            "unavailable_core_metrics": []
+          },
+          "North": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "South": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "West": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "_top_level": {}
+        }
+      },
+      {
+        "intersectionId": "D",
+        "source": {
+          "aggregate_traffic_state": "FREE_FLOW",
+          "blocked_direction": null,
+          "colors": {
+            "East": "red",
+            "North": "green",
+            "West": "red"
+          },
+          "config_hash": "bd565f766927e5fb7adf7c9a4044f7b73360fab859f050972d8d3da315867d4d",
+          "context_schema_version": "2.0.0",
+          "context_source_observation_seq": 61,
+          "control_mode": "FIXED",
+          "derived_aggregate_context": "FREE_FLOW",
+          "derived_phenomena": {
+            "box_blocked": false,
+            "spillback_active": false,
+            "spillback_risk": false
+          },
+          "derived_traffic_state": "FREE_FLOW",
+          "direction_contexts": {
+            "East": "FREE_FLOW",
+            "North": "FREE_FLOW",
+            "West": "FREE_FLOW"
+          },
+          "direction_states": {
+            "East": {
+              "pcu": 1.44,
+              "queue_length_m": 3.5,
+              "traffic_state": "FREE_FLOW"
+            },
+            "North": {
+              "pcu": 0.96,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "West": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            }
+          },
+          "directions": {
+            "East": {
+              "approach_length_m": 137.76,
+              "arrival_rate_pcu_per_sec": 0.24,
+              "average_speed_kmh": 29.781734363917735,
+              "density": "LOW",
+              "dominant_waiting_reason": "RED_PHASE",
+              "estimated_density_veh_per_km": 10.453,
+              "full_link_halting_count": 2,
+              "full_link_jam_length_m": 7.0,
+              "left_count": 4,
+              "moto_front_pct": 100.0,
+              "nominal_storage_pcu_geometric": 18.37,
+              "occupancy_pct": 8.0,
+              "pcu_equivalent": 1.44,
+              "queue_by_movement": {
+                "left": 3.5,
+                "right": 0.0,
+                "straight": 3.5
+              },
+              "queue_length_m": 3.5,
+              "queue_length_vehicles": 0.47,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0508,
+              "storage_utilization_pcu": 0.0784,
+              "straight_count": 2,
+              "theoretical_speed_kmh": 47.4,
+              "vehicle_class_composition": {
+                "motorcycle": 1.0
+              },
+              "vehicle_count": 6,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 2
+              },
+              "waiting_vehicle_count": 2
+            },
+            "North": {
+              "approach_length_m": 115.65,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 55.28033416739642,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 8.301,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 100.0,
+              "nominal_storage_pcu_geometric": 46.26,
+              "occupancy_pct": 2.7,
+              "pcu_equivalent": 0.96,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0208,
+              "straight_count": 4,
+              "theoretical_speed_kmh": 47.9,
+              "vehicle_class_composition": {
+                "motorcycle": 1.0
+              },
+              "vehicle_count": 4,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "West": {
+              "approach_length_m": 97.68,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 13.02,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            }
+          },
+          "downstream_edge_full": false,
+          "green_duration": 40,
+          "incidents": [],
+          "intersection_box_blocked": false,
+          "link_states": {},
+          "next_phase": "NS_YELLOW",
+          "node_id": "D",
+          "observation_seq": 61,
+          "operational_state": {
+            "downstream_restriction_active": false,
+            "emergency_preemption_active": false,
+            "incident_active": false
+          },
+          "pcu_profile_id": "hanoi_signalized_mixed_traffic_pce_024",
+          "phase": "NS_GREEN",
+          "phase_duration": 40,
+          "phase_remaining": 24,
+          "physical_snapshot_schema_version": "2.0.0",
+          "preemption_active": false,
+          "probable_causes": [],
+          "red_duration": 40,
+          "scenario": "normal",
+          "schema_version": "1.8.1-provenance",
+          "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+          "simulation_time_sec": 60.04,
+          "source_observation_seq": 61,
+          "spillback_detected": false,
+          "spillback_pressure": 0.0,
+          "timing_mode": "FIXED_TIME",
+          "vehicles_blocked_at_entry": 0,
+          "yellow_commitment_count": 0,
+          "yellow_duration": 5
+        },
+        "quality": {
+          "East": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "North": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "West": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "_top_level": {}
+        }
+      },
+      {
+        "intersectionId": "M",
+        "source": {
+          "aggregate_traffic_state": "FREE_FLOW",
+          "blocked_direction": null,
+          "colors": {
+            "East": "red",
+            "North": "green",
+            "South": "green",
+            "West": "red"
+          },
+          "config_hash": "bd565f766927e5fb7adf7c9a4044f7b73360fab859f050972d8d3da315867d4d",
+          "context_schema_version": "2.0.0",
+          "context_source_observation_seq": 61,
+          "control_mode": "FIXED",
+          "derived_aggregate_context": "FREE_FLOW",
+          "derived_phenomena": {
+            "box_blocked": false,
+            "spillback_active": false,
+            "spillback_risk": false
+          },
+          "derived_traffic_state": "FREE_FLOW",
+          "direction_contexts": {
+            "East": "FREE_FLOW",
+            "North": "FREE_FLOW",
+            "South": "FREE_FLOW",
+            "West": "FREE_FLOW"
+          },
+          "direction_states": {
+            "East": {
+              "pcu": 0.48,
+              "queue_length_m": 3.5,
+              "traffic_state": "FREE_FLOW"
+            },
+            "North": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "South": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            },
+            "West": {
+              "pcu": 0.0,
+              "queue_length_m": 0.0,
+              "traffic_state": "FREE_FLOW"
+            }
+          },
+          "directions": {
+            "East": {
+              "approach_length_m": 42.01,
+              "arrival_rate_pcu_per_sec": 0.24,
+              "average_speed_kmh": 60.072623674832755,
+              "density": "LOW",
+              "dominant_waiting_reason": "RED_PHASE",
+              "estimated_density_veh_per_km": 11.426,
+              "full_link_halting_count": 1,
+              "full_link_jam_length_m": 3.5,
+              "left_count": 1,
+              "moto_front_pct": 100.0,
+              "nominal_storage_pcu_geometric": 6.57,
+              "occupancy_pct": 4.8,
+              "pcu_equivalent": 0.48,
+              "queue_by_movement": {
+                "left": 3.5,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 3.5,
+              "queue_length_vehicles": 0.47,
+              "right_count": 0,
+              "storage_utilization_lane": 0.4828,
+              "storage_utilization_pcu": 0.0731,
+              "straight_count": 1,
+              "theoretical_speed_kmh": 47.1,
+              "vehicle_class_composition": {
+                "motorcycle": 1.0
+              },
+              "vehicle_count": 2,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 1
+              },
+              "waiting_vehicle_count": 1
+            },
+            "North": {
+              "approach_length_m": 67.83,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 10.29,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "South": {
+              "approach_length_m": 51.17,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 7.55,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            },
+            "West": {
+              "approach_length_m": 60.78,
+              "arrival_rate_pcu_per_sec": 0.0,
+              "average_speed_kmh": 0.0,
+              "density": "LOW",
+              "dominant_waiting_reason": null,
+              "estimated_density_veh_per_km": 0.0,
+              "full_link_halting_count": 0,
+              "full_link_jam_length_m": 0.0,
+              "left_count": 0,
+              "moto_front_pct": 0.0,
+              "nominal_storage_pcu_geometric": 8.66,
+              "occupancy_pct": 0.0,
+              "pcu_equivalent": 0.0,
+              "queue_by_movement": {
+                "left": 0.0,
+                "right": 0.0,
+                "straight": 0.0
+              },
+              "queue_length_m": 0.0,
+              "queue_length_vehicles": 0.0,
+              "right_count": 0,
+              "storage_utilization_lane": 0.0,
+              "storage_utilization_pcu": 0.0,
+              "straight_count": 0,
+              "theoretical_speed_kmh": 50.0,
+              "vehicle_class_composition": {},
+              "vehicle_count": 0,
+              "waiting_reason_counts": {
+                "CONGESTION": 0,
+                "RED_PHASE": 0
+              },
+              "waiting_vehicle_count": 0
+            }
+          },
+          "downstream_edge_full": false,
+          "green_duration": 40,
+          "incidents": [],
+          "intersection_box_blocked": false,
+          "link_states": {},
+          "next_phase": "NS_YELLOW",
+          "node_id": "M",
+          "observation_seq": 61,
+          "operational_state": {
+            "downstream_restriction_active": false,
+            "emergency_preemption_active": false,
+            "incident_active": false
+          },
+          "pcu_profile_id": "hanoi_signalized_mixed_traffic_pce_024",
+          "phase": "NS_GREEN",
+          "phase_duration": 40,
+          "phase_remaining": 24,
+          "physical_snapshot_schema_version": "2.0.0",
+          "preemption_active": false,
+          "probable_causes": [],
+          "red_duration": 40,
+          "scenario": "normal",
+          "schema_version": "1.8.1-provenance",
+          "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+          "simulation_time_sec": 60.04,
+          "source_observation_seq": 61,
+          "spillback_detected": false,
+          "spillback_pressure": 0.0,
+          "timing_mode": "FIXED_TIME",
+          "vehicles_blocked_at_entry": 0,
+          "yellow_commitment_count": 0,
+          "yellow_duration": 5
+        },
+        "quality": {
+          "East": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "North": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "South": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "West": {
+            "arrival_rate_unavailable": false,
+            "failed_lane_reads": false,
+            "failed_movement_reads": false,
+            "failed_occupancy_reads": false,
+            "failed_vehicle_reads": false,
+            "moto_front_unavailable": false,
+            "unavailable_core_metrics": []
+          },
+          "_top_level": {}
+        }
+      }
+    ]
+  },
+  "observations": [
+    {
+      "eventId": "6e7a9c96aef9088a48dabd20304608e4dc7ad544530fe8a8ad3b7ddca5d4c551",
+      "eventType": "IntersectionObservation",
+      "schemaVersion": 1,
+      "simulationRunId": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+      "intersectionId": "A",
+      "scenarioId": "normal",
+      "cycleSequence": 61,
+      "simulationStep": 6004,
+      "simulationTimeSeconds": 60.04,
+      "capturedAt": "2026-11-18T10:30:33.978413Z",
+      "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+      "payloadHash": "19463550d4de8a979207b70e66684214fda54a1477e1d6317a1f913bc11c2796",
+      "payload": {
+        "node_id": "A",
+        "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+        "simulation_time_sec": 60.04,
+        "scenario": "normal",
+        "control_mode": "FIXED",
+        "phase": "NS_GREEN",
+        "incidents": [],
+        "timing_mode": "FIXED_TIME",
+        "next_phase": "NS_YELLOW",
+        "phase_remaining": 23,
+        "phase_duration": 39,
+        "green_duration": 39,
+        "yellow_duration": 6,
+        "red_duration": 39,
+        "blocked_direction": null,
+        "downstream_edge_full": false,
+        "spillback_pressure": 0.0,
+        "spillback_detected": false,
+        "intersection_box_blocked": false,
+        "vehicles_blocked_at_entry": 0,
+        "yellow_commitment_count": 0,
+        "preemption_active": false,
+        "derived_traffic_state": "FREE_FLOW",
+        "colors": {
+          "East": "red",
+          "South": "green",
+          "West": "red"
+        },
+        "directions": {
+          "East": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 71.97,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 9.6,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "South": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 27.64,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 11.06,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "West": {
+            "vehicle_count": 4,
+            "pcu_equivalent": 3.22,
+            "left_count": null,
+            "straight_count": null,
+            "right_count": null,
+            "average_speed_kmh": 10.188763285470849,
+            "waiting_vehicle_count": 2,
+            "queue_length_m": null,
+            "occupancy_pct": 36.3,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 64.633,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": "RED_PHASE",
+            "theoretical_speed_kmh": 33.8,
+            "moto_front_pct": 100.0,
+            "approach_length_m": 49.82,
+            "full_link_halting_count": 2,
+            "full_link_jam_length_m": 7.0,
+            "storage_utilization_lane": 0.1405,
+            "storage_utilization_pcu": 0.4847,
+            "nominal_storage_pcu_geometric": 6.64,
+            "waiting_reason_counts": {
+              "RED_PHASE": 2,
+              "CONGESTION": 0
+            },
+            "metric_availability": {
+              "left_count": "UNAVAILABLE",
+              "queue_length_m": "UNAVAILABLE",
+              "right_count": "UNAVAILABLE",
+              "straight_count": "UNAVAILABLE"
+            },
+            "vehicle_class_composition": {
+              "bus": 0.25,
+              "motorcycle": 0.75
+            }
+          }
+        },
+        "derived_phenomena": {
+          "spillback_risk": false,
+          "spillback_active": false,
+          "box_blocked": false
+        },
+        "operational_state": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        },
+        "direction_contexts": {
+          "East": "FREE_FLOW",
+          "South": "FREE_FLOW",
+          "West": "FREE_FLOW"
+        },
+        "probable_causes": []
+      }
+    },
+    {
+      "eventId": "870c4cd1c6c3c3cd874a914d05c0130d82a7f3349b19daf2c8a4b0756369c211",
+      "eventType": "IntersectionObservation",
+      "schemaVersion": 1,
+      "simulationRunId": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+      "intersectionId": "B",
+      "scenarioId": "normal",
+      "cycleSequence": 61,
+      "simulationStep": 6004,
+      "simulationTimeSeconds": 60.04,
+      "capturedAt": "2026-11-18T10:30:33.978413Z",
+      "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+      "payloadHash": "40380f89c7b7ee535cea0339b40bd26b283c99519f5c3c1ec257507a1c9e16e4",
+      "payload": {
+        "node_id": "B",
+        "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+        "simulation_time_sec": 60.04,
+        "scenario": "normal",
+        "control_mode": "FIXED",
+        "phase": "EW_GREEN",
+        "incidents": [],
+        "timing_mode": "FIXED_TIME",
+        "next_phase": "EW_YELLOW",
+        "phase_remaining": 24,
+        "phase_duration": 40,
+        "green_duration": 40,
+        "yellow_duration": 5,
+        "red_duration": 40,
+        "blocked_direction": null,
+        "downstream_edge_full": false,
+        "spillback_pressure": 0.0,
+        "spillback_detected": false,
+        "intersection_box_blocked": false,
+        "vehicles_blocked_at_entry": 0,
+        "yellow_commitment_count": 0,
+        "preemption_active": false,
+        "derived_traffic_state": "FREE_FLOW",
+        "colors": {
+          "East": "green",
+          "North": "red",
+          "South": "red"
+        },
+        "directions": {
+          "East": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 36.81,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 17.12,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "North": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 69.91,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 10.21,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "South": {
+            "vehicle_count": 7,
+            "pcu_equivalent": 2.44,
+            "left_count": null,
+            "straight_count": null,
+            "right_count": null,
+            "average_speed_kmh": 35.63597757815688,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": null,
+            "occupancy_pct": 10.5,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 16.22,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 45.9,
+            "moto_front_pct": 100.0,
+            "approach_length_m": 150.43,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.1189,
+            "nominal_storage_pcu_geometric": 20.52,
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "metric_availability": {
+              "left_count": "UNAVAILABLE",
+              "queue_length_m": "UNAVAILABLE",
+              "right_count": "UNAVAILABLE",
+              "straight_count": "UNAVAILABLE"
+            },
+            "vehicle_class_composition": {
+              "car": 0.1429,
+              "motorcycle": 0.8571
+            }
+          }
+        },
+        "derived_phenomena": {
+          "spillback_risk": false,
+          "spillback_active": false,
+          "box_blocked": false
+        },
+        "operational_state": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        },
+        "direction_contexts": {
+          "East": "FREE_FLOW",
+          "North": "FREE_FLOW",
+          "South": "FREE_FLOW"
+        },
+        "probable_causes": []
+      }
+    },
+    {
+      "eventId": "9b6c4420b6cac93ebca16c20faf8968f53fde6f0ad43261b3f110b5381ac8eec",
+      "eventType": "IntersectionObservation",
+      "schemaVersion": 1,
+      "simulationRunId": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+      "intersectionId": "C",
+      "scenarioId": "normal",
+      "cycleSequence": 61,
+      "simulationStep": 6004,
+      "simulationTimeSeconds": 60.04,
+      "capturedAt": "2026-11-18T10:30:33.978413Z",
+      "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+      "payloadHash": "d9050619379969cf278a28df49a01f4ffb6f94582238cc4dd7d831b389d46bba",
+      "payload": {
+        "node_id": "C",
+        "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+        "simulation_time_sec": 60.04,
+        "scenario": "normal",
+        "control_mode": "FIXED",
+        "phase": "NS_GREEN",
+        "incidents": [],
+        "timing_mode": "FIXED_TIME",
+        "next_phase": "NS_YELLOW",
+        "phase_remaining": 24,
+        "phase_duration": 40,
+        "green_duration": 40,
+        "yellow_duration": 5,
+        "red_duration": 40,
+        "blocked_direction": null,
+        "downstream_edge_full": false,
+        "spillback_pressure": 0.0,
+        "spillback_detected": false,
+        "intersection_box_blocked": false,
+        "vehicles_blocked_at_entry": 0,
+        "yellow_commitment_count": 0,
+        "preemption_active": false,
+        "derived_traffic_state": "FREE_FLOW",
+        "colors": {
+          "East": "red",
+          "North": "green",
+          "South": "green",
+          "West": "red"
+        },
+        "directions": {
+          "East": {
+            "vehicle_count": 2,
+            "pcu_equivalent": 0.48,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 2,
+            "average_speed_kmh": 12.405279474747044,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 8.864,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 47.8,
+            "approach_length_m": 54.15,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0568,
+            "nominal_storage_pcu_geometric": 8.45,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {
+              "motorcycle": 1.0
+            }
+          },
+          "North": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 37.52,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 5.87,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "South": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 36.4,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 5.06,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "West": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 71.7,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 9.59,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          }
+        },
+        "derived_phenomena": {
+          "spillback_risk": false,
+          "spillback_active": false,
+          "box_blocked": false
+        },
+        "operational_state": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        },
+        "direction_contexts": {
+          "East": "FREE_FLOW",
+          "North": "FREE_FLOW",
+          "South": "FREE_FLOW",
+          "West": "FREE_FLOW"
+        },
+        "probable_causes": []
+      }
+    },
+    {
+      "eventId": "1377c84f2841c1084c69cd910e0b3ff108d512099a532c09f976b022092b0a46",
+      "eventType": "IntersectionObservation",
+      "schemaVersion": 1,
+      "simulationRunId": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+      "intersectionId": "D",
+      "scenarioId": "normal",
+      "cycleSequence": 61,
+      "simulationStep": 6004,
+      "simulationTimeSeconds": 60.04,
+      "capturedAt": "2026-11-18T10:30:33.978413Z",
+      "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+      "payloadHash": "5c0157da4cc924793981c29919ebfe643eb99ce290ae920181904d9d852f877d",
+      "payload": {
+        "node_id": "D",
+        "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+        "simulation_time_sec": 60.04,
+        "scenario": "normal",
+        "control_mode": "FIXED",
+        "phase": "NS_GREEN",
+        "incidents": [],
+        "timing_mode": "FIXED_TIME",
+        "next_phase": "NS_YELLOW",
+        "phase_remaining": 24,
+        "phase_duration": 40,
+        "green_duration": 40,
+        "yellow_duration": 5,
+        "red_duration": 40,
+        "blocked_direction": null,
+        "downstream_edge_full": false,
+        "spillback_pressure": 0.0,
+        "spillback_detected": false,
+        "intersection_box_blocked": false,
+        "vehicles_blocked_at_entry": 0,
+        "yellow_commitment_count": 0,
+        "preemption_active": false,
+        "derived_traffic_state": "FREE_FLOW",
+        "colors": {
+          "East": "red",
+          "North": "green",
+          "West": "red"
+        },
+        "directions": {
+          "East": {
+            "vehicle_count": 6,
+            "pcu_equivalent": 1.44,
+            "left_count": 4,
+            "straight_count": 2,
+            "right_count": 0,
+            "average_speed_kmh": 29.781734363917735,
+            "waiting_vehicle_count": 2,
+            "queue_length_m": 3.5,
+            "occupancy_pct": 8.0,
+            "queue_length_vehicles": 0.47,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 10.453,
+            "arrival_rate_pcu_per_sec": 0.24,
+            "dominant_waiting_reason": "RED_PHASE",
+            "theoretical_speed_kmh": 47.4,
+            "moto_front_pct": 100.0,
+            "approach_length_m": 137.76,
+            "full_link_halting_count": 2,
+            "full_link_jam_length_m": 7.0,
+            "storage_utilization_lane": 0.0508,
+            "storage_utilization_pcu": 0.0784,
+            "nominal_storage_pcu_geometric": 18.37,
+            "queue_by_movement": {
+              "straight": 3.5,
+              "left": 3.5,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 2,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {
+              "motorcycle": 1.0
+            }
+          },
+          "North": {
+            "vehicle_count": 4,
+            "pcu_equivalent": 0.96,
+            "left_count": 0,
+            "straight_count": 4,
+            "right_count": 0,
+            "average_speed_kmh": 55.28033416739642,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 2.7,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 8.301,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 47.9,
+            "moto_front_pct": 100.0,
+            "approach_length_m": 115.65,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0208,
+            "nominal_storage_pcu_geometric": 46.26,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {
+              "motorcycle": 1.0
+            }
+          },
+          "West": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 97.68,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 13.02,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          }
+        },
+        "derived_phenomena": {
+          "spillback_risk": false,
+          "spillback_active": false,
+          "box_blocked": false
+        },
+        "operational_state": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        },
+        "direction_contexts": {
+          "East": "FREE_FLOW",
+          "North": "FREE_FLOW",
+          "West": "FREE_FLOW"
+        },
+        "probable_causes": []
+      }
+    },
+    {
+      "eventId": "f4f7a302f0ff6b6171a2d41f56a88637259ab851266a427be93143da60aba10c",
+      "eventType": "IntersectionObservation",
+      "schemaVersion": 1,
+      "simulationRunId": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+      "intersectionId": "M",
+      "scenarioId": "normal",
+      "cycleSequence": 61,
+      "simulationStep": 6004,
+      "simulationTimeSeconds": 60.04,
+      "capturedAt": "2026-11-18T10:30:33.978413Z",
+      "topologyDigest": "v1:sha256:ade7ab048d8110ed9bf920696fdfa3d78191e46ac365eecc7af49ca6412b1837",
+      "payloadHash": "a2de0bacc7196191ff9f97ffd1c141e44d11146e85e48169d66398e584bbe34d",
+      "payload": {
+        "node_id": "M",
+        "simulation_run_id": "aecf4e8b-ac2c-459b-a50e-aaa7f4d2b4b4",
+        "simulation_time_sec": 60.04,
+        "scenario": "normal",
+        "control_mode": "FIXED",
+        "phase": "NS_GREEN",
+        "incidents": [],
+        "timing_mode": "FIXED_TIME",
+        "next_phase": "NS_YELLOW",
+        "phase_remaining": 24,
+        "phase_duration": 40,
+        "green_duration": 40,
+        "yellow_duration": 5,
+        "red_duration": 40,
+        "blocked_direction": null,
+        "downstream_edge_full": false,
+        "spillback_pressure": 0.0,
+        "spillback_detected": false,
+        "intersection_box_blocked": false,
+        "vehicles_blocked_at_entry": 0,
+        "yellow_commitment_count": 0,
+        "preemption_active": false,
+        "derived_traffic_state": "FREE_FLOW",
+        "colors": {
+          "East": "red",
+          "North": "green",
+          "South": "green",
+          "West": "red"
+        },
+        "directions": {
+          "East": {
+            "vehicle_count": 2,
+            "pcu_equivalent": 0.48,
+            "left_count": 1,
+            "straight_count": 1,
+            "right_count": 0,
+            "average_speed_kmh": 60.072623674832755,
+            "waiting_vehicle_count": 1,
+            "queue_length_m": 3.5,
+            "occupancy_pct": 4.8,
+            "queue_length_vehicles": 0.47,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 11.426,
+            "arrival_rate_pcu_per_sec": 0.24,
+            "dominant_waiting_reason": "RED_PHASE",
+            "theoretical_speed_kmh": 47.1,
+            "moto_front_pct": 100.0,
+            "approach_length_m": 42.01,
+            "full_link_halting_count": 1,
+            "full_link_jam_length_m": 3.5,
+            "storage_utilization_lane": 0.4828,
+            "storage_utilization_pcu": 0.0731,
+            "nominal_storage_pcu_geometric": 6.57,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 3.5,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 1,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {
+              "motorcycle": 1.0
+            }
+          },
+          "North": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 67.83,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 10.29,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "South": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 51.17,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 7.55,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          },
+          "West": {
+            "vehicle_count": 0,
+            "pcu_equivalent": 0.0,
+            "left_count": 0,
+            "straight_count": 0,
+            "right_count": 0,
+            "average_speed_kmh": 0.0,
+            "waiting_vehicle_count": 0,
+            "queue_length_m": 0.0,
+            "occupancy_pct": 0.0,
+            "queue_length_vehicles": 0.0,
+            "density": "LOW",
+            "estimated_density_veh_per_km": 0.0,
+            "arrival_rate_pcu_per_sec": 0.0,
+            "dominant_waiting_reason": null,
+            "theoretical_speed_kmh": 50.0,
+            "moto_front_pct": 0.0,
+            "approach_length_m": 60.78,
+            "full_link_halting_count": 0,
+            "full_link_jam_length_m": 0.0,
+            "storage_utilization_lane": 0.0,
+            "storage_utilization_pcu": 0.0,
+            "nominal_storage_pcu_geometric": 8.66,
+            "queue_by_movement": {
+              "straight": 0.0,
+              "left": 0.0,
+              "right": 0.0
+            },
+            "waiting_reason_counts": {
+              "RED_PHASE": 0,
+              "CONGESTION": 0
+            },
+            "vehicle_class_composition": {}
+          }
+        },
+        "derived_phenomena": {
+          "spillback_risk": false,
+          "spillback_active": false,
+          "box_blocked": false
+        },
+        "operational_state": {
+          "incident_active": false,
+          "emergency_preemption_active": false,
+          "downstream_restriction_active": false
+        },
+        "direction_contexts": {
+          "East": "FREE_FLOW",
+          "North": "FREE_FLOW",
+          "South": "FREE_FLOW",
+          "West": "FREE_FLOW"
+        },
+        "probable_causes": []
+      }
+    }
+  ],
+  "structuralValidation": "PASS",
+  "semanticValidation": "PASS",
+  "observationCount": 5
+}

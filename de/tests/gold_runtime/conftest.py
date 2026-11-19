@@ -41,7 +41,7 @@ from de.gold_runtime.silver_readers import SOURCE_COLUMNS
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 RUN_ID = "run-1"
 SCENARIO_ID = "scenario-1"
-INTERSECTION_ID = "J1"
+INTERSECTION_ID = "A"
 DIRECTIONS = ("N", "S", "E", "W")
 TOPIC = "traffic.entity-events.v2"
 
@@ -221,7 +221,7 @@ DIM_ROWS: dict[str, list[dict]] = {
             "latitude": 10.77,
             "longitude": 106.7,
             "network_zone": "CORE",
-            "connected_intersections": ["J2", "J0"],
+            "connected_intersections": ["B", "M"],
             "source_hash": "a" * 64,
             "source_bronze_event_id": "bronze-int-1",
             "created_at": NOW,

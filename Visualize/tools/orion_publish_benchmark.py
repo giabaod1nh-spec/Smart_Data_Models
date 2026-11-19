@@ -3,13 +3,13 @@ Orion publish performance benchmark — audit harness (no SUMO required for HTTP
 
 Usage (from repo root):
   python Visualize/tools/orion_publish_benchmark.py --scenario B --nodes A --cycles 5
-  python Visualize/tools/orion_publish_benchmark.py --scenario D --nodes A,B,C,D --cycles 3
+  python Visualize/tools/orion_publish_benchmark.py --scenario D --nodes A,B,C,D,M --cycles 3
 
 Scenarios:
   B = Orion only (ensure no active subscription or use --skip-subscription-check)
   D = Orion + de-webhook subscription (default if subscription exists)
   E = nodes A only
-  F = nodes A,B,C,D
+  F = nodes A,B,C,D,M
   G = vary --publish-interval (simulated wall-clock spacing between cycles)
 """
 from __future__ import annotations
@@ -233,7 +233,7 @@ def run_benchmark(
 def main() -> int:
     p = argparse.ArgumentParser(description="Orion publish benchmark (audit)")
     p.add_argument("--scenario", default="B", choices=["B", "C", "D", "E", "F", "G"])
-    p.add_argument("--nodes", default="A,B,C,D")
+    p.add_argument("--nodes", default="A,B,C,D,M")
     p.add_argument("--cycles", type=int, default=5)
     p.add_argument("--publish-interval", type=float, default=1.0)
     p.add_argument("--output", default=None, help="JSON output path")

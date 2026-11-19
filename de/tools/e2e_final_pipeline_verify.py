@@ -171,7 +171,7 @@ def step_sumo(report: dict[str, Any], evidence_dir: Path, run_id: str, max_sim: 
         "--no-gui",
         "--fast",
         "--nodes",
-        "A,B,C,D",
+        "A,B,C,D,M",
         "--max-sim-time",
         str(max_sim),
         "--simulation-run-id",

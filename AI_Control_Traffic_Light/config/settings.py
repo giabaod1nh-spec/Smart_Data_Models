@@ -13,8 +13,8 @@ _MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 
 @dataclass
 class RLConfig:
-    num_agents: int = 4
-    agent_nodes: List[str] = field(default_factory=lambda: ["A", "B", "C", "D"])
+    num_agents: int = 5
+    agent_nodes: List[str] = field(default_factory=lambda: ["A", "B", "C", "D", "M"])
     gamma: float = 0.95
     epsilon_start: float = 1.0
     epsilon_min: float = 0.05

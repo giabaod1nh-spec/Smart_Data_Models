@@ -53,11 +53,10 @@ import { TrafficLightPanel } from '@/components/feedback/TrafficLightPanel'
 import { RealtimeEventFeed } from '@/components/feedback/RealtimeEventFeed'
 import { TrafficStatusBadge, AnomalyLabelBadge } from '@/components/feedback/StatusBadge'
 import { SkeletonKpiCard, ErrorState, Skeleton } from '@/components/feedback/LoadingStates'
+import { useRlAgentStatus } from '@/hooks/useRlAgentStatus'
 import { setStoredSelectedIntersectionId } from '@/utils/navigation'
 import { classifyApiError } from '@/utils/apiErrors'
 
-type Dir = 'North' | 'South' | 'East' | 'West'
-const DIRECTIONS: Dir[] = ['North', 'South', 'East', 'West']
 const DIR_ARROW: Record<string, string> = { North: '↑', South: '↓', East: '→', West: '←' }
 
 // Page status badge
@@ -112,6 +111,9 @@ export function IntersectionDetailPage() {
     liveStream.status === 'connected' ||
     liveStream.frame != null ||
     liveStream.network != null
+
+  // Cooperative DQN agent status (always poll — backend is cheap when ADAPTIVE is off)
+  const rlStatus = useRlAgentStatus(true)
 
   // Debounce manual Retry: rapid clicks fire at most one request per second.
   const lastRetryMsRef = useRef(0)
@@ -438,8 +440,8 @@ export function IntersectionDetailPage() {
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
               Vehicles & Flow by Direction
             </div>
-            {DIRECTIONS.map((dir) => {
-              const s = dirSensors.find((d) => d.direction === dir)
+            {dirSensors.map((s) => {
+              const dir = s.direction
               const count = s?.vehicleCount ?? 0
               const maxCount = Math.max(...dirSensors.map((d) => d.vehicleCount ?? 0), 1)
               const pct = maxCount > 0 ? (count / maxCount) * 100 : 0
@@ -517,6 +519,8 @@ export function IntersectionDetailPage() {
               network={liveStream.network}
               stats={liveStream.stats}
               simulationTime={liveStream.simulationTime}
+              agents={rlStatus.enabled ? rlStatus.agents : undefined}
+              globalMetrics={rlStatus.enabled ? rlStatus.globalMetrics : undefined}
             />
           ) : (
             <IntersectionScene
@@ -578,6 +582,8 @@ export function IntersectionDetailPage() {
                 ? 'MANUAL'
                 : lights[0]?.timingMode === 'EMERGENCY_PRIORITY'
                 ? 'PREEMPTION_ENABLED'
+                : lights[0]?.timingMode === 'ADAPTIVE' || rlStatus.mode === 'ADAPTIVE' || rlStatus.enabled
+                ? 'ADAPTIVE'
                 : 'FIXED'
             }
             onModeChanged={() => {

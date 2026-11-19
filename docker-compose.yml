@@ -1,4 +1,12 @@
 services:
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8090:8080"
+
   mongo-db:
     image: mongo:4.4
     container_name: db-mongos
@@ -95,6 +103,7 @@ services:
     restart: "no"
 
   de-kafka-raw-consumer:
+    profiles: ["v2-legacy"]
     build:
       context: .
       dockerfile: de/Dockerfile
@@ -130,6 +139,7 @@ services:
       start_period: 30s
 
   de-bronze-processor:
+    profiles: ["v2-legacy"]
     build:
       context: .
       dockerfile: de/Dockerfile
@@ -167,6 +177,7 @@ services:
       start_period: 30s
 
   de-silver-processor:
+    profiles: ["v2-legacy"]
     build:
       context: .
       dockerfile: de/Dockerfile
@@ -212,6 +223,7 @@ services:
       start_period: 30s
 
   de-gold-runtime:
+    profiles: ["v2-legacy"]
     build:
       context: .
       dockerfile: de/Dockerfile
@@ -312,6 +324,7 @@ services:
 
   # K-5 production Projector folded into the K-6b canonical Kafka runtime.
   orion-projector:
+    profiles: ["v2-legacy"]
     build:
       context: .
       dockerfile: Visualize/Dockerfile.projector

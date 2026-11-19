@@ -1,6 +1,6 @@
 # Cooperative Multi-Agent DQN hyperparameters
-num_agents: 4
-agent_nodes: ["A", "B", "C", "D"]
+num_agents: 5
+agent_nodes: ["A", "B", "C", "D", "M"]
 
 # DQN
 gamma: 0.95

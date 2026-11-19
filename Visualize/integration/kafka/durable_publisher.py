@@ -4,7 +4,6 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import time
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -23,10 +22,6 @@ from integration.kafka.outbox_worker import OutboxDeliveryWorker
 from integration.kafka.producer import TOPIC_MAIN
 
 log = logging.getLogger(__name__)
-
-RUN_STARTED_ACK_TIMEOUT_SEC = 30.0
-RUN_STARTED_ACK_POLL_SEC = 0.05
-
 
 class DurablePublisherState(str, Enum):
     STARTING = "STARTING"
@@ -83,7 +78,7 @@ class DurableKafkaPublisher:
         self.last_append_ms: float = 0.0
         self.cycles_outboxed: int = 0
         self.cycles_failed: int = 0
-        self._run_started_acked_runs: set[str] = set()
+        self._run_started_outboxed_runs: set[str] = set()
 
     @property
     def state(self) -> DurablePublisherState:
@@ -139,26 +134,13 @@ class DurableKafkaPublisher:
         self._state = DurablePublisherState.READY
         log.info("DurableKafkaPublisher READY db=%s topic=%s", self.store.db_path, self.topic)
 
-    def _wait_run_started_acked(self, simulation_run_id: str) -> None:
-        if simulation_run_id in self._run_started_acked_runs:
-            return
-        deadline = time.monotonic() + RUN_STARTED_ACK_TIMEOUT_SEC
-        while time.monotonic() < deadline:
-            if self.store.is_run_started_acked(simulation_run_id):
-                self._run_started_acked_runs.add(simulation_run_id)
-                return
-            time.sleep(RUN_STARTED_ACK_POLL_SEC)
-        raise OutboxAppendError(
-            f"RunStarted not broker-ACKed within {RUN_STARTED_ACK_TIMEOUT_SEC}s run={simulation_run_id}"
-        )
-
     def _append_run_started_durable(self, simulation_run_id: str) -> None:
         from integration.kafka.event_mapper import (
             build_run_started_event,
             run_started_partition_key,
         )
 
-        if simulation_run_id in self._run_started_acked_runs:
+        if simulation_run_id in self._run_started_outboxed_runs:
             return
         event = build_run_started_event(
             simulation_run_id=simulation_run_id,
@@ -180,12 +162,12 @@ class DurableKafkaPublisher:
             event_id=eid,
             payload_hash=payload_hash_bytes(payload),
         )
+        self._run_started_outboxed_runs.add(simulation_run_id)
         log.info(
             "outboxed TrafficSimulationRunStarted run=%s session=%s",
             simulation_run_id,
             self.producer_session_id,
         )
-        self._wait_run_started_acked(simulation_run_id)
 
     def stop(self, flush_timeout_sec: float = 10.0) -> dict:
         self._state = DurablePublisherState.STOPPING
@@ -225,11 +207,10 @@ class DurableKafkaPublisher:
             raise OutboxAppendError(f"FAILED_PERMANENT validate: {vr.reason}")
 
         real_run = str(events[0]["simulationRunId"])
-        if real_run not in self._run_started_acked_runs:
-            self._append_run_started_durable(real_run)
-
-        rows = events_to_outbox_rows(events, topic=self.topic)
         try:
+            if real_run not in self._run_started_outboxed_runs:
+                self._append_run_started_durable(real_run)
+            rows = events_to_outbox_rows(events, topic=self.topic)
             ms = self.store.append_cycle(rows)
             self.last_append_ms = ms
             self.cycles_outboxed += 1
@@ -240,6 +221,47 @@ class DurableKafkaPublisher:
             self.cycles_failed += 1
             self._state = DurablePublisherState.FAULTED
             raise
+
+    def append_observation_cycle(
+        self,
+        snapshots: Sequence[dict[str, Any]],
+        *,
+        cycle_sequence: int,
+        simulation_step: int,
+    ) -> int:
+        """Atomically outbox one domain observation per logical intersection."""
+        from contracts.traffic_observation import TOPIC, build_observation
+
+        if not self.enabled:
+            return 0
+        if self.topic != TOPIC:
+            raise OutboxAppendError(f"observation publisher requires topic {TOPIC}")
+        if self.is_faulted:
+            raise OutboxAppendError(self._fault_message or "publisher faulted")
+        try:
+            events = [
+                build_observation(s, cycle_sequence=cycle_sequence, simulation_step=simulation_step)
+                for s in snapshots
+            ]
+            if not events:
+                raise ValueError("empty observation cycle")
+            run_ids = {e["simulationRunId"] for e in events}
+            nodes = [e["intersectionId"] for e in events]
+            if len(run_ids) != 1 or len(nodes) != len(set(nodes)):
+                raise ValueError("observation cycle has mixed runs or duplicate intersections")
+            run_id = next(iter(run_ids))
+            if run_id not in self._run_started_outboxed_runs:
+                self._append_run_started_durable(run_id)
+            rows = events_to_outbox_rows(events, topic=self.topic)
+            self.last_append_ms = self.store.append_cycle(rows)
+            self.cycles_outboxed += 1
+            return len(rows)
+        except (ValueError, TypeError, OutboxAppendError) as e:
+            self.cycles_failed += 1
+            if isinstance(e, OutboxAppendError):
+                self._state = DurablePublisherState.FAULTED
+                raise
+            raise OutboxAppendError(f"invalid observation cycle: {e}") from e
 
     def health(self) -> dict:
         h = self.store.capacity_metrics()

@@ -95,6 +95,10 @@ def build_and_write_manifest(
     demand_seed: Optional[int] = None,
     control_mode: Optional[str] = None,
     topology_hash: Optional[str] = None,
+    topology_digest: Optional[str] = None,
+    participating_intersection_ids: Optional[list[str]] = None,
+    run_generation: Optional[int] = None,
+    run_status: Optional[str] = None,
 ) -> Dict[str, Any]:
     run_id = simulation_run_id or str(uuid.uuid4())
     net = registry.export_effective_config().get("network") or {}
@@ -165,6 +169,15 @@ def build_and_write_manifest(
         "topology_hash": topology_hash,
         "demand_profile_id": scenario,
     }
+    if topology_digest is not None:
+        manifest.update({
+            "simulationRunId": run_id,
+            "topologyDigest": topology_digest,
+            "participatingIntersectionIds": list(participating_intersection_ids or []),
+            "runGeneration": run_generation,
+            "runStatus": run_status or "READY",
+            "failedCycleCount": 0,
+        })
     try:
         import traci  # type: ignore
 
@@ -182,4 +195,23 @@ def build_and_write_manifest(
             log.error("Failed to write run manifest (compat): %s", e)
         else:
             raise RuntimeError(f"Failed to write run_manifest.json: {e}") from e
+    return manifest
+
+
+def read_verified_v1_manifest(
+    path: Path, *, run_id: str, topology_digest: str,
+    participants: tuple[str, ...], generation: int,
+) -> Dict[str, Any]:
+    """Read back the authoritative V1 manifest after its atomic write."""
+    manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    if manifest.get("simulationRunId") != run_id:
+        raise ValueError("run manifest identity mismatch")
+    if manifest.get("topologyDigest") != topology_digest:
+        raise ValueError("run manifest V1 topology digest mismatch")
+    if tuple(manifest.get("participatingIntersectionIds", ())) != participants:
+        raise ValueError("run manifest participant set mismatch")
+    if manifest.get("runGeneration") != generation:
+        raise ValueError("run manifest generation mismatch")
+    if manifest.get("runStatus") not in {"READY", "RUNNING"}:
+        raise ValueError("run manifest is not ready")
     return manifest

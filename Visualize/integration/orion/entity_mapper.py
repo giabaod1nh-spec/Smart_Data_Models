@@ -24,6 +24,11 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _observed_at(snapshot: dict) -> str:
+    """Use the captured event time when projecting a replayed observation."""
+    return str(snapshot.get("captured_at") or _now_iso())
+
+
 def _prop(value: Any) -> dict:
     return {"type": "Property", "value": value}
 
@@ -70,6 +75,23 @@ def _meta(node_id: str) -> Dict[str, Any]:
     )
 
 
+def _active_directions(node_id: str, snapshot: dict) -> tuple[str, ...]:
+    """Resolve the entity cardinality from the generated SUMO topology."""
+    directions = cfg.directions_for_node(node_id)
+    snapshot_directions = snapshot.get("directions") or {}
+    snapshot_colors = snapshot.get("colors") or {}
+    missing = [
+        direction
+        for direction in directions
+        if direction not in snapshot_directions or direction not in snapshot_colors
+    ]
+    if missing:
+        raise ValueError(
+            f"Snapshot for node {node_id} is missing catalog directions: {missing}"
+        )
+    return directions
+
+
 def _sim_meta_props(snapshot: dict) -> Dict[str, Any]:
     """RT-DE Contract v1: simulation identity/time on every published entity."""
     run_id = snapshot.get("simulation_run_id") or ""
@@ -90,18 +112,19 @@ def _current_phase_prop(snapshot: dict) -> dict:
 def build_intersection(node_id: str, snapshot: dict) -> dict:
     """Intersection — fields from Intersection/doc/spec.md + Phase 2 additive context."""
     meta = _meta(node_id)
-    dirs = snapshot["directions"]
+    active_directions = _active_directions(node_id, snapshot)
+    dirs = {direction: snapshot["directions"][direction] for direction in active_directions}
     total_vehicles = sum(d["vehicle_count"] for d in dirs.values())
     total_pcu = sum(d["pcu_equivalent"] for d in dirs.values())
     density = cfg.density_label_intersection(total_pcu)
     overall = cfg.traffic_status_from_density(density)
     incidents = snapshot.get("incidents") or []
-    now = _now_iso()
+    now = _observed_at(snapshot)
 
-    tl_ids = [_traffic_light_id(node_id, d) for d in cfg.DIRECTIONS]
+    tl_ids = [_traffic_light_id(node_id, d) for d in active_directions]
     vs_ids = [
         _vehicle_sensor_id(node_id, cfg.DIRECTION_TO_TRAFFIC[d])
-        for d in cfg.DIRECTIONS
+        for d in active_directions
     ]
 
     phenomena = snapshot.get("derived_phenomena") or {}
@@ -115,7 +138,7 @@ def build_intersection(node_id: str, snapshot: dict) -> dict:
         "name": _prop(meta["name"]),
         "location": _geoprop(float(meta["lng"]), float(meta["lat"])),
         "intersectionStatus": _prop("ACTIVE"),
-        "numberOfApproaches": _prop(4),
+        "numberOfApproaches": _prop(len(active_directions)),
         "frequentCongestion": _prop(overall in ("HEAVY", "CONGESTED")),
         "refTrafficLights": _rel_list(tl_ids),
         "refCameras": _rel_list([_camera_id(node_id)]),
@@ -192,7 +215,8 @@ def build_traffic_light(node_id: str, direction: str, snapshot: dict) -> dict:
 def build_camera(node_id: str, snapshot: dict) -> dict:
     """Camera — fields from Camera/doc/spec.md."""
     meta = _meta(node_id)
-    dirs = snapshot["directions"]
+    active_directions = _active_directions(node_id, snapshot)
+    dirs = {direction: snapshot["directions"][direction] for direction in active_directions}
     total = sum(d["vehicle_count"] for d in dirs.values())
     total_pcu = sum(d["pcu_equivalent"] for d in dirs.values())
     speeds = [
@@ -205,7 +229,7 @@ def build_camera(node_id: str, snapshot: dict) -> dict:
     traffic_status = cfg.traffic_status_from_density(density)
     incidents = snapshot.get("incidents") or []
     has_incident = len(incidents) > 0
-    now = _now_iso()
+    now = _observed_at(snapshot)
 
     entity: Dict[str, Any] = {
         "id": _camera_id(node_id),
@@ -245,7 +269,7 @@ def build_vehicle_sensor(node_id: str, direction: str, snapshot: dict) -> dict:
     traffic_dir = cfg.DIRECTION_TO_TRAFFIC[direction]
     traffic_status = cfg.traffic_status_from_density(d.get("density", "LOW"))
     class_comp = d.get("vehicle_class_composition")
-    now = _now_iso()
+    now = _observed_at(snapshot)
 
     entity: Dict[str, Any] = {
         "id": _vehicle_sensor_id(node_id, traffic_dir),
@@ -305,12 +329,13 @@ def build_vehicle_sensor(node_id: str, direction: str, snapshot: dict) -> dict:
 
 
 def build_all_entities(node_id: str, snapshot: dict) -> list:
+    active_directions = _active_directions(node_id, snapshot)
     entities = [
         build_intersection(node_id, snapshot),
         build_camera(node_id, snapshot),
     ]
-    for direction in cfg.DIRECTIONS:
+    for direction in active_directions:
         entities.append(build_traffic_light(node_id, direction, snapshot))
-    for direction in cfg.DIRECTIONS:
+    for direction in active_directions:
         entities.append(build_vehicle_sensor(node_id, direction, snapshot))
     return entities
