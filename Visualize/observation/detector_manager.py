@@ -91,7 +91,7 @@ class DetectorManager:
             self.available = False
         return self.available
 
-    def approach_queue_by_movement(self, traci_module, direction: str) -> Dict[str, float]:
+    def approach_queue_by_movement(self, traci_module, direction: str, *, quality: Optional[dict] = None) -> Dict[str, float]:
         """Jam length per movement from E2 lanes; empty dict if unavailable."""
         if not self.ensure_checked(traci_module):
             return {}
@@ -111,10 +111,12 @@ class DetectorManager:
                 jam = float(traci_module.lanearea.getJamLengthMeters(did))
                 out[movement] = round(out[movement] + jam, 1)
             except Exception:
+                if quality is not None:
+                    quality["queue_detector_incomplete"] = True
                 pass
         return out
 
-    def approach_occupancy_pct(self, traci_module, direction: str) -> Optional[float]:
+    def approach_occupancy_pct(self, traci_module, direction: str, *, quality: Optional[dict] = None) -> Optional[float]:
         if not self.ensure_checked(traci_module):
             return None
         vals: List[float] = []
@@ -129,12 +131,14 @@ class DetectorManager:
                     occ *= 100.0
                 vals.append(max(0.0, min(100.0, occ)))
             except Exception:
+                if quality is not None:
+                    quality["occupancy_detector_incomplete"] = True
                 pass
         if not vals:
             return None
         return round(sum(vals) / len(vals), 1)
 
-    def outbound_occupancy_ratio(self, traci_module) -> Tuple[float, bool]:
+    def outbound_occupancy_ratio(self, traci_module, *, quality: Optional[dict] = None) -> Tuple[float, bool]:
         """Mean outbound E2 occupancy ratio 0–1 and whether any edge is full."""
         if not self.ensure_checked(traci_module):
             return 0.0, False
@@ -148,8 +152,12 @@ class DetectorManager:
                         occ /= 100.0
                     vals.append(max(0.0, min(1.0, occ)))
                 except Exception:
+                    if quality is not None:
+                        quality["spillback_detector_incomplete"] = True
                     pass
         if not vals:
+            if quality is not None:
+                quality["spillback_detector_incomplete"] = True
             return 0.0, False
         mean = sum(vals) / len(vals)
         full = any(v >= cfg.BOX_OCCUPANCY_THRESHOLD for v in vals)

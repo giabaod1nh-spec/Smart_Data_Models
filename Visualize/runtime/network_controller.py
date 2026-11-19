@@ -1,6 +1,7 @@
 """NetworkRuntimeController — demand/overlays/emergency + context orchestration."""
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from pathlib import Path
@@ -19,19 +20,19 @@ log = logging.getLogger(__name__)
 
 
 class NetworkRuntimeController:
-    def __init__(self, publish_nodes: List[str], artifacts_run_dir: Optional[Path] = None):
+    def __init__(self, publish_nodes: List[str], artifacts_run_dir: Optional[Path] = None,
+                 *, catalog: Optional[Dict[str, Any]] = None):
         reg = get_registry()
         policy = reg.insertion_policy()
         seed = int(policy.get("demand_seed", 42))
         self.demand = ScenarioDemandActuator(seed=seed)
-        self.capacity = ScenarioCapacityActuator()
+        self.capacity = ScenarioCapacityActuator(catalog=catalog)
         self.emergency = EmergencyActuator()
         self.incident = IncidentActuator()
-        catalog = None
-        cat_path = cfg.GENERATED_ROOT / "network_topology_catalog.json"
-        if cat_path.is_file():
-            catalog = json.loads(cat_path.read_text(encoding="utf-8"))
-        self.coordinator = NetworkContextCoordinator(catalog)
+        # cfg derived TLS/approach maps from this catalog at import time.
+        # Re-reading a mutable file here could give context a different map.
+        selected_catalog = copy.deepcopy(catalog if catalog is not None else cfg._TOPOLOGY_CATALOG)
+        self.coordinator = NetworkContextCoordinator(selected_catalog)
         self.state = NetworkRuntimeState()
         self.state.ensure_nodes(publish_nodes)
         for nid in publish_nodes:

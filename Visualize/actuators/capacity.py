@@ -1,12 +1,11 @@
 """ScenarioCapacityActuator — scoped lane/edge overlays with ResourceStateRegistry."""
 from __future__ import annotations
 
-import json
+import copy
 import logging
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import configuration.config as cfg
@@ -39,17 +38,15 @@ class OverlayInstance:
 
 
 def _load_catalog() -> Dict[str, Any]:
-    path = cfg.GENERATED_ROOT / "network_topology_catalog.json"
-    if not path.is_file():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    # Use the same import-time catalog as cfg's TLS and approach maps.
+    return copy.deepcopy(cfg._TOPOLOGY_CATALOG)
 
 
 class ScenarioCapacityActuator:
-    def __init__(self) -> None:
+    def __init__(self, catalog: Optional[Dict[str, Any]] = None) -> None:
         self.registry = ResourceStateRegistry()
         self.overlays: Dict[str, OverlayInstance] = {}
-        self._catalog = _load_catalog()
+        self._catalog = copy.deepcopy(catalog) if catalog is not None else _load_catalog()
 
     def _edge_from_catalog(
         self, intersection_id: str, direction: str, segment_role: str

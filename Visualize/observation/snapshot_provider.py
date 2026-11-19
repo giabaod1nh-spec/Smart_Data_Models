@@ -67,46 +67,70 @@ class SumoSnapshotProvider:
         self._prev_ids: Dict[str, Set[str]] = {d: set() for d in self.directions}
         self._arrival_pcu_window: Dict[str, float] = {d: 0.0 for d in self.directions}
         self._arrival_rate: Dict[str, float] = {d: 0.0 for d in self.directions}
+        self._arrival_window_incomplete: Dict[str, bool] = {d: False for d in self.directions}
+        self._arrival_rate_incomplete: Dict[str, bool] = {d: False for d in self.directions}
         self._last_arrival_flush_sim_t: float = 0.0
         self.simulation_run_id: Optional[str] = None
 
-    def update_arrival_rates(self, traci_module, sim_t: float) -> None:
+    def update_arrival_rates(self, traci_module, sim_t: float, *, quality: Optional[dict] = None) -> None:
         for direction in self.directions:
-            ids_now = self._vehicle_ids_on_approach(traci_module, direction)
+            errors = []
+            ids_now = self._vehicle_ids_on_approach(traci_module, direction, errors=errors)
             new_ids = ids_now - self._prev_ids[direction]
             for vid in new_ids:
                 try:
                     vt = traci_module.vehicle.getTypeID(vid)
                     self._arrival_pcu_window[direction] += pcu_for_vtype(vt)
                 except Exception:
+                    errors.append(vid)
                     self._arrival_pcu_window[direction] += cfg.PCU_FALLBACK
+            if errors:
+                self._arrival_window_incomplete[direction] = True
             self._prev_ids[direction] = ids_now
 
         if sim_t - self._last_arrival_flush_sim_t >= 1.0:
             dt = max(1e-6, sim_t - self._last_arrival_flush_sim_t)
             for d in self.directions:
                 self._arrival_rate[d] = round(self._arrival_pcu_window[d] / dt, 3)
+                self._arrival_rate_incomplete[d] = self._arrival_window_incomplete[d]
+                self._arrival_window_incomplete[d] = False
                 self._arrival_pcu_window[d] = 0.0
             self._last_arrival_flush_sim_t = sim_t
+        if quality is not None:
+            for direction in self.directions:
+                quality[direction] = {
+                    "arrival_rate_unavailable": self._arrival_rate_incomplete[direction],
+                }
 
-    def build_snapshot(self, traci_module, signal_controller, scenario_manager) -> dict:
+    def build_snapshot(self, traci_module, signal_controller, scenario_manager, *, capture_quality: bool = False) -> dict:
         sim_t = float(traci_module.simulation.getTime())
-        self.update_arrival_rates(traci_module, sim_t)
+        quality: dict = {}
+        self.update_arrival_rates(traci_module, sim_t, quality=quality if capture_quality else None)
 
         phase = signal_controller.current_phase_name(traci_module)
         colors = signal_controller.colors(traci_module)
         directions_data = {
-            d: self._build_direction(traci_module, d, colors.get(d, "red"))
+            d: self._build_direction(
+                traci_module, d, colors.get(d, "red"),
+                quality=quality.setdefault(d, {}) if capture_quality else None,
+            )
             for d in self.directions
         }
 
-        spill = self._spillback_metrics(traci_module)
+        top_quality: dict = {}
+        spill = self._spillback_metrics(
+            traci_module, **({"quality": top_quality} if capture_quality else {}),
+        )
         box_blocked = spill["downstream_edge_full"] or spill["spillback_pressure"] >= cfg.BOX_OCCUPANCY_THRESHOLD
-        blocked_at_entry = self._count_blocked_at_entry(traci_module, box_blocked)
-        yellow_commit = self._yellow_commitment_count(traci_module, phase)
+        blocked_at_entry = self._count_blocked_at_entry(
+            traci_module, box_blocked, **({"quality": top_quality} if capture_quality else {}),
+        )
+        yellow_commit = self._yellow_commitment_count(
+            traci_module, phase, **({"quality": top_quality} if capture_quality else {}),
+        )
         preemption = bool(getattr(signal_controller, "preemption_active", False))
 
-        return {
+        result = {
             "node_id": self.node_id,
             "directions": directions_data,
             "phase": phase,
@@ -133,14 +157,22 @@ class SumoSnapshotProvider:
             "pcu_profile_id": getattr(cfg, "PCU_PROFILE_ID", None),
             "config_hash": getattr(cfg, "CONFIG_HASH", None),
         }
+        if capture_quality:
+            quality["_top_level"] = top_quality
+            result["_measurement_quality"] = quality
+        return result
 
-    def _build_direction(self, traci_module, direction: str, color: str) -> dict:
+    def _build_direction(self, traci_module, direction: str, color: str, *, quality: Optional[dict] = None) -> dict:
         lane_ids = cfg.approach_lane_ids(self.tls_id, direction)
+        if quality is not None and not lane_ids:
+            raise ValueError(f"{self.node_id}/{direction}: no approach lanes")
+        failed_lanes = False
         vehicle_ids: List[str] = []
         for lid in lane_ids:
             try:
                 vehicle_ids.extend(traci_module.lane.getLastStepVehicleIDs(lid))
             except Exception as e:
+                failed_lanes = True
                 log.debug("getLastStepVehicleIDs(%s): %s", lid, e)
 
         seen: Set[str] = set()
@@ -158,6 +190,10 @@ class SumoSnapshotProvider:
         queue_by_movement = {"straight": 0.0, "left": 0.0, "right": 0.0}
         near_stop: List[str] = []
         approach_edge = cfg.APPROACH_EDGES.get(self.tls_id, {}).get(direction)
+        failed_vehicle_metrics = False
+        failed_queue_length = False
+        failed_movement = False
+        failed_near_stop = False
 
         for vid in unique_ids:
             try:
@@ -172,7 +208,10 @@ class SumoSnapshotProvider:
                 else:
                     waiting += 1
 
-                movement = self._infer_movement(traci_module, vid, approach_edge)
+                movement_errors = [] if quality is not None else None
+                movement = self._infer_movement(traci_module, vid, approach_edge, errors=movement_errors)
+                if movement_errors:
+                    failed_movement = True
                 if movement == "left":
                     left_n += 1
                 elif movement == "right":
@@ -191,19 +230,27 @@ class SumoSnapshotProvider:
                     if lane_len > 0 and pos / lane_len >= cfg.MOTO_FRONT_ZONE_START_RATIO:
                         near_stop.append(vid)
                 except Exception:
+                    failed_near_stop = True
                     pass
             except Exception as e:
+                failed_vehicle_metrics = True
+                failed_queue_length = True
                 log.debug("vehicle metrics %s: %s", vid, e)
 
         # Prefer E2 stop-line jam / occupancy (ADR-004); full-link metrics separate.
-        e2_q = self.detectors.approach_queue_by_movement(traci_module, direction)
+        e2_q = self.detectors.approach_queue_by_movement(
+            traci_module, direction, **({"quality": quality} if quality is not None else {}),
+        )
         if e2_q and any(e2_q.values()):
             queue_by_movement = {k: round(float(e2_q.get(k, 0.0)), 1) for k in ("straight", "left", "right")}
         else:
             for k in queue_by_movement:
                 queue_by_movement[k] = round(queue_by_movement[k], 1)
 
-        e2_occ = self.detectors.approach_occupancy_pct(traci_module, direction)
+        e2_occ = self.detectors.approach_occupancy_pct(
+            traci_module, direction, **({"quality": quality} if quality is not None else {}),
+        )
+        failed_occupancy = bool(quality and quality.get("occupancy_detector_incomplete") and e2_occ is not None)
         if e2_occ is not None:
             occupancy = e2_occ
         else:
@@ -215,8 +262,11 @@ class SumoSnapshotProvider:
                         occ *= 100.0
                     occ_vals.append(max(0.0, min(100.0, occ)))
                 except Exception:
+                    failed_occupancy = True
                     pass
             occupancy = round(sum(occ_vals) / len(occ_vals), 1) if occ_vals else 0.0
+            if len(occ_vals) != len(lane_ids):
+                failed_occupancy = True
 
         queue_m = max(queue_by_movement.values()) if any(queue_by_movement.values()) else 0.0
         # Moving-vehicles-only mean; precision preserved for publish — UI rounds for display.
@@ -225,7 +275,10 @@ class SumoSnapshotProvider:
         dens = density_label(pcu_equivalent)
 
         # Full-link TraCI metrics (entire approach; not capped at E2 cover)
-        full_link = self._full_link_queue_metrics(traci_module, lane_ids, waiting, pcu_equivalent)
+        full_link = self._full_link_queue_metrics(
+            traci_module, lane_ids, waiting, pcu_equivalent,
+            **({"quality": quality} if quality is not None else {}),
+        )
         approach_len_m = full_link["approach_length_m"]
         car_len = float(getattr(cfg, "PASSENGER_CAR_LENGTH_M", 7.5))
         queue_veh = queue_length_vehicles_from_jam_m(queue_m, car_len)
@@ -244,6 +297,8 @@ class SumoSnapshotProvider:
             dominant = "CONGESTION"
 
         if not near_stop:
+            if unique_ids:
+                failed_near_stop = True
             near_stop = unique_ids[-max(1, len(unique_ids) // 5) :] if unique_ids else []
         moto_n = 0
         for vid in near_stop:
@@ -251,6 +306,7 @@ class SumoSnapshotProvider:
                 if traci_module.vehicle.getTypeID(vid) == "motorcycle":
                     moto_n += 1
             except Exception:
+                failed_near_stop = True
                 pass
         moto_front = round(100.0 * moto_n / len(near_stop), 1) if near_stop else 0.0
 
@@ -262,7 +318,7 @@ class SumoSnapshotProvider:
         pcu_per_km = estimated_density_veh_per_km(pcu_equivalent, approach_len_m)
         theoretical = greenshields_speed_kmh(cfg.BASE_V_FREE_KMH, pcu_per_km)
 
-        return {
+        result = {
             "vehicle_count": len(unique_ids),
             "pcu_equivalent": pcu_equivalent,
             "left_count": left_n,
@@ -289,6 +345,33 @@ class SumoSnapshotProvider:
             "storage_utilization_pcu": full_link["storage_utilization_pcu"],
             "nominal_storage_pcu_geometric": full_link["nominal_storage_pcu_geometric"],
         }
+        if quality is not None:
+            unavailable = set()
+            if failed_lanes:
+                unavailable.update((
+                    "vehicle_count", "pcu_equivalent", "left_count", "straight_count",
+                    "right_count", "average_speed_kmh", "waiting_vehicle_count",
+                ))
+                failed_queue_length = True
+            if failed_vehicle_metrics:
+                unavailable.update((
+                    "pcu_equivalent", "left_count", "straight_count", "right_count",
+                    "average_speed_kmh", "waiting_vehicle_count",
+                ))
+            if failed_movement:
+                unavailable.update(("left_count", "straight_count", "right_count"))
+                failed_queue_length = True
+            if (failed_queue_length and not (e2_q and any(e2_q.values()))) or (quality.get("queue_detector_incomplete") and e2_q and any(e2_q.values())):
+                unavailable.add("queue_length_m")
+            if failed_occupancy:
+                unavailable.add("occupancy_pct")
+            quality["unavailable_core_metrics"] = sorted(unavailable)
+            quality["failed_lane_reads"] = failed_lanes
+            quality["failed_vehicle_reads"] = failed_vehicle_metrics
+            quality["failed_movement_reads"] = failed_movement
+            quality["failed_occupancy_reads"] = failed_occupancy
+            quality["moto_front_unavailable"] = failed_near_stop
+        return result
 
     def _full_link_queue_metrics(
         self,
@@ -296,6 +379,7 @@ class SumoSnapshotProvider:
         lane_ids: List[str],
         waiting_count: int,
         queued_pcu: float,
+        *, quality: Optional[dict] = None,
     ) -> dict:
         """Full-approach TraCI spillback metrics (not limited to E2 cover length)."""
         car_len = float(getattr(cfg, "PASSENGER_CAR_LENGTH_M", 7.5))
@@ -306,6 +390,8 @@ class SumoSnapshotProvider:
             try:
                 L = float(traci_module.lane.getLength(lid))
             except Exception:
+                if quality is not None:
+                    quality["full_link_incomplete"] = True
                 L = float(cfg.APPROACH_LENGTH_M)
             lane_lengths.append(L)
             jam = 0.0
@@ -316,8 +402,12 @@ class SumoSnapshotProvider:
                             jam += float(traci_module.vehicle.getLength(vid)) + 1.5
                             halting += 1
                     except Exception:
+                        if quality is not None:
+                            quality["full_link_incomplete"] = True
                         pass
             except Exception:
+                if quality is not None:
+                    quality["full_link_incomplete"] = True
                 pass
             lane_jam_m.append(jam)
 
@@ -339,34 +429,52 @@ class SumoSnapshotProvider:
             "nominal_storage_pcu_geometric": nominal,
         }
 
-    def _infer_movement(self, traci_module, vid: str, approach_edge: Optional[str]) -> str:
+    def _infer_movement(self, traci_module, vid: str, approach_edge: Optional[str], *, errors: Optional[list] = None) -> str:
         try:
             route = list(traci_module.vehicle.getRoute(vid))
             idx = int(traci_module.vehicle.getRouteIndex(vid))
             if approach_edge and approach_edge in route:
                 ai = route.index(approach_edge)
                 if ai + 1 < len(route):
-                    return cfg.TURN_BY_OD.get((approach_edge, route[ai + 1]), "straight")
+                    pair = (approach_edge, route[ai + 1])
+                    if errors is not None and pair not in cfg.TURN_BY_OD:
+                        errors.append(vid)
+                    return cfg.TURN_BY_OD.get(pair, "straight")
             if idx + 1 < len(route):
-                return cfg.TURN_BY_OD.get((route[idx], route[idx + 1]), "straight")
+                pair = (route[idx], route[idx + 1])
+                if errors is not None and pair not in cfg.TURN_BY_OD:
+                    errors.append(vid)
+                return cfg.TURN_BY_OD.get(pair, "straight")
         except Exception:
-            pass
+            if errors is not None:
+                errors.append(vid)
+            return "straight"
+        if errors is not None:
+            errors.append(vid)
         return "straight"
 
-    def _vehicle_ids_on_approach(self, traci_module, direction: str) -> Set[str]:
+    def _vehicle_ids_on_approach(self, traci_module, direction: str, *, errors: Optional[list] = None) -> Set[str]:
         ids: Set[str] = set()
         for lid in cfg.approach_lane_ids(self.tls_id, direction):
             try:
                 ids.update(traci_module.lane.getLastStepVehicleIDs(lid))
             except Exception:
+                if errors is not None:
+                    errors.append(lid)
                 pass
         return ids
 
-    def _spillback_metrics(self, traci_module) -> dict:
-        pressure, full = self.detectors.outbound_occupancy_ratio(traci_module)
+    def _spillback_metrics(self, traci_module, *, quality: Optional[dict] = None) -> dict:
+        pressure, full = self.detectors.outbound_occupancy_ratio(
+            traci_module, **({"quality": quality} if quality is not None else {}),
+        )
+        if quality is not None and self.detectors.available and quality.get("spillback_detector_incomplete"):
+            quality["spillback_unavailable"] = True
         if not self.detectors.available:
             max_pressure = 0.0
             any_full = False
+            failed_fallback = False
+            read_count = 0
             for edge in cfg.OUTGOING_EDGES.get(self.tls_id, []):
                 occs = []
                 for lid in cfg.edge_lane_ids(edge):
@@ -375,7 +483,9 @@ class SumoSnapshotProvider:
                         if o > 1.0:
                             o = o / 100.0
                         occs.append(o)
+                        read_count += 1
                     except Exception:
+                        failed_fallback = True
                         pass
                 if not occs:
                     continue
@@ -384,6 +494,8 @@ class SumoSnapshotProvider:
                 if ratio >= cfg.BOX_OCCUPANCY_THRESHOLD:
                     any_full = True
             pressure, full = round(max_pressure, 3), any_full
+            if quality is not None and (failed_fallback or read_count == 0):
+                quality["spillback_unavailable"] = True
 
         return {
             "downstream_edge_full": full,
@@ -391,12 +503,13 @@ class SumoSnapshotProvider:
             "spillback_detected": full or pressure >= cfg.BOX_OCCUPANCY_THRESHOLD,
         }
 
-    def _count_blocked_at_entry(self, traci_module, box_blocked: bool) -> int:
+    def _count_blocked_at_entry(self, traci_module, box_blocked: bool, *, quality: Optional[dict] = None) -> int:
         if not box_blocked:
             return 0
         count = 0
         for direction in self.directions:
-            for vid in self._vehicle_ids_on_approach(traci_module, direction):
+            errors = [] if quality is not None else None
+            for vid in self._vehicle_ids_on_approach(traci_module, direction, errors=errors):
                 try:
                     lane_id = traci_module.vehicle.getLaneID(vid)
                     lane_len = float(traci_module.lane.getLength(lane_id))
@@ -405,15 +518,20 @@ class SumoSnapshotProvider:
                     if lane_len > 0 and pos / lane_len >= cfg.BLOCKED_ENTRY_POSITION_RATIO and speed < cfg.HALTING_SPEED_MS:
                         count += 1
                 except Exception:
+                    if errors is not None:
+                        errors.append(vid)
                     pass
+            if errors:
+                quality["blocked_entry_unavailable"] = True
         return count
 
-    def _yellow_commitment_count(self, traci_module, phase: str) -> int:
+    def _yellow_commitment_count(self, traci_module, phase: str, *, quality: Optional[dict] = None) -> int:
         if "YELLOW" not in phase:
             return 0
         count = 0
         for direction in self.directions:
-            for vid in self._vehicle_ids_on_approach(traci_module, direction):
+            errors = [] if quality is not None else None
+            for vid in self._vehicle_ids_on_approach(traci_module, direction, errors=errors):
                 try:
                     lane_id = traci_module.vehicle.getLaneID(vid)
                     lane_len = float(traci_module.lane.getLength(lane_id))
@@ -421,5 +539,9 @@ class SumoSnapshotProvider:
                     if lane_len > 0 and pos / lane_len >= cfg.YELLOW_COMMITMENT_RATIO:
                         count += 1
                 except Exception:
+                    if errors is not None:
+                        errors.append(vid)
                     pass
+            if errors:
+                quality["yellow_commitment_unavailable"] = True
         return count

@@ -7,6 +7,7 @@ Sync mode (--sync-publish): publish_once() blocks TraCI (debug / parity).
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -295,6 +296,8 @@ def _resolve_async_mode(args: argparse.Namespace) -> bool:
 
 def run(args: argparse.Namespace) -> int:
     setup_logging(args.log_level or cfg.LOG_LEVEL)
+    if getattr(args, "v1_capture_file", None) and not getattr(args, "v1_observations", False):
+        raise ValueError("--v1-capture-file requires --v1-observations")
 
     # Architecture profile validation (no-op when ARCHITECTURE_PROFILE=none)
     try:
@@ -490,6 +493,7 @@ def run(args: argparse.Namespace) -> int:
         use_gui=use_gui,
         publish_nodes=nodes,
         simulation_run_id=getattr(args, "simulation_run_id", None),
+        v1_observations=getattr(args, "v1_observations", False),
     )
     if getattr(args, "control_mode", None):
         backend.set_control_mode(args.control_mode)
@@ -497,6 +501,7 @@ def run(args: argparse.Namespace) -> int:
     publish_interval = float(args.publish_interval or cfg.PUBLISH_INTERVAL)
     last_publish_sim_t = -1e9
     step_count = 0
+    v1_capture_written = False
     pace_realtime = use_gui and not getattr(args, "fast", False)
     if getattr(args, "realtime", False):
         pace_realtime = True
@@ -659,6 +664,32 @@ def run(args: argparse.Namespace) -> int:
 
             step_count += 1
             sim_t = backend.simulation_time_sec
+            if getattr(args, "v1_capture_file", None) and not v1_capture_written:
+                result = backend.last_v1_cycle
+                if result is not None and result.success and result.snapshot.simulation_time_seconds >= getattr(args, "v1_capture_after", 0.0):
+                    from contracts.traffic_observation import validate_observation
+
+                    for observation in result.observations:
+                        validate_observation(observation)
+                    context = backend.v1_topology_context
+                    evidence = {
+                        "source": "local SUMO/TraCI post-step capture",
+                        "sumoConfig": str(backend.sumo_config),
+                        "catalogArchive": str(context.archive_path),
+                        "catalogArchiveReady": context.archive_ready,
+                        "catalogDigest": context.topology_digest,
+                        "participatingIntersections": list(backend._v1_participating_nodes),
+                        "canonicalSnapshot": result.snapshot.to_dict(),
+                        "observations": list(result.observations),
+                        "structuralValidation": "PASS",
+                        "semanticValidation": "PASS",
+                        "observationCount": len(result.observations),
+                    }
+                    capture_path = Path(args.v1_capture_file)
+                    capture_path.parent.mkdir(parents=True, exist_ok=True)
+                    capture_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
+                    v1_capture_written = True
+                    log.info("Captured non-publishing V1 cycle %s at %s", result.cycle_sequence, capture_path)
 
             if demo and not demo_applied and sim_t >= 5.0:
                 try:
@@ -897,6 +928,15 @@ def run(args: argparse.Namespace) -> int:
         backend.stop()
         log.info("Shutdown complete. steps=%d", step_count)
 
+    if getattr(args, "v1_capture_file", None) and not v1_capture_written:
+        result = backend.last_v1_cycle
+        log.error(
+            "No successful V1 cycle captured: last=%s %s; requested after %.2f s",
+            result.failure_code if result else "NONE",
+            result.failure_reason if result else "no sampling attempt",
+            getattr(args, "v1_capture_after", 0.0),
+        )
+        return 2
     return 0
 
 
@@ -908,6 +948,9 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-gui", action="store_true")
     p.add_argument("--no-orion", action="store_true")
     p.add_argument("--no-api", action="store_true", help="Do not start Control API")
+    p.add_argument("--v1-observations", action="store_true", help="Build and validate V1 cycles locally; no publishing")
+    p.add_argument("--v1-capture-file", default=None, help="Write the first successful V1 cycle as JSON (requires --v1-observations)")
+    p.add_argument("--v1-capture-after", type=float, default=0.0, help="Minimum SUMO time for the captured V1 fixture")
     p.add_argument("--nodes", default=None, help="Comma list e.g. A,B,C,D,M")
     p.add_argument("--publish-interval", type=float, default=None)
     p.add_argument("--max-sim-time", type=float, default=None)
