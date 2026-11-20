@@ -1,4 +1,42 @@
 services:
+  de-migrate-v1:
+    profiles: ["v1-raw"]
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    environment:
+      K4_CLICKHOUSE_HOST: clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--migration", "/app/de/migrations/006_create_kafka_raw_v1.sql"]
+    restart: "no"
+
+  de-kafka-raw-v1:
+    profiles: ["v1-raw"]
+    build:
+      context: .
+      dockerfile: de/Dockerfile
+    environment:
+      DE_V1_RAW_BOOTSTRAP_SERVERS: kafka:9092
+      DE_V1_RAW_CLICKHOUSE_HOST: clickhouse
+      DE_V1_RAW_LEDGER_PATH: /app/de/artifacts/kafka_raw_v1/ledger.sqlite3
+    volumes:
+      - ./de/artifacts:/app/de/artifacts
+    ports:
+      - "8097:8097"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      de-migrate-v1:
+        condition: service_completed_successfully
+    command: ["python", "-m", "de.kafka_raw.v1_main"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8097/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
   dozzle:
     image: amir20/dozzle:latest
     container_name: dozzle

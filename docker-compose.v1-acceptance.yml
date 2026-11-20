@@ -1,0 +1,63 @@
+# Isolated acceptance stack: contains no analytical, Orion or Projector services.
+services:
+  kafka:
+    image: apache/kafka:3.8.1
+    ports: ["39092:39092"]
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:39092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes: [kafka-data:/var/lib/kafka/data]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list"]
+      interval: 5s
+      timeout: 10s
+      retries: 24
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    ports: ["18124:8123"]
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
+    volumes: [clickhouse-data:/var/lib/clickhouse]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+  init:
+    image: apache/kafka:3.8.1
+    depends_on:
+      kafka: {condition: service_healthy}
+    entrypoint: ["/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--create", "--if-not-exists", "--topic", "traffic.observations.v1", "--partitions", "3", "--replication-factor", "1"]
+  migrate:
+    build: {context: ., dockerfile: de/Dockerfile}
+    depends_on:
+      clickhouse: {condition: service_healthy}
+    environment: {K4_CLICKHOUSE_HOST: clickhouse}
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--v1-raw"]
+  raw:
+    build: {context: ., dockerfile: de/Dockerfile}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      init: {condition: service_completed_successfully}
+    environment:
+      DE_V1_RAW_BOOTSTRAP_SERVERS: kafka:9092
+      DE_V1_RAW_CLICKHOUSE_HOST: clickhouse
+      DE_V1_RAW_LEDGER_PATH: /app/de/artifacts/kafka_raw_v1/ledger.sqlite3
+    volumes: [raw-state:/app/de/artifacts]
+    ports: ["18097:8097"]
+    command: ["python", "-m", "de.kafka_raw.v1_main"]
+volumes:
+  kafka-data:
+  clickhouse-data:
+  raw-state:
+
