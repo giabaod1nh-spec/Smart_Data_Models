@@ -51,3 +51,50 @@ def test_sparse_and_empty_verified_ranges(tmp_path):
     with pytest.raises(IntegrityFault, match="lacks confirmed ledger"):
         LineageResolver.read_v1_batch(repo, str(path), topic, 0, 100, 10)
     ledger.close()
+
+
+def _one_delivery(tmp_path, *, value=b'{}'):
+    topic='traffic.observations.v1';path=tmp_path/'ledger.sqlite3';ledger=V1LedgerStore(str(path))
+    classified=V1RawValidator().classify(V1Record(topic,0,10,None,value,topic_identity='uuid'))
+    ledger.receive_batch([classified],'batch')
+    ledger.transition([classified.row['raw_ingestion_id']],'PERSISTENCE_CONFIRMED')
+    ledger.db.execute('INSERT INTO partition_progress VALUES (?,?,?,?,?)',(topic,0,'uuid',11,11))
+    repo=V1ClickHouseRepository(Client([]));physical=repo.materialize(classified);repo.client.rows=[physical]
+    repo.evidence=lambda ids:{physical['raw_ingestion_id']:[physical]}
+    return topic,path,ledger,repo,physical
+
+
+def test_missing_unresolved_identity_boundary_and_raw_fault_block_source(tmp_path):
+    topic,path,ledger,repo,physical=_one_delivery(tmp_path)
+    repo.evidence=lambda ids:{physical['raw_ingestion_id']:[]}
+    with pytest.raises(IntegrityFault,match='unresolved'):
+        LineageResolver.read_v1_batch(repo,str(path),topic,0,10,1)
+    repo.evidence=lambda ids:{physical['raw_ingestion_id']:[physical]}
+    changed=dict(physical,topic_identity='different')
+    repo.evidence=lambda ids:{physical['raw_ingestion_id']:[changed]}
+    with pytest.raises(IntegrityFault,match='physical conflict|identity'):
+        LineageResolver.read_v1_batch(repo,str(path),topic,0,10,1)
+    with pytest.raises(IntegrityFault,match='exceeds'):
+        LineageResolver.read_v1_batch(repo,str(path),topic,0,12,1)
+    ledger.db.execute("INSERT INTO integrity_faults VALUES ('fault','detail','now')")
+    with pytest.raises(IntegrityFault,match='integrity fault'):
+        LineageResolver.read_v1_batch(repo,str(path),topic,0,10,1)
+    ledger.close()
+
+
+def test_confirmed_raw_quarantine_becomes_skip_without_observation(tmp_path):
+    from de.bronze.checkpoint_store import V1SemanticStore
+    from de.bronze.processor import BronzeProcessor
+    class Destination:
+        def __init__(self): self.outputs=[]
+        def persist_v1_outputs(self,outputs): self.outputs.extend(outputs)
+    topic,path,ledger,raw_repo,physical=_one_delivery(tmp_path,value=b'not-json')
+    assert physical['destination']=='QUARANTINE'
+    rows,end,_=LineageResolver.read_v1_batch(raw_repo,str(path),topic,0,10,1)
+    assert rows[0]['status']=='CONFIRMED_QUARANTINE'
+    store=V1SemanticStore(tmp_path/'bronze.sqlite');destination=Destination()
+    disposition=BronzeProcessor.materialize_v1_delivery(store,destination,'live',rows[0]['record'],None)
+    assert disposition=='RAW_QUARANTINE_SKIPPED'
+    assert store.db.execute('SELECT count(*) FROM v1_identity').fetchone()[0]==0
+    assert store.db.execute("SELECT count(*) FROM v1_intents WHERE disposition='RAW_QUARANTINE_SKIPPED' AND processing_status='COMPLETED'").fetchone()[0]==1
+    store.close();ledger.close()

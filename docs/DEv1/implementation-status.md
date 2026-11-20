@@ -1,5 +1,22 @@
 # DE V1 implementation status
 
+## Independent Phase 2 hardening — active checkpoint
+
+The prior 31/31 certification is historical baseline only for the new audit request. Current audited HEAD: `3900b98f72817fecc729e416c57b7ba00812c6ff`, branch `codex/phase-1-v1-raw`.
+
+Hardening progress, latest execution:
+
+- **F01 implementation complete, unit verification passed.** `BronzeProcessor.recover_v1_pending/recover_v1_intent` is now the single live/replay/materialization recovery engine. It rejects `FAILED_INTEGRITY`, verifies the frozen SHA-256, validates destination/namespace/semantic and physical identities, records exactly one count per persistence attempt, preserves frozen obligations on retry, positively reconciles, then finalizes. Corrupt/invalid intents become terminal integrity faults before repository writes. Targeted tests cover zero-write corruption/FAILED_INTEGRITY, invalid namespace/destination/identity, retry accounting, valid recovery, worker/materialization guards and durable conflict recovery.
+- **F02 implementation and unit verification complete.** CAS tests now contain actual pending and failed intents inside the range, an intent at the exclusive end, completed/sparse deliveries, stale generation, wrong cursor/topic identity/source binding, safe regression, restart and monotonic recovery. The method contract now states CAS depends on the bounded Raw reader for complete source coverage.
+- **F05 unit coverage expanded:** missing evidence/unresolved delivery, physical identity conflict, cursor beyond safe boundary, Raw integrity fault, sparse/empty ranges, orphan evidence and confirmed Raw quarantine skip are covered. Existing Raw regression retains same-hash/different-content and byte/hash checks. Actual-store source-fault cases remain for runtime certification.
+- **F06 authority interface expanded:** `read_invalidation_provenance` joins invalidation, semantic identity context and both source delivery intents. A restart-safe downstream cursor harness verifies equal-time/high-water change pages, later conflict discovery, pending mirror durability and full run/intersection/cycle/time/topology/source provenance. Actual ClickHouse mirror/canonical-reader runtime verification remains.
+- **F07 implementation complete at unit level:** sustained acceptance now requires source completion, nonempty cycle/participant inventory, ACKED Outbox, exact selected-run Raw/canonical/lineage counts, Raw group lag zero, Bronze partition convergence, zero pending/reconciliation/faults, healthy readiness, fresh post-completion metrics and deadline. Deterministic false-positive tests were added.
+- Health implementation now reports source identity/binding, processor/schema versions, last successful progress, retries, recovery attempts, CAS failures, pending invalidation mirrors and explicit stale/unavailable metrics during degradation. Runtime verification remains.
+
+Executed evidence: `independent-hardening/f01.xml` = 10 passed; `independent-hardening/f01-f02-f06.xml` = 12 passed; latest complete Bronze targeted suite `independent-hardening/bronze-targeted.xml` = **44 passed in 0.99s**. No failures/skips in the latest run.
+
+Exact next action: extend full replay semantic/content parity and actual worker pending-intent restart tests in `de/tests/integration/test_bronze_v1_acceptance.py`; add actual-store source-fault/downstream health cases; build clean isolated runner; then freeze source, rebuild images and run final regression/runtime/sustained/main acceptance. F03/F04 and runtime portions of F05/F06/health/reproducibility remain open. No external blocker.
+
 ## FINAL PHASE 2 CERTIFICATION — 2026-11-20
 
 **Phase 2: COMPLETE — READY FOR PHASE 3 PLANNING.** All 31 mandatory gates passed. This final checkpoint supersedes earlier Phase 2 continuation notes below; those historical checkpoints are retained.

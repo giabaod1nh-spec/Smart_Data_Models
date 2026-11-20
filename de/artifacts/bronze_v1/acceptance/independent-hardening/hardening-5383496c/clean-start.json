@@ -1,0 +1,57 @@
+{
+  "run_id": "clean-880b4b67f0",
+  "expected": 100,
+  "raw": 100,
+  "bronze": 100,
+  "health": {
+    "ready": true,
+    "state": "READY",
+    "error": null,
+    "metrics_stale": false,
+    "dependency_measurement_available": true,
+    "partitions": {
+      "0": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 0,
+        "safe_next_offset": 0,
+        "offset_distance": 0
+      },
+      "1": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 40,
+        "safe_next_offset": 40,
+        "offset_distance": 0
+      },
+      "2": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 60,
+        "safe_next_offset": 60,
+        "offset_distance": 0
+      }
+    },
+    "processed": 100,
+    "source_topic": "traffic.observations.v1",
+    "source_binding": "/raw/kafka_raw_v1/ledger.sqlite3",
+    "processor_name": "bronze-v1",
+    "processor_version": "1",
+    "bronze_schema_version": "1",
+    "last_successful_batch_at": "2026-11-20T16:05:43.117975+00:00",
+    "processing_status_counts": {
+      "COMPLETED": 100
+    },
+    "dispositions": {
+      "ACCEPTED_NEW": 100
+    },
+    "pending_delivery_count": 0,
+    "pending_intents": 0,
+    "attempts": 100,
+    "retries": 0,
+    "recovery_attempts": 0,
+    "cas_failures": 0,
+    "pending_reconciliation": 0,
+    "pending_invalidation_mirrors": 0,
+    "integrity_faults": 0,
+    "batch_latency_sec": 1.7208323950000022,
+    "processing_rate": 20.920108259584428
+  }
+}

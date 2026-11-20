@@ -1,0 +1,47 @@
+........F......                                                          [100%]
+================================== FAILURES ===================================
+_________ test_actual_raw_replay_source_and_interrupted_bronze_resume _________
+
+    def test_actual_raw_replay_source_and_interrupted_bronze_resume():
+        run='rawmode-'+uuid.uuid4().hex[:10]
+>       subprocess.check_call(['docker','exec',RAW_CONTAINER,'python','-m','de.kafka_raw.v1_replay',
+            '--topic','traffic.observations.v1','--partition','1','--start-offset','2','--end-offset','22',
+            '--replay-run-id',run,'--bootstrap-servers','kafka:9092'])
+
+de\tests\integration\test_bronze_v1_acceptance.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+popenargs = (['docker', 'exec', 'phase2hardening3b853560-raw-1', 'python', '-m', 'de.kafka_raw.v1_replay', ...],)
+kwargs = {}
+
+    def check_call(*popenargs, **kwargs):
+        """Run command with arguments.  Wait for command to complete.  If
+        the exit code was zero then return, otherwise raise
+        CalledProcessError.  The CalledProcessError object will have the
+        return code in the returncode attribute.
+    
+        The arguments are the same as for the call function.  Example:
+    
+        check_call(["ls", "-l"])
+        """
+        retcode = call(*popenargs, **kwargs)
+        if retcode:
+            cmd = kwargs.get("args")
+            if cmd is None:
+                cmd = popenargs[0]
+>           raise CalledProcessError(retcode, cmd)
+E           subprocess.CalledProcessError: Command '['docker', 'exec', 'phase2hardening3b853560-raw-1', 'python', '-m', 'de.kafka_raw.v1_replay', '--topic', 'traffic.observations.v1', '--partition', '1', '--start-offset', '2', '--end-offset', '22', '--replay-run-id', 'rawmode-b0de01df24', '--bootstrap-servers', 'kafka:9092']' returned non-zero exit status 1.
+
+C:\Users\Asus PC\AppData\Local\Programs\Python\Python314\Lib\subprocess.py:420: CalledProcessError
+---------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/app/de/kafka_raw/v1_replay.py", line 93, in <module>
+    main()
+  File "/app/de/kafka_raw/v1_replay.py", line 36, in main
+    raise IntegrityFault("range outside retained Kafka offsets")
+de.kafka_raw.v1_ledger_store.IntegrityFault: range outside retained Kafka offsets
+=========================== short test summary info ===========================
+FAILED de/tests/integration/test_bronze_v1_acceptance.py::test_actual_raw_replay_source_and_interrupted_bronze_resume
+1 failed, 14 passed in 77.70s (0:01:17)

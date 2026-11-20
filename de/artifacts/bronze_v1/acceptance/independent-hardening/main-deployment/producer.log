@@ -1,0 +1,2 @@
+2026-11-20 23:09:34,146 [WARNING] runtime.run_manifest: Detector expected_network_hash mismatch: {'expected_network_hash': '5F351B5BC56FE24BF50195C1DBD6944EF9EB5270B97C1A924921DDE4E1489935', 'actual_network_hash': '62638b276817a58de2a27601fe0f6f2aae4a9c129a455aa1e1726e5c88a3d9f1'}
+Step #0.00 (0ms ?*RT. ?UPS, TraCI: 109ms, vehicles TOT 1 ACT 1 BUF 0)                     Step #10.00 (1ms ~= 100.00*RT, ~16000.00UPS, TraCI: 5ms, vehicles TOT 16 ACT 16 BUF 0)    Step #20.00 (1ms ~= 100.00*RT, ~28000.00UPS, TraCI: 147ms, vehicles TOT 28 ACT 28 BUF 1)  

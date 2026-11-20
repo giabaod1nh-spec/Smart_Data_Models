@@ -1,0 +1,13 @@
+# Clean isolated hardening stack. Apply after docker-compose.v1-acceptance.yml.
+services:
+  kafka:
+    ports: !override ["49092:49092"]
+    environment:
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:49092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:49092
+  clickhouse:
+    ports: !override ["19124:8123"]
+  raw:
+    ports: !override ["19097:8097"]
+  bronze:
+    ports: !override ["19098:8098"]

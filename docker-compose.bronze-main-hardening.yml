@@ -1,0 +1,22 @@
+# Resource-only override; de-bronze-v1 definition remains owned by docker-compose.yml.
+services:
+  de-migrate-v1-bronze:
+    networks: [default]
+  de-bronze-v1:
+    ports: !override ["19198:8098"]
+    environment:
+      DE_BRONZE_RAW_LEDGER_PATH: /raw/kafka_raw_v1/ledger.sqlite3
+    volumes: !override
+      - hardening-raw:/raw:ro
+      - hardening-bronze:/app/de/artifacts
+networks:
+  default:
+    external: true
+    name: ${HARDENING_NETWORK}
+volumes:
+  hardening-raw:
+    external: true
+    name: ${HARDENING_RAW_VOLUME}
+  hardening-bronze:
+    external: true
+    name: ${HARDENING_BRONZE_VOLUME}

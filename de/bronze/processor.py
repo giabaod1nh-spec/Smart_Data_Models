@@ -32,6 +32,18 @@ from de.bronze.validator import BronzeValidator
 log = logging.getLogger(__name__)
 
 
+def _acceptance_fault(point):
+    """One-shot process interruption hook, disabled unless acceptance config opts in."""
+    import os
+    directory=os.getenv('DE_BRONZE_TEST_FAULT_DIR','')
+    if not directory:
+        return
+    marker=Path(directory)/point
+    if marker.exists():
+        marker.unlink()
+        os._exit(86)
+
+
 class ProcessorState(str, Enum):
     STARTING = "STARTING"
     READY = "READY"
@@ -42,6 +54,66 @@ class ProcessorState(str, Enum):
 
 
 class BronzeProcessor:
+    @staticmethod
+    def recover_v1_pending(store, repository, namespace, event_id=None):
+        recovered=0
+        for intent in store.pending(namespace):
+            if event_id is None or intent['event_id']==event_id:
+                BronzeProcessor.recover_v1_intent(store,repository,namespace,intent['raw_id'])
+                recovered += 1
+        return recovered
+
+    @staticmethod
+    def recover_v1_intent(store, repository, namespace, raw_id):
+        """Recover one frozen intent; never reconstruct or repair its payload."""
+        import hashlib, json
+        from de.kafka_raw.v1_ledger_store import IntegrityFault
+        intent = store.db.execute('SELECT * FROM v1_intents WHERE namespace=? AND raw_id=?',(namespace,raw_id)).fetchone()
+        if intent is None:
+            raise RuntimeError('durable V1 intent missing')
+        if intent['processing_status'] == 'FAILED_INTEGRITY':
+            raise IntegrityFault('FAILED_INTEGRITY intent requires operator reconciliation')
+        frozen = intent['expected_json']
+        if hashlib.sha256(frozen.encode('utf-8')).hexdigest() != intent['expected_hash']:
+            store.mark_attempt(namespace,raw_id,'frozen expected_json hash mismatch',integrity=True)
+            raise IntegrityFault('frozen V1 intent hash mismatch')
+        try:
+            obligations=json.loads(frozen)
+            if not isinstance(obligations,list) or not obligations:
+                raise IntegrityFault('frozen obligations must be a nonempty list')
+            allowed={'bronze_observations_v1','bronze_delivery_dispositions_v1','bronze_conflict_evidence_v1','bronze_quarantine_v1','bronze_invalidations_v1'}
+            for item in obligations:
+                if not isinstance(item,dict) or not isinstance(item.get('row'),dict):
+                    raise IntegrityFault('invalid frozen obligation structure')
+                row=item['row']
+                if item['table'] not in allowed or row.get('namespace') != namespace:
+                    raise IntegrityFault('frozen obligation destination/namespace mismatch')
+                table=item['table']
+                if table in ('bronze_delivery_dispositions_v1','bronze_quarantine_v1') and row.get('raw_ingestion_id') != raw_id:
+                    raise IntegrityFault('frozen delivery identity mismatch')
+                if table=='bronze_delivery_dispositions_v1':
+                    if row.get('event_id') != intent['event_id'] or row.get('disposition') != intent['disposition']:
+                        raise IntegrityFault('frozen semantic classification mismatch')
+                if table in ('bronze_observations_v1','bronze_conflict_evidence_v1','bronze_invalidations_v1'):
+                    if row.get('event_id') != intent['event_id'] or row.get('semantic_revision') != intent['revision']:
+                        raise IntegrityFault('frozen semantic identity mismatch')
+                if table in ('bronze_conflict_evidence_v1','bronze_invalidations_v1'):
+                    source_key='conflicting_raw_ingestion_id'
+                    if row.get(source_key) != raw_id:
+                        raise IntegrityFault('frozen conflict lineage mismatch')
+            store.mark_attempt(namespace,raw_id)
+            repository.persist_v1_outputs(obligations)
+            _acceptance_fault('after_persist')
+            store.complete(namespace,raw_id,intent['expected_hash'])
+            _acceptance_fault('after_finalize')
+        except IntegrityFault as exc:
+            if store.pending(namespace):
+                store.mark_attempt(namespace,raw_id,str(exc),integrity=True)
+            raise
+        except Exception as exc:
+            store.mark_attempt(namespace,raw_id,str(exc))
+            raise
+
     @staticmethod
     def materialize_v1_delivery(store, repository, namespace, raw, event):
         """Prepare frozen obligations and complete only after reconciliation.
@@ -55,10 +127,8 @@ class BronzeProcessor:
         from contracts.traffic_observation import canonical_json
         from de.bronze.transformer import BronzeTransformer
         from de.kafka_raw.v1_validator import build_immutable_envelope_hash
-        for pending in store.pending(namespace):
-            if event and pending['event_id'] == event['eventId']:
-                repository.persist_v1_outputs(json.loads(pending['expected_json']))
-                store.complete(namespace,pending['raw_id'],pending['expected_hash'])
+        if event:
+            BronzeProcessor.recover_v1_pending(store,repository,namespace,event['eventId'])
         observation = BronzeTransformer.v1_observation(event,raw,namespace) if event else None
         envelope_hash = build_immutable_envelope_hash(event) if event else None
         content_hash = observation['bronze_canonical_hash'] if event else None
@@ -98,6 +168,7 @@ class BronzeProcessor:
                     invalidation_sequence=invalidation['invalidation_sequence'],processor_name='bronze-v1',processor_version='1')))
             return result
         intent = store.prepare(namespace,raw,event,envelope_hash,content_hash,obligations)
+        _acceptance_fault('after_prepare')
         if intent['processing_status'] != 'COMPLETED':
             from de.kafka_raw.v1_ledger_store import IntegrityFault
             store.mark_attempt(namespace,raw['raw_ingestion_id'])
@@ -552,6 +623,9 @@ class ObservationWorker:
         self.processed = 0
         self.store = None
         self.metrics = {}
+        self.recovery_attempts = 0
+        self.cas_failures = 0
+        self.last_successful_batch_at = None
 
     def start(self):
         from de.bronze.checkpoint_store import V1SemanticStore
@@ -563,16 +637,9 @@ class ObservationWorker:
             self.repo.client.query('DESCRIBE TABLE smart_traffic.'+table)
 
     def recover(self):
-        import json
-        import hashlib
-        for intent in self.store.pending('live'):
-            if intent['processing_status'] == 'FAILED_INTEGRITY':
-                raise RuntimeError('durable integrity fault requires operator reconciliation')
-            if hashlib.sha256(intent['expected_json'].encode()).hexdigest() != intent['expected_hash']:
-                raise RuntimeError('frozen processing intent corrupted')
-            self.store.mark_attempt('live',intent['raw_id'])
-            self.repo.persist_v1_outputs(json.loads(intent['expected_json']))
-            self.store.complete('live',intent['raw_id'],intent['expected_hash'])
+        pending=len(self.store.pending('live'))
+        self.recovery_attempts += pending
+        BronzeProcessor.recover_v1_pending(self.store,self.repo,'live')
 
     def step(self):
         from de.kafka_raw.v1_ledger_store import V1LedgerReader, IntegrityFault
@@ -612,10 +679,18 @@ class ObservationWorker:
                     raise IntegrityFault(str(exc)) from exc
                 BronzeProcessor.materialize_v1_delivery(self.store,self.repo,'live',raw,event)
                 self.processed += 1
+                _acceptance_fault('before_checkpoint')
             if end > cp['next_source_offset']:
-                self.store.advance_v1('live',self.settings.raw_topic,part,identity,binding,cp['generation'],cp['next_source_offset'],end,max(safe,end))
-            self.progress[str(part)] = dict(next_source_offset=end,safe_next_offset=safe,offset_distance=safe-end)
+                try:
+                    self.store.advance_v1('live',self.settings.raw_topic,part,identity,binding,cp['generation'],cp['next_source_offset'],end,max(safe,end))
+                except Exception:
+                    self.cas_failures += 1
+                    raise
+            self.progress[str(part)] = dict(topic_identity=identity,next_source_offset=end,
+                safe_next_offset=safe,offset_distance=safe-end)
         self.state,self.error = 'READY',None
+        from datetime import datetime,timezone
+        self.last_successful_batch_at=datetime.now(timezone.utc).isoformat()
         statuses=dict(self.store.db.execute("SELECT processing_status,count(*) FROM v1_intents WHERE namespace='live' GROUP BY processing_status").fetchall())
         dispositions=dict(self.store.db.execute("SELECT disposition,count(*) FROM v1_intents WHERE namespace='live' GROUP BY disposition").fetchall())
         elapsed=time.monotonic()-started
@@ -626,11 +701,17 @@ class ObservationWorker:
                 for p,v in self.progress.items())
         finally:
             source.close()
-        self.metrics=dict(processing_status_counts=statuses,dispositions=dispositions,
+        self.metrics=dict(source_topic=self.settings.raw_topic,source_binding=binding,
+            processor_name='bronze-v1',processor_version='1',bronze_schema_version='1',
+            last_successful_batch_at=self.last_successful_batch_at,metrics_stale=False,
+            dependency_measurement_available=True,processing_status_counts=statuses,dispositions=dispositions,
             pending_delivery_count=pending_deliveries,
             pending_intents=sum(v for k,v in statuses.items() if k!='COMPLETED'),
             attempts=self.store.db.execute("SELECT coalesce(sum(attempt_count),0) FROM v1_intents WHERE namespace='live'").fetchone()[0],
+            retries=self.store.db.execute("SELECT coalesce(sum(max(attempt_count-1,0)),0) FROM v1_intents WHERE namespace='live'").fetchone()[0],
+            recovery_attempts=self.recovery_attempts,cas_failures=self.cas_failures,
             pending_reconciliation=self.store.db.execute("SELECT count(*) FROM v1_invalidations WHERE namespace='live' AND mirror_status!='MIRRORED'").fetchone()[0],
+            pending_invalidation_mirrors=self.store.db.execute("SELECT count(*) FROM v1_invalidations WHERE namespace='live' AND mirror_status!='MIRRORED'").fetchone()[0],
             integrity_faults=self.store.db.execute("SELECT count(*) FROM v1_faults WHERE namespace='live'").fetchone()[0],
             batch_latency_sec=elapsed,processing_rate=(self.processed-prior_processed)/max(elapsed,.000001))
 

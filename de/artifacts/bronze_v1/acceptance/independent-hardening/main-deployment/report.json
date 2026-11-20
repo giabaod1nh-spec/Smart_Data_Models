@@ -1,0 +1,76 @@
+{
+  "result": "PASS",
+  "run_id": "phase2-main-hardening-43d58c1325",
+  "raw_rows": 100,
+  "canonical_rows": 100,
+  "lineage_rows": 100,
+  "health": {
+    "ready": true,
+    "state": "READY",
+    "error": null,
+    "partitions": {
+      "0": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 307,
+        "safe_next_offset": 307,
+        "offset_distance": 0
+      },
+      "1": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 322,
+        "safe_next_offset": 322,
+        "offset_distance": 0
+      },
+      "2": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 183,
+        "safe_next_offset": 183,
+        "offset_distance": 0
+      }
+    },
+    "processed": 100,
+    "source_topic": "traffic.observations.v1",
+    "source_binding": "/raw/kafka_raw_v1/ledger.sqlite3",
+    "processor_name": "bronze-v1",
+    "processor_version": "1",
+    "bronze_schema_version": "1",
+    "last_successful_batch_at": "2026-11-20T16:09:46.126199+00:00",
+    "metrics_stale": false,
+    "dependency_measurement_available": true,
+    "processing_status_counts": {
+      "COMPLETED": 812
+    },
+    "dispositions": {
+      "ACCEPTED_NEW": 807,
+      "ALREADY_CONFLICTED": 1,
+      "SEMANTIC_CONFLICT": 3,
+      "SEMANTIC_DUPLICATE": 1
+    },
+    "pending_delivery_count": 0,
+    "pending_intents": 0,
+    "attempts": 812,
+    "retries": 0,
+    "recovery_attempts": 0,
+    "cas_failures": 0,
+    "pending_reconciliation": 0,
+    "pending_invalidation_mirrors": 0,
+    "integrity_faults": 0,
+    "batch_latency_sec": 0.8910005829999363,
+    "processing_rate": 12.345670934314962
+  },
+  "container_command": [
+    "python",
+    "-m",
+    "de.bronze.main"
+  ],
+  "mounts": {
+    "/raw": false,
+    "/app/de/artifacts": true
+  },
+  "differences_from_standard": {
+    "network": "isolated hardening network",
+    "raw_storage": "external named acceptance volume",
+    "bronze_storage": "external named acceptance volume",
+    "health_host_port": 19198
+  }
+}

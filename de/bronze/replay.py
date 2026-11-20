@@ -389,9 +389,7 @@ def observation_replay(manifest_path, run_id, settings):
         if existing and existing[0] != binding:
             raise ValueError('replay resume manifest differs from frozen source context')
         store.db.execute('INSERT OR IGNORE INTO replay_manifest VALUES (1,?)',(binding,))
-        for intent in store.pending(namespace):
-            repository.persist_v1_outputs(json.loads(intent['expected_json']))
-            store.complete(namespace,intent['raw_id'],intent['expected_hash'])
+        BronzeProcessor.recover_v1_pending(store,repository,namespace)
         for spec in manifest['partitions']:
             start,end,partition = int(spec['start_offset']),int(spec['end_offset']),int(spec['partition'])
             topic = manifest['topic']

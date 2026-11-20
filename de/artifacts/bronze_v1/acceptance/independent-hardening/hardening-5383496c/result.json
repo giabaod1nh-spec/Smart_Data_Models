@@ -1,0 +1,7 @@
+{
+  "result": "PASS",
+  "execution": "hardening-5383496c",
+  "project": "phase2hardening5383496c",
+  "workload": "clean-880b4b67f0",
+  "runtime_exit_code": 0
+}

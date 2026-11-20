@@ -71,6 +71,7 @@ services:
       DE_BRONZE_CLICKHOUSE_HOST: clickhouse
       DE_BRONZE_RAW_LEDGER_PATH: /raw/kafka_raw_v1/ledger.sqlite3
       DE_BRONZE_CHECKPOINT_PATH: /app/de/artifacts/bronze_v1/checkpoint.sqlite3
+      DE_BRONZE_TEST_FAULT_DIR: /app/de/artifacts/bronze_v1/faults
     volumes:
       - raw-state:/raw:ro
       - bronze-state:/app/de/artifacts

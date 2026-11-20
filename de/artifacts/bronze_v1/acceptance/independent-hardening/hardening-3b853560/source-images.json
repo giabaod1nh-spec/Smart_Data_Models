@@ -1,0 +1,9 @@
+{
+  "head": "3900b98f72817fecc729e416c57b7ba00812c6ff",
+  "diff_sha256": "f8b4ad97f2fcb82548db59bb735efc3c9b79ebb44547e0cab35df9141480f4ea",
+  "images": {
+    "raw": "sha256:847d74f713ed74fc2e44d092b8600a169a397ac2a2d8d4867f749050bbb22f08",
+    "bronze": "sha256:72fed3d9c97804df82562b839e629eacfbed9cdf8b151b764715bc87aacaba70"
+  },
+  "project": "phase2hardening3b853560"
+}

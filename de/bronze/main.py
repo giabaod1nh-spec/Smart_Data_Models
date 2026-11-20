@@ -119,13 +119,19 @@ def observation_main():
                 worker.step()
             except IntegrityFault as exc:
                 worker.state,worker.error = 'FAULTED',str(exc)
-                snapshot.update(ready=False,state=worker.state,error=worker.error)
+                snapshot.update(ready=False,state=worker.state,error=worker.error,
+                    metrics_stale=True,dependency_measurement_available=False)
                 return 1
             except Exception as exc:
                 worker.state,worker.error = 'DEGRADED',str(exc)
+                snapshot.update(ready=False,state=worker.state,error=worker.error,
+                    metrics_stale=True,dependency_measurement_available=False)
                 log.exception('V1 Bronze processing retry')
+            current_metrics=dict(worker.metrics)
+            if worker.state!='READY':
+                current_metrics.update(metrics_stale=True,dependency_measurement_available=False)
             snapshot.update(ready=worker.state=='READY',state=worker.state,error=worker.error,
-                            partitions=worker.progress,processed=worker.processed,**worker.metrics)
+                            partitions=worker.progress,processed=worker.processed,**current_metrics)
             time.sleep(settings.poll_interval_sec)
     finally:
         server.shutdown()

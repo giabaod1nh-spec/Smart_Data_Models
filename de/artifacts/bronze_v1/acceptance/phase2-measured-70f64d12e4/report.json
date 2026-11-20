@@ -1,0 +1,8 @@
+{
+  "run_id": "phase2-measured-70f64d12e4",
+  "simulation_seconds": 120,
+  "catchup_seconds": 37.301354300027015,
+  "elapsed": 73.99504480001633,
+  "samples": 23,
+  "result": "PASS"
+}

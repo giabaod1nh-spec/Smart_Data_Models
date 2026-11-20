@@ -1,0 +1,54 @@
+[
+  {
+    "run": "phase2-measured-70f64d12e4",
+    "outbox": 600,
+    "cycles": 120,
+    "participants": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "M"
+    ],
+    "all_acked": true
+  },
+  {
+    "run": "phase2-measured-ffbed382b2",
+    "outbox": 600,
+    "cycles": 120,
+    "participants": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "M"
+    ],
+    "all_acked": true
+  },
+  {
+    "run": "phase2-smoke-20261120-01",
+    "outbox": 100,
+    "cycles": 20,
+    "participants": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "M"
+    ],
+    "all_acked": true
+  },
+  {
+    "run": "phase2-sustained-20261120-01",
+    "outbox": 600,
+    "cycles": 120,
+    "participants": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "M"
+    ],
+    "all_acked": true
+  }
+]

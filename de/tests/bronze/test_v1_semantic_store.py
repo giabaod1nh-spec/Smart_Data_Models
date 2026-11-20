@@ -64,9 +64,48 @@ def test_sequence_allocation_is_transactional_and_pending_has_no_publication(tmp
 def test_cas_rejects_stale_generation_and_pending_obligations(tmp_path):
     store = V1SemanticStore(tmp_path/'state.sqlite')
     store.db.execute("INSERT INTO v1_checkpoint VALUES ('live','topic',0,'uuid','binding',100,110,0)")
-    store.advance_v1('live','topic',0,'uuid','binding',0,100,110,110)
-    with pytest.raises(RuntimeError,match='CAS'):
+    def intent(raw_id,offset,status='PREPARED'):
+        store.db.execute('''INSERT INTO v1_intents
+          (namespace,raw_id,topic,partition_id,offset_value,topic_identity,event_id,
+           disposition,processing_status,expected_json,expected_hash,revision,prepared_at)
+          VALUES ('live',?,'topic',0,?,'uuid',?,'ACCEPTED_NEW',?,'[]','hash',1,'now')''',
+          (raw_id,offset,'event-'+raw_id,status))
+    def checkpoint():
+        return tuple(store.db.execute("SELECT next_source_offset,safe_next_offset,generation FROM v1_checkpoint WHERE namespace='live'").fetchone())
+    original=checkpoint()
+    intent('inside',105)
+    with pytest.raises(RuntimeError,match='incomplete'):
         store.advance_v1('live','topic',0,'uuid','binding',0,100,110,110)
+    assert checkpoint()==original
+    store.db.execute("UPDATE v1_intents SET processing_status='FAILED_RETRYABLE' WHERE raw_id='inside'")
+    with pytest.raises(RuntimeError,match='incomplete'):
+        store.advance_v1('live','topic',0,'uuid','binding',0,100,110,110)
+    assert checkpoint()==original
+    store.db.execute("UPDATE v1_intents SET processing_status='COMPLETED' WHERE raw_id='inside'")
+    intent('exclusive-end',110)
+    store.advance_v1('live','topic',0,'uuid','binding',0,100,110,110)
+    assert checkpoint()==(110,110,1)
+    # The exclusive-end intent did not block the previous range, but blocks the next.
+    with pytest.raises(RuntimeError,match='incomplete'):
+        store.advance_v1('live','topic',0,'uuid','binding',1,110,120,120)
+    assert checkpoint()==(110,110,1)
+    store.db.execute("UPDATE v1_intents SET processing_status='COMPLETED' WHERE raw_id='exclusive-end'")
+    for args in [
+        ('wrong','binding',1,110,120,120),
+        ('uuid','wrong',1,110,120,120),
+        ('uuid','binding',0,110,120,120),
+        ('uuid','binding',1,109,120,120),
+    ]:
+        with pytest.raises(RuntimeError,match='CAS'):
+            store.advance_v1('live','topic',0,*args)
+        assert checkpoint()==(110,110,1)
     with pytest.raises(RuntimeError,match='boundary'):
         store.advance_v1('live','topic',0,'uuid','binding',1,110,120,119)
+    assert checkpoint()==(110,110,1)
+    # Sparse offsets are valid once all actually delivered intents in the range complete.
+    intent('sparse',117,'COMPLETED')
+    store.close()
+    store=V1SemanticStore(tmp_path/'state.sqlite')
+    store.advance_v1('live','topic',0,'uuid','binding',1,110,120,120)
+    assert tuple(store.db.execute("SELECT next_source_offset,safe_next_offset,generation FROM v1_checkpoint WHERE namespace='live'").fetchone())==(120,120,2)
     store.close()

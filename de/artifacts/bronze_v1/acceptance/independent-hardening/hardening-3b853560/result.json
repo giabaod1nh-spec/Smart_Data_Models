@@ -1,0 +1,7 @@
+{
+  "result": "FAIL",
+  "execution": "hardening-3b853560",
+  "project": "phase2hardening3b853560",
+  "workload": "clean-789a595335",
+  "runtime_exit_code": 1
+}

@@ -1,0 +1,2256 @@
+[
+  {
+    "elapsed": 2.1592942000133917,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 146,
+          "safe_next_offset": 146,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 280,
+          "safe_next_offset": 280,
+          "offset_distance": 0
+        },
+        "2": {
+          "next_source_offset": 286,
+          "safe_next_offset": 286,
+          "offset_distance": 0
+        }
+      },
+      "processed": 0,
+      "processing_status_counts": {
+        "COMPLETED": 712
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 704,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 6,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 0.024945291000221914,
+      "processing_rate": 0.0
+    },
+    "raw": {
+      "state": "READY",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 712,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": null,
+      "last_successful_commit_time": null,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 280,
+          "committed_next_offset": 280,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 286,
+          "committed_next_offset": 286,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 146,
+          "committed_next_offset": 146,
+          "lag": 0
+        }
+      ],
+      "received": 0,
+      "persisted": 0,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"1.63%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.55%\",\"MemUsage\":\"42.63MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"105kB / 70kB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.26%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.83%\",\"MemUsage\":\"64.95MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"1.32MB / 325kB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"9.50%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"13.86%\",\"MemUsage\":\"1.057GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"36.4MB / 45.6MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 5.255380500020692,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 146,
+          "safe_next_offset": 146,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 280,
+          "safe_next_offset": 280,
+          "offset_distance": 0
+        },
+        "2": {
+          "next_source_offset": 286,
+          "safe_next_offset": 286,
+          "offset_distance": 0
+        }
+      },
+      "processed": 0,
+      "processing_status_counts": {
+        "COMPLETED": 712
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 704,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 6,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 0.03142814799957705,
+      "processing_rate": 0.0
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 738,
+      "quarantine_deliveries": 0,
+      "buffered_records": 24,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171322.2147431,
+      "last_successful_commit_time": 1795171322.2291515,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 280,
+          "committed_next_offset": 280,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 286,
+          "committed_next_offset": 286,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 146,
+          "committed_next_offset": 146,
+          "lag": 0
+        }
+      ],
+      "received": 50,
+      "persisted": 26,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"30.49%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.56%\",\"MemUsage\":\"44.11MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"583kB / 505kB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"19.07%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.86%\",\"MemUsage\":\"67.06MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"1.51MB / 476kB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"162.29%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"18.31%\",\"MemUsage\":\"1.396GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"36.8MB / 46MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 8.393038900016109,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 151,
+          "safe_next_offset": 151,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 295,
+          "safe_next_offset": 295,
+          "offset_distance": 0
+        },
+        "2": {
+          "next_source_offset": 300,
+          "safe_next_offset": 292,
+          "offset_distance": -8
+        }
+      },
+      "processed": 34,
+      "processing_status_counts": {
+        "COMPLETED": 746
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 738,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 40,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 2.3008359390000805,
+      "processing_rate": 14.777237882843593
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 843,
+      "quarantine_deliveries": 0,
+      "buffered_records": 14,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171325.4691508,
+      "last_successful_commit_time": 1795171325.4863853,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 367,
+          "committed_next_offset": 358,
+          "lag": 9
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 315,
+          "committed_next_offset": 312,
+          "lag": 3
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 175,
+          "committed_next_offset": 173,
+          "lag": 2
+        }
+      ],
+      "received": 145,
+      "persisted": 131,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"34.46%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.58%\",\"MemUsage\":\"44.94MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"813kB / 717kB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"17.21%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.87%\",\"MemUsage\":\"67.99MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"1.83MB / 731kB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"184.21%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"20.55%\",\"MemUsage\":\"1.567GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"37.4MB / 46.5MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 11.529468300024746,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 173,
+          "safe_next_offset": 173,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 295,
+          "safe_next_offset": 295,
+          "offset_distance": 0
+        },
+        "2": {
+          "next_source_offset": 300,
+          "safe_next_offset": 292,
+          "offset_distance": -8
+        }
+      },
+      "processed": 34,
+      "processing_status_counts": {
+        "COMPLETED": 746
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 738,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 40,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 2.3008359390000805,
+      "processing_rate": 14.777237882843593
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 927,
+      "quarantine_deliveries": 0,
+      "buffered_records": 10,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171328.7101772,
+      "last_successful_commit_time": 1795171328.7326958,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 367,
+          "committed_next_offset": 358,
+          "lag": 9
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 315,
+          "committed_next_offset": 312,
+          "lag": 3
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 175,
+          "committed_next_offset": 173,
+          "lag": 2
+        }
+      ],
+      "received": 225,
+      "persisted": 215,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"31.83%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.64%\",\"MemUsage\":\"50.09MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"1.67MB / 1.51MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"11.51%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.88%\",\"MemUsage\":\"68.43MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"1.96MB / 859kB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"175.45%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.56%\",\"MemUsage\":\"1.644GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"38.2MB / 47.4MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 14.640441700001247,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 173,
+          "safe_next_offset": 173,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 295,
+          "safe_next_offset": 295,
+          "offset_distance": 0
+        },
+        "2": {
+          "next_source_offset": 300,
+          "safe_next_offset": 292,
+          "offset_distance": -8
+        }
+      },
+      "processed": 34,
+      "processing_status_counts": {
+        "COMPLETED": 746
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 738,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 40,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 2.3008359390000805,
+      "processing_rate": 14.777237882843593
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 977,
+      "quarantine_deliveries": 0,
+      "buffered_records": 15,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171331.405819,
+      "last_successful_commit_time": 1795171331.4244955,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 433,
+          "committed_next_offset": 430,
+          "lag": 3
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 337,
+          "committed_next_offset": 336,
+          "lag": 1
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 197,
+          "committed_next_offset": 196,
+          "lag": 1
+        }
+      ],
+      "received": 280,
+      "persisted": 265,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"33.64%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.65%\",\"MemUsage\":\"50.71MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"2.18MB / 1.98MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"9.81%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.88%\",\"MemUsage\":\"68.86MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"2.22MB / 1.04MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"178.46%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"23.46%\",\"MemUsage\":\"1.789GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"38.9MB / 48.1MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 17.771579300024314,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 173,
+          "safe_next_offset": 173,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 382,
+          "safe_next_offset": 358,
+          "offset_distance": -24
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1057,
+      "quarantine_deliveries": 0,
+      "buffered_records": 5,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171334.9293947,
+      "last_successful_commit_time": 1795171334.9511266,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 433,
+          "committed_next_offset": 430,
+          "lag": 3
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 337,
+          "committed_next_offset": 336,
+          "lag": 1
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 197,
+          "committed_next_offset": 196,
+          "lag": 1
+        }
+      ],
+      "received": 350,
+      "persisted": 345,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"13.86%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.66%\",\"MemUsage\":\"51.72MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"2.74MB / 2.5MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"14.98%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.89%\",\"MemUsage\":\"69.42MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"2.44MB / 1.23MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"81.13%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.84%\",\"MemUsage\":\"1.665GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"39.6MB / 48.8MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 20.85122670000419,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 173,
+          "safe_next_offset": 173,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 382,
+          "safe_next_offset": 358,
+          "offset_distance": -24
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1112,
+      "quarantine_deliveries": 0,
+      "buffered_records": 10,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171337.7002509,
+      "last_successful_commit_time": 1795171337.723937,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 502,
+          "committed_next_offset": 497,
+          "lag": 5
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 360,
+          "committed_next_offset": 358,
+          "lag": 2
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 220,
+          "committed_next_offset": 218,
+          "lag": 2
+        }
+      ],
+      "received": 410,
+      "persisted": 400,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"33.20%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.71%\",\"MemUsage\":\"55.55MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"3.65MB / 3.33MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"8.68%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.89%\",\"MemUsage\":\"69.65MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"2.64MB / 1.39MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"150.53%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"22.12%\",\"MemUsage\":\"1.686GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"40.6MB / 49.8MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 23.953233600012027,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 382,
+          "safe_next_offset": 358,
+          "offset_distance": -24
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1168,
+      "quarantine_deliveries": 0,
+      "buffered_records": 9,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171340.9008694,
+      "last_successful_commit_time": 1795171340.918067,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 553,
+          "committed_next_offset": 547,
+          "lag": 6
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 377,
+          "committed_next_offset": 376,
+          "lag": 1
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 237,
+          "committed_next_offset": 235,
+          "lag": 2
+        }
+      ],
+      "received": 465,
+      "persisted": 456,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"33.18%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.71%\",\"MemUsage\":\"55.73MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"4.28MB / 3.94MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"11.93%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.89%\",\"MemUsage\":\"69.76MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"2.76MB / 1.49MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"179.02%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"22.30%\",\"MemUsage\":\"1.7GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"41.2MB / 50.4MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 27.188981800019974,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 382,
+          "safe_next_offset": 358,
+          "offset_distance": -24
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1222,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171344.3873582,
+      "last_successful_commit_time": 1795171344.4433913,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 553,
+          "committed_next_offset": 547,
+          "lag": 6
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 377,
+          "committed_next_offset": 376,
+          "lag": 1
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 237,
+          "committed_next_offset": 235,
+          "lag": 2
+        }
+      ],
+      "received": 510,
+      "persisted": 510,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"30.15%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.72%\",\"MemUsage\":\"55.86MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"4.58MB / 4.23MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"11.63%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.89%\",\"MemUsage\":\"69.87MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"2.96MB / 1.66MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"183.70%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.70%\",\"MemUsage\":\"1.654GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"41.7MB / 50.9MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 30.328171900007874,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 382,
+          "safe_next_offset": 358,
+          "offset_distance": -24
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1247,
+      "quarantine_deliveries": 0,
+      "buffered_records": 5,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171347.222566,
+      "last_successful_commit_time": 1795171347.2691727,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 595,
+          "committed_next_offset": 595,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 391,
+          "committed_next_offset": 391,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 251,
+          "committed_next_offset": 251,
+          "lag": 0
+        }
+      ],
+      "received": 540,
+      "persisted": 535,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"28.13%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.72%\",\"MemUsage\":\"56.04MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"5MB / 4.64MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"10.94%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.13MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.08MB / 1.77MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"168.95%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"20.41%\",\"MemUsage\":\"1.556GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"42.3MB / 51.5MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 33.50974639999913,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 382,
+          "safe_next_offset": 358,
+          "offset_distance": -24
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1277,
+      "quarantine_deliveries": 0,
+      "buffered_records": 10,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171350.1480968,
+      "last_successful_commit_time": 1795171350.2044084,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 595,
+          "committed_next_offset": 595,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 391,
+          "committed_next_offset": 391,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 251,
+          "committed_next_offset": 251,
+          "lag": 0
+        }
+      ],
+      "received": 575,
+      "persisted": 565,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"26.19%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.72%\",\"MemUsage\":\"56.39MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"5.46MB / 5.05MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"9.90%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.24MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.23MB / 1.88MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"154.10%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.03%\",\"MemUsage\":\"1.603GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"42.6MB / 51.8MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 36.66907030000584,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 342,
+          "safe_next_offset": 312,
+          "offset_distance": -30
+        }
+      },
+      "processed": 185,
+      "processing_status_counts": {
+        "COMPLETED": 897
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 889,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 191,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 9.089026937999733,
+      "processing_rate": 16.61343959370323
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 625,
+          "committed_next_offset": 619,
+          "lag": 6
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 401,
+          "committed_next_offset": 399,
+          "lag": 2
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 261,
+          "committed_next_offset": 259,
+          "lag": 2
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"26.90%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.72%\",\"MemUsage\":\"56.43MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"5.88MB / 5.47MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.29%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.25MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.25MB / 1.92MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"146.83%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"20.94%\",\"MemUsage\":\"1.597GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"43.1MB / 52.3MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 39.9022695000167,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"23.84%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.75%\",\"MemUsage\":\"58.21MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"6.2MB / 5.75MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.24%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.05MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.26MB / 1.92MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"226.98%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"22.70%\",\"MemUsage\":\"1.73GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"43.5MB / 52.7MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 45.13960040002712,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"2.10%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.75%\",\"MemUsage\":\"58.18MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"6.21MB / 5.76MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.40%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.01MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.26MB / 1.93MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"340.29%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"22.79%\",\"MemUsage\":\"1.737GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"43.5MB / 52.8MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 48.52995080000255,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.12%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.75%\",\"MemUsage\":\"58.39MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"6.22MB / 5.77MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.29%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.01MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.26MB / 1.93MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"176.67%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"18.29%\",\"MemUsage\":\"1.395GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"43.5MB / 52.8MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 51.276227900001686,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"24.33%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.75%\",\"MemUsage\":\"58.35MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"6.41MB / 5.95MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.23%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.01MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.27MB / 1.94MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"135.00%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"19.84%\",\"MemUsage\":\"1.513GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"43.7MB / 53MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 54.4005857000011,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 218,
+          "safe_next_offset": 218,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"26.13%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.76%\",\"MemUsage\":\"59.17MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"6.83MB / 6.3MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.30%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70.01MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.27MB / 1.94MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"150.50%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"22.63%\",\"MemUsage\":\"1.725GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"44.1MB / 53.4MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 58.46918070001993,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 266,
+          "safe_next_offset": 266,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.38%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.76%\",\"MemUsage\":\"59.23MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"7.03MB / 6.5MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.46%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.28MB / 1.94MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"3.22%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.49%\",\"MemUsage\":\"1.639GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"44.3MB / 53.6MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 61.57638600000064,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 266,
+          "safe_next_offset": 266,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"3.63%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.76%\",\"MemUsage\":\"59.23MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"7.06MB / 6.53MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.25%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"70MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.28MB / 1.95MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"19.45%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"17.33%\",\"MemUsage\":\"1.322GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"44.3MB / 53.6MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 64.67633360001491,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 266,
+          "safe_next_offset": 266,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"22.98%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.76%\",\"MemUsage\":\"59.2MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"7.37MB / 6.83MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.28%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"69.95MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.28MB / 1.95MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"159.21%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.96%\",\"MemUsage\":\"1.674GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"44.7MB / 54MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 67.84054600002128,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 266,
+          "safe_next_offset": 266,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"23.18%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.76%\",\"MemUsage\":\"59.36MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"7.91MB / 7.36MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.35%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.90%\",\"MemUsage\":\"69.89MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.29MB / 1.96MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"133.58%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.56%\",\"MemUsage\":\"1.643GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"45MB / 54.3MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 70.89493190002395,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 266,
+          "safe_next_offset": 266,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 526,
+          "safe_next_offset": 497,
+          "offset_distance": -29
+        },
+        "2": {
+          "next_source_offset": 401,
+          "safe_next_offset": 358,
+          "offset_distance": -43
+        }
+      },
+      "processed": 433,
+      "processing_status_counts": {
+        "COMPLETED": 1145
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1137,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 439,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 21.1163197689998,
+      "processing_rate": 11.74447075593546
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"6.43%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.76%\",\"MemUsage\":\"59.37MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"8.19MB / 7.63MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.37%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.89%\",\"MemUsage\":\"69.83MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.29MB / 1.96MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"204.50%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"21.66%\",\"MemUsage\":\"1.651GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"45.4MB / 54.7MB\",\"PIDs\":\"795\"}\n"
+  },
+  {
+    "elapsed": 73.99303550002514,
+    "bronze": {
+      "ready": true,
+      "state": "READY",
+      "error": null,
+      "partitions": {
+        "0": {
+          "next_source_offset": 266,
+          "safe_next_offset": 266,
+          "offset_distance": 0
+        },
+        "1": {
+          "next_source_offset": 640,
+          "safe_next_offset": 640,
+          "offset_distance": 0
+        },
+        "2": {
+          "next_source_offset": 406,
+          "safe_next_offset": 406,
+          "offset_distance": 0
+        }
+      },
+      "processed": 600,
+      "processing_status_counts": {
+        "COMPLETED": 1312
+      },
+      "dispositions": {
+        "ACCEPTED_NEW": 1304,
+        "ALREADY_CONFLICTED": 2,
+        "SEMANTIC_CONFLICT": 4,
+        "SEMANTIC_DUPLICATE": 2
+      },
+      "pending_delivery_count": 0,
+      "pending_intents": 0,
+      "attempts": 606,
+      "pending_reconciliation": 0,
+      "integrity_faults": 0,
+      "batch_latency_sec": 32.99332273099981,
+      "processing_rate": 5.061630238384279
+    },
+    "raw": {
+      "state": "PROCESSING",
+      "ready": true,
+      "assigned": [
+        [
+          "traffic.observations.v1",
+          0
+        ],
+        [
+          "traffic.observations.v1",
+          1
+        ],
+        [
+          "traffic.observations.v1",
+          2
+        ]
+      ],
+      "raw_deliveries": 1312,
+      "quarantine_deliveries": 0,
+      "buffered_records": 0,
+      "topic_identity": "kdeWSToWSxaWysIffsszWw",
+      "last_successful_persistence_time": 1795171353.2527454,
+      "last_successful_commit_time": 1795171353.3823025,
+      "failure_reason": null,
+      "partition_offsets": [
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 1,
+          "log_start": 0,
+          "log_end": 640,
+          "committed_next_offset": 640,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 2,
+          "log_start": 0,
+          "log_end": 406,
+          "committed_next_offset": 406,
+          "lag": 0
+        },
+        {
+          "topic": "traffic.observations.v1",
+          "partition": 0,
+          "log_start": 0,
+          "log_end": 266,
+          "committed_next_offset": 266,
+          "lag": 0
+        }
+      ],
+      "received": 600,
+      "persisted": 600,
+      "retries": 0,
+      "consumer_thread_alive": true
+    },
+    "resources": "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"2.49%\",\"Container\":\"phase2acceptance-bronze-1\",\"ID\":\"198aece1b57b\",\"MemPerc\":\"0.79%\",\"MemUsage\":\"61.66MiB / 7.624GiB\",\"Name\":\"phase2acceptance-bronze-1\",\"NetIO\":\"8.27MB / 7.7MB\",\"PIDs\":\"2\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.25%\",\"Container\":\"phase2acceptance-raw-1\",\"ID\":\"133e39a4aa48\",\"MemPerc\":\"0.89%\",\"MemUsage\":\"69.83MiB / 7.624GiB\",\"Name\":\"phase2acceptance-raw-1\",\"NetIO\":\"3.29MB / 1.97MB\",\"PIDs\":\"15\"}\n{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"4.97%\",\"Container\":\"phase2acceptance-clickhouse-1\",\"ID\":\"6b2c7e6d9c39\",\"MemPerc\":\"20.85%\",\"MemUsage\":\"1.59GiB / 7.624GiB\",\"Name\":\"phase2acceptance-clickhouse-1\",\"NetIO\":\"45.5MB / 54.8MB\",\"PIDs\":\"795\"}\n"
+  }
+]

@@ -397,7 +397,10 @@ class V1SemanticStore:
             intent = self.db.execute('SELECT processing_status FROM v1_intents WHERE namespace=? AND raw_id=?',(namespace,raw_id)).fetchone()
             if not intent or intent[0] in ('COMPLETED','FAILED_INTEGRITY'):
                 raise RuntimeError('intent cannot be retried')
-            self.db.execute('UPDATE v1_intents SET processing_status=?,attempt_count=attempt_count+1,last_error=? WHERE namespace=? AND raw_id=?',(state,error,namespace,raw_id))
+            # Count a persistence attempt once, when it starts. Recording its
+            # outcome must not increment the same attempt a second time.
+            increment = 1 if error is None and not integrity else 0
+            self.db.execute('UPDATE v1_intents SET processing_status=?,attempt_count=attempt_count+?,last_error=? WHERE namespace=? AND raw_id=?',(state,increment,error,namespace,raw_id))
             if integrity:
                 self.db.execute('INSERT OR IGNORE INTO v1_faults VALUES (?,?,?,?)',(namespace,raw_id,error,_utc_now()))
             self.commit()
@@ -522,6 +525,12 @@ class V1SemanticStore:
             raise
 
     def advance_v1(self, namespace, topic, partition, identity, binding, generation, expected_next, new_next, safe):
+        """CAS a cursor after the caller established complete Raw range coverage.
+
+        This rejects known incomplete intents in [expected_next,new_next), but it
+        cannot prove that the caller discovered every Raw delivery. The bounded
+        logical Raw reader owns that source-completeness proof.
+        """
         self.begin()
         try:
             if new_next < expected_next or new_next > safe:
@@ -553,3 +562,21 @@ class V1SemanticReader(V1SemanticStore):
             raise ValueError('bounded lineage page required')
         return [dict(r) for r in self.db.execute('SELECT * FROM v1_intents WHERE namespace=? AND event_id=? AND raw_id>? ORDER BY raw_id LIMIT ?',
             (namespace,event_id,after_raw_id,limit)).fetchall()]
+
+    def read_invalidation_provenance(self, namespace, invalidation_id):
+        """Return authority-owned invalidation context and both source deliveries."""
+        row=self.db.execute('''SELECT v.*,i.simulation_run_id,i.intersection_id,
+            i.cycle_sequence,i.simulation_time_seconds,i.topology_digest,i.content_hash
+            FROM v1_invalidations v JOIN v1_identity i
+              ON i.namespace=v.namespace AND i.event_id=v.event_id
+            WHERE v.namespace=? AND v.invalidation_id=?''',(namespace,invalidation_id)).fetchone()
+        if row is None:
+            return None
+        result=dict(row)
+        original=self.db.execute('SELECT * FROM v1_intents WHERE namespace=? AND raw_id=?',(namespace,row['first_raw_id'])).fetchone()
+        conflicting=self.db.execute('SELECT * FROM v1_intents WHERE namespace=? AND raw_id=?',(namespace,row['conflicting_raw_id'])).fetchone()
+        if original is None or conflicting is None:
+            raise RuntimeError('invalidation source lineage missing')
+        result['original_delivery']=dict(original)
+        result['conflicting_delivery']=dict(conflicting)
+        return result

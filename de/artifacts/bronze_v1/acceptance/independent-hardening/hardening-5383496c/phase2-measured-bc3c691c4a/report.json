@@ -1,0 +1,51 @@
+{
+  "run_id": "phase2-measured-bc3c691c4a",
+  "simulation_seconds": 120,
+  "catchup_seconds": 15.812902400037274,
+  "elapsed": 49.33536299999105,
+  "samples": 14,
+  "result": "PASS",
+  "verification": {
+    "source_process_ok": true,
+    "expected_events": 600,
+    "outbox_rows": 600,
+    "outbox_acked": 600,
+    "participants": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "M"
+    ],
+    "cycles": 120,
+    "raw_rows": 600,
+    "raw_group_lag": 0,
+    "canonical_rows": 600,
+    "lineage_rows": 600,
+    "bronze_partitions": {
+      "0": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 247,
+        "safe_next_offset": 247,
+        "offset_distance": 0
+      },
+      "1": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 282,
+        "safe_next_offset": 282,
+        "offset_distance": 0
+      },
+      "2": {
+        "topic_identity": "pKq7m6ZFRD6q14dtNtbrLg",
+        "next_source_offset": 183,
+        "safe_next_offset": 183,
+        "offset_distance": 0
+      }
+    },
+    "pending_intents": 0,
+    "pending_reconciliation": 0,
+    "integrity_faults": 0,
+    "ready": true,
+    "observed_at": 263976.2242205
+  }
+}
