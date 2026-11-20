@@ -335,5 +335,100 @@ def main() -> int:
     return 2
 
 
+def observation_replay(manifest_path, run_id, settings):
+    """Bounded live-Raw replay into dedicated SQLite and CH namespace."""
+    import re
+    from de.bronze.checkpoint_store import V1SemanticStore
+    from de.bronze.lineage_resolver import LineageResolver
+    from de.bronze.payload_codec import decode_v1_observation
+    from de.kafka_raw.v1_clickhouse_repository import V1ClickHouseRepository
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',run_id):
+        raise ValueError('unsafe replay run ID')
+    manifest = json.loads(Path(manifest_path).read_text(encoding='utf-8'))
+    if manifest.get('source_mode') not in ('live-raw-range','raw-replay-range') or manifest.get('context_complete') is not True:
+        raise ValueError('explicit Raw source and complete semantic context required')
+    if manifest.get('topic') != 'traffic.observations.v1' or not manifest.get('partitions'):
+        raise ValueError('invalid replay topic/partitions')
+    raw_replay_id = manifest.get('raw_replay_run_id') if manifest['source_mode']=='raw-replay-range' else None
+    if manifest['source_mode']=='raw-replay-range' and not raw_replay_id:
+        raise ValueError('Raw replay source requires explicit replay ID')
+    path = Path(settings.checkpoint_path).parent/'replay'/run_id/'checkpoint.sqlite3'
+    namespace = 'replay:'+run_id
+    lock = None
+    from de.bronze.instance_lock import InstanceLock
+    lock = InstanceLock(path)
+    lock.acquire()
+    store = V1SemanticStore(path)
+    repository = BronzeClickHouseRepository(settings)
+    try:
+        repository.connect()
+        from de.kafka_raw.v1_ledger_store import V1LedgerReader
+        coverage=V1LedgerReader(settings.raw_ledger_path)
+        try:
+            progress=coverage.db.execute('SELECT partition_id,topic_identity,safe_next_offset FROM partition_progress WHERE topic=?',(manifest['topic'],)).fetchall()
+            declared={int(p['partition']):p for p in manifest['partitions']}
+            if len(declared)!=len(manifest['partitions']) or set(declared)!={r['partition_id'] for r in progress}:
+                raise ValueError('CONTEXT_INSUFFICIENT: manifest must cover every source partition')
+            for row in progress:
+                spec=declared[row['partition_id']]
+                initial=0
+                if raw_replay_id:
+                    recorded=coverage.db.execute('SELECT start_offset,end_offset,topic_identity FROM replay_source_ranges WHERE topic=? AND partition_id=?',(manifest['topic'],row['partition_id'])).fetchone()
+                    if not recorded or recorded['topic_identity']!=row['topic_identity']:
+                        raise ValueError('Raw replay lacks declared source coverage')
+                    initial=recorded['start_offset']
+                if int(spec['start_offset'])!=initial or int(spec['end_offset'])>row['safe_next_offset'] or spec['topic_identity']!=row['topic_identity']:
+                    raise ValueError('CONTEXT_INSUFFICIENT: unverified historical scope/identity')
+        finally:
+            coverage.close()
+        import hashlib
+        from contracts.traffic_observation import canonical_json
+        binding = hashlib.sha256(canonical_json(manifest).encode()).hexdigest()
+        store.db.execute('CREATE TABLE IF NOT EXISTS replay_manifest (id INTEGER PRIMARY KEY CHECK(id=1), hash TEXT NOT NULL)')
+        existing = store.db.execute('SELECT hash FROM replay_manifest WHERE id=1').fetchone()
+        if existing and existing[0] != binding:
+            raise ValueError('replay resume manifest differs from frozen source context')
+        store.db.execute('INSERT OR IGNORE INTO replay_manifest VALUES (1,?)',(binding,))
+        for intent in store.pending(namespace):
+            repository.persist_v1_outputs(json.loads(intent['expected_json']))
+            store.complete(namespace,intent['raw_id'],intent['expected_hash'])
+        for spec in manifest['partitions']:
+            start,end,partition = int(spec['start_offset']),int(spec['end_offset']),int(spec['partition'])
+            topic = manifest['topic']
+            if start < 0 or end < start or not spec.get('topic_identity'):
+                raise ValueError('invalid bounded replay range')
+            store.db.execute('INSERT OR IGNORE INTO v1_checkpoint VALUES (?,?,?,?,?,?,?,0)',
+                (namespace,topic,partition,spec['topic_identity'],binding,start,end))
+            cp = store.db.execute('SELECT * FROM v1_checkpoint WHERE namespace=? AND topic=? AND partition_id=?',(namespace,topic,partition)).fetchone()
+            start = cp['next_source_offset']
+            while start < end:
+                cp = store.db.execute('SELECT * FROM v1_checkpoint WHERE namespace=? AND topic=? AND partition_id=?',(namespace,topic,partition)).fetchone()
+                rows,requested_end,identity = LineageResolver.read_v1_batch(
+                    V1ClickHouseRepository(repository.client,replay_id=raw_replay_id),settings.raw_ledger_path,topic,partition,start,min(settings.batch_size,end-start))
+                if identity != spec['topic_identity'] or requested_end <= start:
+                    raise RuntimeError('replay source identity/boundary unavailable')
+                for resolved in rows:
+                    raw = resolved['record']
+                    event = decode_v1_observation(raw)[0] if resolved['status']=='CONFIRMED_RAW' else None
+                    BronzeProcessor.materialize_v1_delivery(store,repository,namespace,raw,event)
+                store.advance_v1(namespace,topic,partition,identity,binding,cp['generation'],start,requested_end,end)
+                start = requested_end
+        return dict(namespace=namespace,state_path=str(path),pending=len(store.pending(namespace)))
+    finally:
+        repository.close()
+        store.close()
+        lock.release()
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import sys
+    if '--v1' in sys.argv:
+        from de.bronze.config import ObservationSettings
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--v1',action='store_true')
+        parser.add_argument('--manifest',required=True)
+        parser.add_argument('--run-id',required=True)
+        args = parser.parse_args()
+        print(json.dumps(observation_replay(args.manifest,args.run_id,ObservationSettings()),indent=2))
+    else:
+        raise SystemExit(main())

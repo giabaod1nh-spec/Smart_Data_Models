@@ -42,6 +42,74 @@ class ProcessorState(str, Enum):
 
 
 class BronzeProcessor:
+    @staticmethod
+    def materialize_v1_delivery(store, repository, namespace, raw, event):
+        """Prepare frozen obligations and complete only after reconciliation.
+
+        Used by live and replay workers; neither semantic processing nor
+        recovery may infer persistence from an existing ID alone.
+        """
+        import hashlib
+        import json
+        from datetime import datetime, timezone
+        from contracts.traffic_observation import canonical_json
+        from de.bronze.transformer import BronzeTransformer
+        from de.kafka_raw.v1_validator import build_immutable_envelope_hash
+        for pending in store.pending(namespace):
+            if event and pending['event_id'] == event['eventId']:
+                repository.persist_v1_outputs(json.loads(pending['expected_json']))
+                store.complete(namespace,pending['raw_id'],pending['expected_hash'])
+        observation = BronzeTransformer.v1_observation(event,raw,namespace) if event else None
+        envelope_hash = build_immutable_envelope_hash(event) if event else None
+        content_hash = observation['bronze_canonical_hash'] if event else None
+        def obligations(disposition,revision,conflict,invalidation):
+            now = datetime.now(timezone.utc).isoformat()
+            intent_id = hashlib.sha256(canonical_json([namespace,raw['raw_ingestion_id'],disposition,revision,'1']).encode()).hexdigest()
+            delivery = dict(namespace=namespace,raw_ingestion_id=raw['raw_ingestion_id'],
+                topic=raw['topic'],topic_identity=raw['topic_identity'],partition=raw['partition'],offset=raw['offset'],
+                physical_record_hash=raw['physical_record_hash'],source_byte_hash=raw['payload_bytes_hash'],
+                event_id=event['eventId'] if event else None,immutable_envelope_hash=envelope_hash,
+                payload_hash=event['payloadHash'] if event else None,disposition=disposition,
+                semantic_revision=revision if event else None,observation_canonical_hash=content_hash,
+                processing_intent_id=intent_id,error_code=None,error_detail=None,
+                processor_name='bronze-v1',processor_version='1',processed_at=now)
+            result = [dict(table='bronze_delivery_dispositions_v1',row=delivery)]
+            if disposition == 'ACCEPTED_NEW':
+                observation['semantic_revision'] = revision
+                result.append(dict(table='bronze_observations_v1',row=observation))
+            if conflict:
+                current = store.current(namespace,event['eventId'])
+                result.append(dict(table='bronze_conflict_evidence_v1',row=dict(
+                    namespace=namespace,conflict_id=conflict['conflict_id'],event_id=event['eventId'],
+                    simulation_run_id=current['simulation_run_id'],intersection_id=current['intersection_id'],
+                    cycle_sequence=current['cycle_sequence'],simulation_time_seconds=current['simulation_time_seconds'],
+                    previous_immutable_envelope_hash=conflict['previous_hash'],conflicting_immutable_envelope_hash=conflict['conflicting_hash'],
+                    previous_payload_hash=current['payload_hash'],conflicting_payload_hash=event['payloadHash'],
+                    previous_raw_ingestion_id=current['first_raw_id'],conflicting_raw_ingestion_id=raw['raw_ingestion_id'],
+                    semantic_revision=revision,change_sequence=current['change_sequence'],created_at=conflict['created_at'],processor_version='1')))
+                result.append(dict(table='bronze_invalidations_v1',row=dict(
+                    namespace=namespace,invalidation_id=invalidation['invalidation_id'],event_id=event['eventId'],
+                    simulation_run_id=current['simulation_run_id'],intersection_id=current['intersection_id'],
+                    cycle_sequence=current['cycle_sequence'],simulation_time_seconds=current['simulation_time_seconds'],
+                    previous_semantic_state='ACCEPTED',new_semantic_state='CONFLICTED',
+                    previous_immutable_envelope_hash=conflict['previous_hash'],conflicting_immutable_envelope_hash=conflict['conflicting_hash'],
+                    original_raw_ingestion_id=current['first_raw_id'],conflicting_raw_ingestion_id=raw['raw_ingestion_id'],
+                    semantic_revision=revision,created_at=invalidation['created_at'],
+                    invalidation_sequence=invalidation['invalidation_sequence'],processor_name='bronze-v1',processor_version='1')))
+            return result
+        intent = store.prepare(namespace,raw,event,envelope_hash,content_hash,obligations)
+        if intent['processing_status'] != 'COMPLETED':
+            from de.kafka_raw.v1_ledger_store import IntegrityFault
+            store.mark_attempt(namespace,raw['raw_ingestion_id'])
+            try:
+                repository.persist_v1_outputs(json.loads(intent['expected_json']))
+                store.complete(namespace,raw['raw_ingestion_id'],intent['expected_hash'])
+            except Exception as exc:
+                store.mark_attempt(namespace,raw['raw_ingestion_id'],str(exc),isinstance(exc,IntegrityFault))
+                raise
+        return intent['disposition']
+
+
     def __init__(
         self,
         settings: BronzeSettings,
@@ -471,3 +539,102 @@ class BronzeProcessor:
             "checkpoint_stale": stale,
             "checkpoint_namespace": self.namespace,
         }
+
+
+class ObservationWorker:
+    """Single-owner V1 Raw-to-Bronze processing loop using the semantic authority."""
+    def __init__(self, settings):
+        self.settings = settings
+        self.repo = BronzeClickHouseRepository(settings)
+        self.state = 'STARTING'
+        self.error = None
+        self.progress = {}
+        self.processed = 0
+        self.store = None
+        self.metrics = {}
+
+    def start(self):
+        from de.bronze.checkpoint_store import V1SemanticStore
+        self.settings.validate_runtime()
+        self.store = V1SemanticStore(Path(self.settings.checkpoint_path))
+        self.repo.connect()
+        for table in ('bronze_observations_v1','bronze_delivery_dispositions_v1',
+                      'bronze_conflict_evidence_v1','bronze_invalidations_v1','bronze_quarantine_v1'):
+            self.repo.client.query('DESCRIBE TABLE smart_traffic.'+table)
+
+    def recover(self):
+        import json
+        import hashlib
+        for intent in self.store.pending('live'):
+            if intent['processing_status'] == 'FAILED_INTEGRITY':
+                raise RuntimeError('durable integrity fault requires operator reconciliation')
+            if hashlib.sha256(intent['expected_json'].encode()).hexdigest() != intent['expected_hash']:
+                raise RuntimeError('frozen processing intent corrupted')
+            self.store.mark_attempt('live',intent['raw_id'])
+            self.repo.persist_v1_outputs(json.loads(intent['expected_json']))
+            self.store.complete('live',intent['raw_id'],intent['expected_hash'])
+
+    def step(self):
+        from de.kafka_raw.v1_ledger_store import V1LedgerReader, IntegrityFault
+        from de.kafka_raw.v1_clickhouse_repository import V1ClickHouseRepository
+        from de.bronze.payload_codec import decode_v1_observation
+        started=time.monotonic()
+        prior_processed=self.processed
+        self.recover()
+        source = V1LedgerReader(self.settings.raw_ledger_path)
+        try:
+            partitions = source.db.execute('SELECT * FROM partition_progress WHERE topic=? ORDER BY partition_id',(self.settings.raw_topic,)).fetchall()
+        finally:
+            source.close()
+        if not partitions:
+            raise RuntimeError('Raw source has not established partition ownership')
+        binding = str(Path(self.settings.raw_ledger_path).resolve())
+        for partition in partitions:
+            part,identity,safe = partition['partition_id'],partition['topic_identity'],partition['safe_next_offset']
+            if safe is None:
+                raise IntegrityFault('Raw safe boundary unavailable')
+            self.store.db.execute('INSERT OR IGNORE INTO v1_checkpoint VALUES (?,?,?,?,?,?,?,0)',
+                ('live',self.settings.raw_topic,part,identity,binding,0,safe))
+            cp = self.store.db.execute('SELECT * FROM v1_checkpoint WHERE namespace=? AND topic=? AND partition_id=?',('live',self.settings.raw_topic,part)).fetchone()
+            if cp['topic_identity'] != identity or cp['source_binding'] != binding or safe < cp['safe_next_offset']:
+                raise IntegrityFault('source binding changed or boundary regressed')
+            rows,end,batch_identity = LineageResolver.read_v1_batch(
+                V1ClickHouseRepository(self.repo.client),self.settings.raw_ledger_path,
+                self.settings.raw_topic,part,cp['next_source_offset'],self.settings.batch_size)
+            if batch_identity != identity:
+                raise IntegrityFault('source topic identity changed')
+            for resolved in rows:
+                raw = resolved['record']
+                try:
+                    event = decode_v1_observation(raw)[0] if resolved['status']=='CONFIRMED_RAW' else None
+                except ValueError as exc:
+                    self.store.db.execute('INSERT OR IGNORE INTO v1_faults VALUES (?,?,?,?)',('live',raw['raw_ingestion_id'],str(exc),str(time.time())))
+                    raise IntegrityFault(str(exc)) from exc
+                BronzeProcessor.materialize_v1_delivery(self.store,self.repo,'live',raw,event)
+                self.processed += 1
+            if end > cp['next_source_offset']:
+                self.store.advance_v1('live',self.settings.raw_topic,part,identity,binding,cp['generation'],cp['next_source_offset'],end,max(safe,end))
+            self.progress[str(part)] = dict(next_source_offset=end,safe_next_offset=safe,offset_distance=safe-end)
+        self.state,self.error = 'READY',None
+        statuses=dict(self.store.db.execute("SELECT processing_status,count(*) FROM v1_intents WHERE namespace='live' GROUP BY processing_status").fetchall())
+        dispositions=dict(self.store.db.execute("SELECT disposition,count(*) FROM v1_intents WHERE namespace='live' GROUP BY disposition").fetchall())
+        elapsed=time.monotonic()-started
+        source=V1LedgerReader(self.settings.raw_ledger_path)
+        try:
+            pending_deliveries=sum(source.db.execute('SELECT count(*) FROM deliveries WHERE topic=? AND partition_id=? AND offset_value>=? AND offset_value<?',
+                (self.settings.raw_topic,int(p),v['next_source_offset'],v['safe_next_offset'])).fetchone()[0]
+                for p,v in self.progress.items())
+        finally:
+            source.close()
+        self.metrics=dict(processing_status_counts=statuses,dispositions=dispositions,
+            pending_delivery_count=pending_deliveries,
+            pending_intents=sum(v for k,v in statuses.items() if k!='COMPLETED'),
+            attempts=self.store.db.execute("SELECT coalesce(sum(attempt_count),0) FROM v1_intents WHERE namespace='live'").fetchone()[0],
+            pending_reconciliation=self.store.db.execute("SELECT count(*) FROM v1_invalidations WHERE namespace='live' AND mirror_status!='MIRRORED'").fetchone()[0],
+            integrity_faults=self.store.db.execute("SELECT count(*) FROM v1_faults WHERE namespace='live'").fetchone()[0],
+            batch_latency_sec=elapsed,processing_rate=(self.processed-prior_processed)/max(elapsed,.000001))
+
+    def close(self):
+        self.repo.close()
+        if self.store:
+            self.store.close()

@@ -57,6 +57,36 @@ class BronzeSettings(BaseSettings):
         return [int(p.strip()) for p in self.partitions.split(",") if p.strip()]
 
 
+class ObservationSettings(BaseSettings):
+    """Canonical V1 runtime settings; historical K7 configuration is separate."""
+    model_config = SettingsConfigDict(env_prefix='DE_BRONZE_', extra='ignore')
+    raw_topic: str = 'traffic.observations.v1'
+    raw_ledger_path: str = str(_REPO/'de/artifacts/kafka_raw_v1/ledger.sqlite3')
+    checkpoint_path: str = str(_REPO/'de/artifacts/bronze_v1/checkpoint.sqlite3')
+    namespace: str = 'live'
+    clickhouse_host: str = 'localhost'
+    clickhouse_port: int = 8123
+    clickhouse_user: str = 'default'
+    clickhouse_password: str = ''
+    clickhouse_database: str = 'smart_traffic'
+    clickhouse_secure: bool = False
+    clickhouse_connect_timeout: float = 5.
+    clickhouse_query_timeout: float = 30.
+    batch_size: int = 500
+    poll_interval_sec: float = 1.
+    health_port: int = 8098
+
+    def validate_runtime(self):
+        if self.raw_topic != 'traffic.observations.v1' or self.namespace != 'live':
+            raise ValueError('live runtime requires the approved topic and live namespace')
+        if self.batch_size <= 0 or self.poll_interval_sec <= 0:
+            raise ValueError('batch size and poll interval must be positive')
+        if Path(self.checkpoint_path).resolve() == Path(self.raw_ledger_path).resolve():
+            raise ValueError('Bronze state must not be Raw state')
+        if 'bronze_v1' not in Path(self.checkpoint_path).parts:
+            raise ValueError('V1 state requires dedicated bronze_v1 directory')
+
+
 @lru_cache
 def get_settings() -> BronzeSettings:
     return BronzeSettings()

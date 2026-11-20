@@ -322,6 +322,8 @@ No phase may defer its executable migration, configuration, health, or failure-p
 
 **Reuse:** Bronze checkpoints, locks, repository reconciliation, gap detection, replay namespace.
 
+**Approved source migration strategy:** Starting in Phase 2, migrate the canonical V1 pipeline by reusing compatible Bronze infrastructure and refactoring the existing `de/bronze/` entry points in place. Replace obsolete V2 entity/run behavior rather than creating a parallel `v1_*` Bronze tree. Add a new source module only for a genuinely new responsibility, such as the semantic identity/invalidation authority, and justify that addition in the Phase 2 plan. Preserve V2 history and historical source through Git and separate storage; do not claim that a legacy V2 profile remains executable after its entry point has been migrated to V1.
+
 **Verification:** Same ID at multiple offsets; changed payload; out-of-order cycles; restart between insert/checkpoint; replay isolation; multiple runs/digests.
 
 **Main Risks:** A conflict may be discovered only after an observation has already been accepted by downstream processing; a restart may apply different conflict dispositions; or replay may create a second semantic decision. Prevent these through a durable monotonic identity state, downstream invalidation/reconciliation evidence, idempotent conflict transitions, and executable restart/replay tests before Phase 2 exit.

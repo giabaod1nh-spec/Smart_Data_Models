@@ -1,0 +1,18 @@
+{
+  "project": "phase2mainverify",
+  "compose_files": ["docker-compose.yml", "docker-compose.bronze-main-acceptance.yml"],
+  "services": ["de-migrate-v1-bronze", "de-bronze-v1"],
+  "profile": "v1-bronze",
+  "health_port": 18198,
+  "ready": true,
+  "historical_checkpoint_offsets": {"0": 146, "1": 280, "2": 286},
+  "offset_distance": {"0": 0, "1": 0, "2": 0},
+  "raw_volume": "phase2acceptance_raw-state",
+  "raw_mount_readonly": true,
+  "authority_volume": "phase2acceptance_bronze-state",
+  "authority_mount_writable": true,
+  "single_owner_handoff": true,
+  "restored_acceptance_worker": true,
+  "limitations": ["Main-service fresh streaming still requires a dedicated test; this observation certifies historical startup with preserved authority."],
+  "initial_failed_attempt": "A new authority over existing live materialization failed integrity reconciliation. No existing authority was reset; corrected by preserving the matching authority and running one owner."
+}

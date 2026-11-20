@@ -56,8 +56,29 @@ services:
     volumes: [raw-state:/app/de/artifacts]
     ports: ["18097:8097"]
     command: ["python", "-m", "de.kafka_raw.v1_main"]
+  bronze-migrate:
+    build: {context: ., dockerfile: de/Dockerfile}
+    depends_on:
+      clickhouse: {condition: service_healthy}
+    environment: {K4_CLICKHOUSE_HOST: clickhouse}
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--v1-bronze"]
+  bronze:
+    build: {context: ., dockerfile: de/Dockerfile}
+    depends_on:
+      bronze-migrate: {condition: service_completed_successfully}
+      raw: {condition: service_started}
+    environment:
+      DE_BRONZE_CLICKHOUSE_HOST: clickhouse
+      DE_BRONZE_RAW_LEDGER_PATH: /raw/kafka_raw_v1/ledger.sqlite3
+      DE_BRONZE_CHECKPOINT_PATH: /app/de/artifacts/bronze_v1/checkpoint.sqlite3
+    volumes:
+      - raw-state:/raw:ro
+      - bronze-state:/app/de/artifacts
+    ports: ["18098:8098"]
+    command: ["python", "-m", "de.bronze.main"]
 volumes:
   kafka-data:
   clickhouse-data:
   raw-state:
+  bronze-state:
 

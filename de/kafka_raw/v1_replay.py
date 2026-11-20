@@ -67,6 +67,22 @@ def main(argv=None):
             confirmed=repo.reconcile(records)
             if len(confirmed)!=len(records): raise RuntimeError("replay unresolved")
             ledger.transition([c.row["raw_ingestion_id"] for c in confirmed],"PERSISTENCE_CONFIRMED")
+        # Publish bounded replay coverage only after every delivered record has
+        # been positively reconciled. This metadata is replay-only; live ledgers
+        # and broker group offsets remain untouched.
+        ledger.db.execute('CREATE TABLE IF NOT EXISTS replay_source_ranges(topic TEXT, partition_id INTEGER, topic_identity TEXT, start_offset INTEGER, end_offset INTEGER, PRIMARY KEY(topic,partition_id))')
+        old=ledger.db.execute('SELECT * FROM replay_source_ranges WHERE topic=? AND partition_id=?',(args.topic,args.partition)).fetchone()
+        if old and tuple(old)!=(args.topic,args.partition,identity,args.start_offset,args.end_offset):
+            raise IntegrityFault('replay coverage cannot be replaced with another range')
+        ledger.db.execute('INSERT OR IGNORE INTO replay_source_ranges VALUES (?,?,?,?,?)',
+            (args.topic,args.partition,identity,args.start_offset,args.end_offset))
+        ledger.db.execute('INSERT OR REPLACE INTO partition_progress VALUES (?,?,?,?,?)',
+            (args.topic,args.partition,identity,None,args.end_offset))
+        # A completed replay is a quiescent read-only source. Checkpoint WAL
+        # and leave rollback-journal mode so readers on a :ro directory do not
+        # need to create SHM files. Live Raw stays in WAL mode.
+        ledger.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+        ledger.db.execute('PRAGMA journal_mode=DELETE')
         print({"replay_run_id":args.replay_run_id,"deliveries":len(records),"live_commits":0})
     finally:
         consumer.close()

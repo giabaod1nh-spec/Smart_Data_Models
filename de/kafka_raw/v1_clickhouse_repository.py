@@ -111,6 +111,28 @@ class V1ClickHouseRepository:
                 pairs={(r["physical_record_hash"],r["destination"]) for r in rows}
                 status=("CONFIRMED_"+d["destination"] if pairs=={(d["physical_record_hash"],d["destination"])}
                         else "CONFLICT")
+                if status.startswith("CONFIRMED"):
+                    # A stored hash is an assertion, not proof that every physical
+                    # retry row has identical immutable content.
+                    immutable={k for k in rows[0] if k not in ("consumed_at", "failed_at")}
+                    if any(any(row.get(k) != rows[0].get(k) for k in immutable) for row in rows[1:]):
+                        status="CONFLICT"
+                if status.startswith("CONFIRMED") and "row_json" in d.keys():
+                    source=json.loads(d["row_json"])
+                    expected={"topic":source["topic"],"partition":source["partition"],
+                        "offset":source["offset"],"raw_ingestion_id":source["raw_ingestion_id"],
+                        "topic_identity":source["topic_identity"],
+                        "physical_record_hash":source["physical_record_hash"],
+                        "payload_bytes_hash":source["payload_bytes_hash"],
+                        "value_is_null":int(source["value_is_null"]),
+                        "key_is_null":int(source["key_is_null"]),
+                        "value_bytes_base64":source["value"],
+                        "key_bytes_base64":source["key"],
+                        "headers_json":json.dumps(source["headers"],separators=(",",":")),
+                        "broker_timestamp_ms":source["timestamp_ms"],
+                        "broker_timestamp_type":source["timestamp_type"]}
+                    if any(any(row.get(k)!=v for k,v in expected.items()) for row in rows):
+                        status="CONFLICT"
             progress=ledger.db.execute("SELECT safe_next_offset FROM partition_progress WHERE topic=? AND partition_id=?",(topic,partition)).fetchone()
             result.append(dict(identity=(topic,partition,d["offset_value"]),status=status,
                 safe_next_offset=progress[0] if progress else None,

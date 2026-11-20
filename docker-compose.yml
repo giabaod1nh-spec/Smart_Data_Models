@@ -1,4 +1,34 @@
 services:
+  de-migrate-v1-bronze:
+    profiles: ["v1-bronze"]
+    build: {context: ., dockerfile: de/Dockerfile}
+    environment: {K4_CLICKHOUSE_HOST: clickhouse}
+    depends_on:
+      clickhouse: {condition: service_healthy}
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--v1-bronze"]
+    restart: "no"
+
+  de-bronze-v1:
+    profiles: ["v1-bronze"]
+    build: {context: ., dockerfile: de/Dockerfile}
+    environment:
+      DE_BRONZE_CLICKHOUSE_HOST: clickhouse
+      DE_BRONZE_RAW_LEDGER_PATH: /raw/ledger.sqlite3
+      DE_BRONZE_CHECKPOINT_PATH: /app/de/artifacts/bronze_v1/checkpoint.sqlite3
+    volumes:
+      - ./de/artifacts/kafka_raw_v1:/raw:ro
+      - ./de/artifacts/bronze_v1:/app/de/artifacts/bronze_v1
+    ports: ["8098:8098"]
+    depends_on:
+      de-migrate-v1-bronze: {condition: service_completed_successfully}
+    command: ["python", "-m", "de.bronze.main"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8098/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   de-migrate-v1:
     profiles: ["v1-raw"]
     build:
@@ -218,7 +248,7 @@ services:
       K7_CHECKPOINT_NAMESPACE: live
       K7_SINGLE_INSTANCE: "true"
       K7_WORKER_COUNT: "1"
-    command: ["python", "-m", "de.bronze.main"]
+    command: ["python", "-c", "raise SystemExit('Legacy V2 Bronze entrypoint retired by in-place V1 migration. Historical source: 757060f8175fdb22d9ee27e7f8d175c82c0e2c45. Use de-bronze-v1 for V1 processing; V2 tables remain preserved.')"]
     volumes:
       - ./de/artifacts:/app/de/artifacts
     healthcheck:

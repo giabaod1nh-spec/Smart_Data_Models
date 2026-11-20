@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 import clickhouse_connect
+from de.kafka_raw.v1_ledger_store import IntegrityFault
 
 from de.bronze import MIGRATION_VERSION
 from de.bronze.config import BronzeSettings
@@ -80,6 +81,123 @@ class BronzeClickHouseRepository:
             return True
         except Exception:
             return False
+
+    def reconcile_v1_outputs(self, obligations: list[dict]) -> list[dict]:
+        """Verify complete immutable output content, returning only missing rows."""
+        from datetime import datetime, timezone
+        allowed = {
+            'bronze_observations_v1': ('namespace','event_id','semantic_revision'),
+            'bronze_delivery_dispositions_v1': ('namespace','raw_ingestion_id'),
+            'bronze_conflict_evidence_v1': ('namespace','conflict_id'),
+            'bronze_quarantine_v1': ('namespace','raw_ingestion_id'),
+            'bronze_invalidations_v1': ('namespace','invalidation_id'),
+        }
+        missing = []
+        for obligation in obligations:
+            table, expected = obligation['table'], obligation['row']
+            if table not in allowed or not expected.get('namespace'):
+                raise ValueError('unapproved Bronze V1 destination or namespace')
+            identity = allowed[table]
+            predicates = []
+            params = {}
+            for index, key in enumerate(identity):
+                name = 'p'+str(index)
+                typ = 'UInt64' if key == 'semantic_revision' else 'String'
+                predicates.append(key+'={'+name+':'+typ+'}')
+                params[name] = expected[key]
+            result = self.client.query('SELECT * FROM '+self.database+'.'+table+
+                                       ' WHERE '+' AND '.join(predicates), parameters=params)
+            if not result.result_rows:
+                missing.append(obligation)
+                continue
+            for values in result.result_rows:
+                actual = dict(zip(result.column_names, values))
+                for key, value in expected.items():
+                    cell = actual.get(key)
+                    if isinstance(cell, bytes):
+                        cell = cell.decode('ascii')
+                    if isinstance(cell, datetime):
+                        if cell.tzinfo is None:
+                            cell = cell.replace(tzinfo=timezone.utc)
+                        value = datetime.fromisoformat(value.replace('Z','+00:00')) if isinstance(value,str) else value
+                    if cell != value:
+                        raise IntegrityFault('Bronze immutable output mismatch: '+table+'.'+key)
+        return missing
+
+    def persist_v1_outputs(self, obligations: list[dict]):
+        """Retry only missing obligations and positively reconcile acknowledgements."""
+        from datetime import datetime
+        missing = self.reconcile_v1_outputs(obligations)
+        for obligation in missing:
+            row = dict(obligation['row'])
+            for key in ('processed_at','created_at','quarantined_at','captured_at'):
+                if isinstance(row.get(key), str):
+                    row[key] = datetime.fromisoformat(row[key].replace('Z','+00:00'))
+            try:
+                self.client.insert(self.database+'.'+obligation['table'],
+                    [list(row.values())], column_names=list(row), settings={'async_insert':0})
+            except Exception:
+                # A lost response may mean the insert succeeded. Reconciliation
+                # must still fail if any content differs or any obligation is absent.
+                if self.reconcile_v1_outputs([obligation]):
+                    raise
+        if self.reconcile_v1_outputs(obligations):
+            raise RuntimeError('incomplete Bronze persistence obligations')
+
+    def read_valid_observations(self, state_path, namespace, after=None, limit=500, simulation_run_id=None):
+        """One current-state SQLite snapshot per keyset page; no time travel."""
+        import sqlite3
+        import json
+        import hashlib
+        from pathlib import Path
+        from contracts.traffic_observation import canonical_json, validate_observation
+        if not namespace or not 1 <= limit <= 1000:
+            raise ValueError('bounded page and explicit namespace required')
+        db = sqlite3.connect(Path(state_path).resolve().as_uri()+'?mode=ro',uri=True)
+        db.row_factory = sqlite3.Row
+        try:
+            db.execute('PRAGMA query_only=ON')
+            db.execute('BEGIN')
+            sql = "SELECT * FROM v1_identity WHERE namespace=? AND state='ACCEPTED'"
+            args = [namespace]
+            if after:
+                sql += ' AND event_id>?'
+                args.append(after)
+            if simulation_run_id:
+                sql += ' AND simulation_run_id=?'
+                args.append(simulation_run_id)
+            selected = db.execute(sql+' ORDER BY event_id LIMIT ?',(*args,limit)).fetchall()
+            result = []
+            for identity in selected:
+                q = self.client.query('SELECT * FROM '+self.database+'.bronze_observations_v1 WHERE namespace={ns:String} AND event_id={eid:String} AND semantic_revision={rev:UInt64}',
+                    parameters=dict(ns=namespace,eid=identity['event_id'],rev=identity['revision']))
+                if not q.result_rows:
+                    raise RuntimeError('missing accepted observation mirror')
+                canonical = None
+                for values in q.result_rows:
+                    row = dict(zip(q.column_names,values))
+                    for key,value in list(row.items()):
+                        if isinstance(value,bytes):
+                            row[key] = value.decode('ascii')
+                    event = json.loads(row['observation_envelope_json'])
+                    validate_observation(event)
+                    hashed = hashlib.sha256(canonical_json(dict(observation=event,normalization_version=row['normalization_version'],bronze_schema_version=row['bronze_schema_version'])).encode()).hexdigest()
+                    if hashed != identity['content_hash'] or row['bronze_canonical_hash'] != hashed:
+                        raise RuntimeError('accepted observation content mismatch')
+                    # Compare every field against the originally frozen obligation.
+                    intent = db.execute('SELECT expected_json FROM v1_intents WHERE namespace=? AND raw_id=? AND processing_status=\'COMPLETED\'',(namespace,identity['first_raw_id'])).fetchone()
+                    if intent is None:
+                        raise RuntimeError('accepted observation has incomplete intent')
+                    obligations = json.loads(intent[0])
+                    if self.reconcile_v1_outputs(obligations):
+                        raise RuntimeError('accepted observation lacks required lineage')
+                    if canonical is not None and canonical != event:
+                        raise RuntimeError('conflicting accepted observation retries')
+                    canonical = event
+                result.append(dict(event=canonical,semantic_revision=identity['revision'],change_sequence=identity['change_sequence'],bronze_canonical_hash=identity['content_hash']))
+            return dict(rows=result,next_cursor=selected[-1]['event_id'] if selected else after)
+        finally:
+            db.close()
 
     def verify_tables(self) -> bool:
         for table in (

@@ -27,6 +27,31 @@ from de.bronze.validator import ValidationOutcome
 
 
 class BronzeTransformer:
+    @staticmethod
+    def v1_observation(event, raw, namespace, revision=1, processed_at=None):
+        """Materialize envelope metadata without changing the nested observation."""
+        import hashlib
+        from contracts.traffic_observation import canonical_json
+        from de.kafka_raw.v1_validator import ENVELOPE_FIELDS, build_immutable_envelope_hash
+        from datetime import datetime, timezone
+        envelope = {key:event[key] for key in ENVELOPE_FIELDS}
+        canonical_hash = hashlib.sha256(canonical_json({
+            'observation':event, 'normalization_version':'1', 'bronze_schema_version':'1'}).encode()).hexdigest()
+        return dict(namespace=namespace,event_id=event['eventId'],semantic_revision=revision,
+            event_type=event['eventType'],schema_version=event['schemaVersion'],
+            simulation_run_id=event['simulationRunId'],intersection_id=event['intersectionId'],
+            scenario_id=event['scenarioId'],cycle_sequence=event['cycleSequence'],
+            simulation_step=event['simulationStep'],simulation_time_seconds=event['simulationTimeSeconds'],
+            captured_at=event['capturedAt'],topology_digest=event['topologyDigest'],
+            payload_hash=event['payloadHash'],immutable_envelope_hash=build_immutable_envelope_hash(event),
+            source_byte_hash=raw['payload_bytes_hash'],observation_payload_json=canonical_json(event['payload']),
+            observation_envelope_json=canonical_json(event),bronze_canonical_hash=canonical_hash,
+            primary_raw_ingestion_id=raw['raw_ingestion_id'],primary_topic=raw['topic'],
+            primary_partition=raw['partition'],primary_offset=raw['offset'],
+            processor_name='bronze-v1',processor_version='1',normalization_version='1',
+            bronze_schema_version='1',migration_version='007-v1-bronze',
+            processed_at=processed_at or datetime.now(timezone.utc).isoformat())
+
     def __init__(
         self,
         *,

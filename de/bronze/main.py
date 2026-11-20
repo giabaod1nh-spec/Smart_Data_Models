@@ -79,5 +79,60 @@ def main() -> int:
     return 0 if processor.state.value != "FAULTED" else 1
 
 
+def observation_main():
+    import json
+    import signal
+    import time
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from de.bronze.config import ObservationSettings
+    from de.bronze.processor import ObservationWorker
+    from de.kafka_raw.v1_ledger_store import IntegrityFault
+    settings = ObservationSettings()
+    settings.validate_runtime()
+    lock = InstanceLock(Path(settings.checkpoint_path))
+    lock.acquire()
+    worker = ObservationWorker(settings)
+    running = True
+    def stop(*args):
+        nonlocal running
+        running = False
+    signal.signal(signal.SIGTERM,stop)
+    signal.signal(signal.SIGINT,stop)
+    snapshot = dict(ready=False,state='STARTING')
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path not in ('/health','/ready','/metrics'):
+                self.send_error(404)
+                return
+            self.send_response(503 if self.path=='/ready' and not snapshot['ready'] else 200)
+            self.send_header('Content-Type','application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(snapshot).encode())
+        def log_message(self,*args):
+            pass
+    server = ThreadingHTTPServer(('0.0.0.0',settings.health_port),Handler)
+    threading.Thread(target=server.serve_forever,daemon=True).start()
+    try:
+        worker.start()
+        while running:
+            try:
+                worker.step()
+            except IntegrityFault as exc:
+                worker.state,worker.error = 'FAULTED',str(exc)
+                snapshot.update(ready=False,state=worker.state,error=worker.error)
+                return 1
+            except Exception as exc:
+                worker.state,worker.error = 'DEGRADED',str(exc)
+                log.exception('V1 Bronze processing retry')
+            snapshot.update(ready=worker.state=='READY',state=worker.state,error=worker.error,
+                            partitions=worker.progress,processed=worker.processed,**worker.metrics)
+            time.sleep(settings.poll_interval_sec)
+    finally:
+        server.shutdown()
+        worker.close()
+        lock.release()
+    return 0
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(observation_main())

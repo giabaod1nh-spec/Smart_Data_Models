@@ -6,12 +6,75 @@ from typing import Dict, List, Optional, Tuple
 
 from de.bronze.clickhouse_repository import BronzeClickHouseRepository
 from de.bronze.models import ResolveKind, ResolvedRecord
+from de.kafka_raw.v1_ledger_store import V1LedgerReader, IntegrityFault
+from de.kafka_raw.v1_clickhouse_repository import V1ClickHouseRepository
 
 
 class LineageResolver:
     def __init__(self, repo: BronzeClickHouseRepository) -> None:
         self.repo = repo
         self._gap_since: Dict[Tuple[str, int, int], float] = {}
+
+    @staticmethod
+    def read_v1_batch(raw_repository: V1ClickHouseRepository, ledger_path: str,
+                      topic: str, partition: int, next_source_offset: int,
+                      max_span: int) -> tuple[list[dict], int, str]:
+        """Read one bounded, confirmed Raw prefix under a SQLite WAL snapshot.
+
+        Completeness assumes the certified single-owner Raw ledger has not been
+        pruned or replaced. An orphan CH row is detectable; arbitrary deletion
+        of both matching evidence stores is outside this local contract.
+        """
+        if max_span <= 0 or next_source_offset < 0:
+            raise ValueError("invalid V1 source range")
+        reader = V1LedgerReader(ledger_path)
+        try:
+            reader.db.execute("BEGIN")
+            progress = reader.db.execute(
+                "SELECT topic_identity,safe_next_offset,committed_next_offset "
+                "FROM partition_progress WHERE topic=? AND partition_id=?",
+                (topic, partition)).fetchone()
+            if progress is None or not progress["topic_identity"] or progress["safe_next_offset"] is None:
+                raise IntegrityFault("unbound Raw partition or missing safe boundary")
+            safe = int(progress["safe_next_offset"])
+            if next_source_offset > safe:
+                raise IntegrityFault("Bronze cursor exceeds Raw safe boundary")
+            end = min(safe, next_source_offset + max_span)
+            faults = reader.db.execute("SELECT count(*) FROM integrity_faults").fetchone()[0]
+            if faults:
+                raise IntegrityFault("unresolved Raw integrity fault")
+            rows = raw_repository.logical_read(reader, topic, partition, next_source_offset, end)
+            for row in rows:
+                if row["status"] not in ("CONFIRMED_RAW", "CONFIRMED_QUARANTINE"):
+                    raise IntegrityFault("unresolved Raw delivery or physical conflict")
+                if row["identity"][2] >= end or row["record"]["topic_identity"] != progress["topic_identity"]:
+                    raise IntegrityFault("Raw source identity/boundary mismatch")
+            expected = {row["record"]["raw_ingestion_id"] for row in rows}
+            for destination in ("RAW", "QUARANTINE"):
+                table = raw_repository.table(destination)
+                if raw_repository.replay_id:
+                    clause = " AND replay_run_id={replay:String}"
+                    params = dict(topic=topic, partition=partition, start=next_source_offset,
+                                  end=end, replay=raw_repository.replay_id)
+                else:
+                    clause = ""
+                    params = dict(topic=topic, partition=partition, start=next_source_offset,end=end)
+                query = raw_repository.client.query(
+                    "SELECT DISTINCT raw_ingestion_id FROM " + table +
+                    " WHERE topic={topic:String} AND partition={partition:Int32} "
+                    "AND offset>={start:Int64} AND offset<{end:Int64}" + clause,
+                    parameters=params)
+                for (raw_id,) in query.result_rows:
+                    raw_id = raw_id.decode("ascii") if isinstance(raw_id, bytes) else raw_id
+                    if raw_id not in expected:
+                        raise IntegrityFault("ClickHouse Raw evidence lacks confirmed ledger delivery")
+            reader.db.execute("COMMIT")
+            return rows, end, progress["topic_identity"]
+        except BaseException:
+            reader.db.execute("ROLLBACK")
+            raise
+        finally:
+            reader.close()
 
     def resolve_batch(
         self,

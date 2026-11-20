@@ -1,0 +1,22 @@
+# Overrides only deployment resources; service definitions come from main Compose.
+services:
+  de-migrate-v1-bronze:
+    networks: [default]
+  de-bronze-v1:
+    ports: !override ["18198:8098"]
+    environment:
+      DE_BRONZE_RAW_LEDGER_PATH: /raw/kafka_raw_v1/ledger.sqlite3
+    volumes: !override
+      - acceptance-raw:/raw:ro
+      - acceptance-bronze:/app/de/artifacts
+networks:
+  default:
+    external: true
+    name: phase2acceptance_default
+volumes:
+  acceptance-raw:
+    external: true
+    name: phase2acceptance_raw-state
+  acceptance-bronze:
+    external: true
+    name: phase2acceptance_bronze-state

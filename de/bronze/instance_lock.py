@@ -90,12 +90,8 @@ class InstanceLock:
         row = conn.execute(
             "SELECT holder_pid, holder_host FROM bronze_instance_lock WHERE lock_id=1"
         ).fetchone()
-        if row and int(row[0]) != os.getpid():
-            conn.execute("ROLLBACK")
-            conn.close()
-            raise BronzeInstanceAlreadyRunning(
-                f"BRONZE_INSTANCE_ALREADY_RUNNING: pid={row[0]} host={row[1]}"
-            )
+        # The OS lock was acquired before this transaction. A persisted PID
+        # from a crashed process is diagnostic metadata, not live ownership.
         conn.execute(
             """
             INSERT INTO bronze_instance_lock (lock_id, holder_pid, holder_host, acquired_at)

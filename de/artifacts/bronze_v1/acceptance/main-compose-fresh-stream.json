@@ -1,0 +1,42 @@
+{
+  "verifiedAt": "2026-11-20T18:11:08.3653826+07:00",
+  "mainCompose": "docker-compose.yml + docker-compose.bronze-main-acceptance.yml",
+  "mainService": "de-bronze-v1",
+  "mainImage": "sha256:bb7eb47012e453256433ce180d20e4adc6bb1c856d296855c4894f800ef76069",
+  "acceptanceBronzeImage": "sha256:92e389a721d745abc1b29aa6e15ea5158e1079ddf1e6610993f3a2fe4cc87b57",
+  "rawImage": "sha256:488c2514e963896de1f57b1f8f6ce300f527b23a14d2c8f10b7398a1f3d40c73",
+  "uniqueRun": "phase2-main-fresh-844ea8343d",
+  "outboxRows": 100,
+  "outboxAcked": 100,
+  "cycles": 20,
+  "intersections": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "M"
+  ],
+  "rawRows": 100,
+  "canonicalBronzeObservations": 100,
+  "distinctBronzeEvents": 100,
+  "checkpoints": {
+    "partition1": {
+      "safe": 660,
+      "next": 660
+    },
+    "partition2": {
+      "safe": 432,
+      "next": 432
+    },
+    "partition0": {
+      "safe": 326,
+      "next": 326
+    }
+  },
+  "pendingIntents": 0,
+  "pendingDeliveries": 0,
+  "pendingReconciliation": 0,
+  "integrityFaults": 0,
+  "ready": true,
+  "ownerReturnedTo": "phase2acceptance-bronze-1"
+}
