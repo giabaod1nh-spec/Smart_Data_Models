@@ -76,3 +76,14 @@ Actual smoke: 200 event IDs; sustained 120-second simulation: 600 event IDs, all
 
 Final isolated certification: 1200 simulation seconds, 6000 observations, 6000 Kafka byte comparisons, 12 injected Quarantine deliveries, all committed and lag 0. Final suites: 143 unit/regression plus 8 integration/handover tests, all passing. Gate results: phase-1/acceptance.md, Final implementation report. Interface: phase-1/handover.md. No Phase 2 implementation.
 
+# Phase 2 independent certification follow-up — 2026-11-21 (IN PROGRESS, NO-GO)
+
+Baseline `cd20886545114b0bbc60227fb7f3a74193c629cd` on `codex/phase-1-v1-raw`; existing committed evidence retained. Uncommitted changes in this continuation: `de/bronze/lineage_resolver.py`, `de/bronze/processor.py`, `de/bronze/replay.py`, `de/tests/bronze/test_v1_source_reader.py`, `de/tests/bronze/test_sustained_acceptance.py`, `de/tools/bronze_sustained_acceptance.py`, `de/tools/bronze_main_acceptance.py`, `de/tools/bronze_hardening_acceptance.py`, and this checkpoint. No commit/push/merge or volume deletion.
+
+- Raw batch reader now returns the safe boundary from its own WAL snapshot; worker uses that value for checkpoint CAS and progress. Deterministic concurrent writer test passed.
+- Sustained caller recollects Bronze and Raw metrics after observing producer exit and checks the deadline after selected-run reconciliation. Its expected IDs derive from run manifest participants and the declared 120-cycle workload; Outbox/Bronze ID sets and payload hashes are compared. This still needs authoritative SQLite ACCEPTED reconciliation and stronger source inventory validation.
+- Main and clean-start scripts now require converged checkpoints, READY, zero pending intents/reconciliation and zero integrity faults before PASS; both record deadline at convergence.
+- Targeted tests: 15 passed. Required regression `python -m pytest contracts/tests de/tests/kafka_raw de/tests/bronze -q --basetemp de/artifacts/bronze_v1/acceptance/audit-regression-temp --junitxml=de/artifacts/bronze_v1/acceptance/audit-regression.xml`: **186 passed in 14.27s**.
+
+Remaining before GO: authoritative canonical ACCEPTED event/hash reconciliation in sustained/main/clean acceptance; actual-store source integrity and bounded Raw replay parity plus direct replay integrity zero-write test; final source fingerprint including untracked files; rebuild affected images; run full runtime suite, corrected sustained and main deployment; reconcile 31 gates and update acceptance/handover/decisions/blockers. Current changed source has not received final runtime certification. Next executable action: implement canonical SQLite authority reconciliation in `de/tools/bronze_sustained_acceptance.py` and reuse it from main/clean runners, then run focused tests.
+

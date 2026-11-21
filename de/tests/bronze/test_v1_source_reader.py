@@ -43,13 +43,27 @@ def test_sparse_and_empty_verified_ranges(tmp_path):
     repo.client.rows = physical
     repo.evidence = lambda ids: {rid: [r for r in physical if r["raw_ingestion_id"] == rid]
                                  for rid in ids}
-    rows, end, identity = LineageResolver.read_v1_batch(repo, str(path), topic, 0, 100, 10)
+    rows, end, identity, safe = LineageResolver.read_v1_batch(repo, str(path), topic, 0, 100, 10)
     assert [r["identity"][2] for r in rows] == [100, 101, 104, 105]
-    assert (end, identity) == (110, "uuid")
+    assert (end, identity, safe) == (110, "uuid", 110)
     assert LineageResolver.read_v1_batch(repo, str(path), topic, 0, 106, 4)[0] == []
     repo.client.orphan = True
     with pytest.raises(IntegrityFault, match="lacks confirmed ledger"):
         LineageResolver.read_v1_batch(repo, str(path), topic, 0, 100, 10)
+    ledger.close()
+
+
+def test_concurrent_safe_boundary_advance_keeps_batch_snapshot_consistent(tmp_path):
+    topic,path,ledger,repo,physical=_one_delivery(tmp_path)
+    original=repo.logical_read
+    def advance_during_read(reader, *args):
+        # A separate writer commits a newer safe boundary after the reader's BEGIN.
+        ledger.db.execute('UPDATE partition_progress SET safe_next_offset=20, committed_next_offset=20 WHERE topic=? AND partition_id=0',(topic,))
+        return original(reader,*args)
+    repo.logical_read=advance_during_read
+    rows,end,identity,safe=LineageResolver.read_v1_batch(repo,str(path),topic,0,10,1)
+    assert (len(rows),end,identity,safe)==(1,11,'uuid',11)
+    assert ledger.db.execute('SELECT safe_next_offset FROM partition_progress').fetchone()[0]==20
     ledger.close()
 
 
@@ -90,7 +104,7 @@ def test_confirmed_raw_quarantine_becomes_skip_without_observation(tmp_path):
         def persist_v1_outputs(self,outputs): self.outputs.extend(outputs)
     topic,path,ledger,raw_repo,physical=_one_delivery(tmp_path,value=b'not-json')
     assert physical['destination']=='QUARANTINE'
-    rows,end,_=LineageResolver.read_v1_batch(raw_repo,str(path),topic,0,10,1)
+    rows,end,_,_=LineageResolver.read_v1_batch(raw_repo,str(path),topic,0,10,1)
     assert rows[0]['status']=='CONFIRMED_QUARANTINE'
     store=V1SemanticStore(tmp_path/'bronze.sqlite');destination=Destination()
     disposition=BronzeProcessor.materialize_v1_delivery(store,destination,'live',rows[0]['record'],None)

@@ -665,11 +665,13 @@ class ObservationWorker:
             cp = self.store.db.execute('SELECT * FROM v1_checkpoint WHERE namespace=? AND topic=? AND partition_id=?',('live',self.settings.raw_topic,part)).fetchone()
             if cp['topic_identity'] != identity or cp['source_binding'] != binding or safe < cp['safe_next_offset']:
                 raise IntegrityFault('source binding changed or boundary regressed')
-            rows,end,batch_identity = LineageResolver.read_v1_batch(
+            rows,end,batch_identity,batch_safe = LineageResolver.read_v1_batch(
                 V1ClickHouseRepository(self.repo.client),self.settings.raw_ledger_path,
                 self.settings.raw_topic,part,cp['next_source_offset'],self.settings.batch_size)
             if batch_identity != identity:
                 raise IntegrityFault('source topic identity changed')
+            if batch_safe < cp['safe_next_offset']:
+                raise IntegrityFault('Raw safe boundary regressed during batch read')
             for resolved in rows:
                 raw = resolved['record']
                 try:
@@ -682,12 +684,12 @@ class ObservationWorker:
                 _acceptance_fault('before_checkpoint')
             if end > cp['next_source_offset']:
                 try:
-                    self.store.advance_v1('live',self.settings.raw_topic,part,identity,binding,cp['generation'],cp['next_source_offset'],end,max(safe,end))
+                    self.store.advance_v1('live',self.settings.raw_topic,part,identity,binding,cp['generation'],cp['next_source_offset'],end,batch_safe)
                 except Exception:
                     self.cas_failures += 1
                     raise
             self.progress[str(part)] = dict(topic_identity=identity,next_source_offset=end,
-                safe_next_offset=safe,offset_distance=safe-end)
+                safe_next_offset=batch_safe,offset_distance=batch_safe-end)
         self.state,self.error = 'READY',None
         from datetime import datetime,timezone
         self.last_successful_batch_at=datetime.now(timezone.utc).isoformat()

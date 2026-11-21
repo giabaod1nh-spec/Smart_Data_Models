@@ -7,7 +7,8 @@ def valid_snapshot():
     return dict(source_process_ok=True,expected_events=10,outbox_rows=10,outbox_acked=10,
         participants=['A','B'],cycles=5,raw_rows=10,raw_group_lag=0,canonical_rows=10,
         lineage_rows=10,bronze_partitions={'0':{'offset_distance':0}},pending_intents=0,
-        pending_reconciliation=0,integrity_faults=0,ready=True,observed_at=101.)
+        pending_reconciliation=0,integrity_faults=0,ready=True,observed_at=101.,
+        event_sets_match=True,required_hashes_match=True)
 
 
 def test_completion_predicate_accepts_only_complete_fresh_reconciliation():

@@ -18,7 +18,7 @@ class LineageResolver:
     @staticmethod
     def read_v1_batch(raw_repository: V1ClickHouseRepository, ledger_path: str,
                       topic: str, partition: int, next_source_offset: int,
-                      max_span: int) -> tuple[list[dict], int, str]:
+                      max_span: int) -> tuple[list[dict], int, str, int]:
         """Read one bounded, confirmed Raw prefix under a SQLite WAL snapshot.
 
         Completeness assumes the certified single-owner Raw ledger has not been
@@ -69,7 +69,7 @@ class LineageResolver:
                     if raw_id not in expected:
                         raise IntegrityFault("ClickHouse Raw evidence lacks confirmed ledger delivery")
             reader.db.execute("COMMIT")
-            return rows, end, progress["topic_identity"]
+            return rows, end, progress["topic_identity"], safe
         except BaseException:
             reader.db.execute("ROLLBACK")
             raise

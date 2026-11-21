@@ -401,7 +401,7 @@ def observation_replay(manifest_path, run_id, settings):
             start = cp['next_source_offset']
             while start < end:
                 cp = store.db.execute('SELECT * FROM v1_checkpoint WHERE namespace=? AND topic=? AND partition_id=?',(namespace,topic,partition)).fetchone()
-                rows,requested_end,identity = LineageResolver.read_v1_batch(
+                rows,requested_end,identity,_batch_safe = LineageResolver.read_v1_batch(
                     V1ClickHouseRepository(repository.client,replay_id=raw_replay_id),settings.raw_ledger_path,topic,partition,start,min(settings.batch_size,end-start))
                 if identity != spec['topic_identity'] or requested_end <= start:
                     raise RuntimeError('replay source identity/boundary unavailable')

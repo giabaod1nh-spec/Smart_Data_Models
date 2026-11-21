@@ -36,6 +36,7 @@ def main():
     up=run(compose+['up','-d','--build']);commands.append(up)
     if up['exit_code']: raise SystemExit(up['output'])
     deadline=time.monotonic()+180
+    converged=False
     while time.monotonic()<deadline:
         try:
             with urllib.request.urlopen('http://localhost:19098/ready',timeout=3) as response:
@@ -58,11 +59,17 @@ def main():
         bronze=int(client.query("SELECT count() FROM smart_traffic.bronze_observations_v1 WHERE namespace='live' AND simulation_run_id={r:String}",parameters={'r':workload}).result_rows[0][0])
         with urllib.request.urlopen('http://localhost:19098/ready',timeout=3) as response:health=json.load(response)
         reconciliation=dict(run_id=workload,expected=100,raw=raw,bronze=bronze,health=health)
-        if raw==bronze==100 and health.get('ready') and health.get('pending_intents')==0:break
+        converged=(raw==bronze==100 and health.get('ready') is True
+            and health.get('pending_intents')==0 and health.get('pending_reconciliation')==0
+            and health.get('integrity_faults')==0 and bool(health.get('partitions'))
+            and all(p.get('offset_distance')==0 for p in health['partitions'].values()))
+        if converged:
+            reconciled_at=time.monotonic()
+            break
         time.sleep(1)
     client.close()
     (root/'clean-start.json').write_text(json.dumps(reconciliation,indent=2),encoding='utf-8')
-    if reconciliation.get('raw')!=100 or reconciliation.get('bronze')!=100:raise RuntimeError('clean source reconciliation failed')
+    if not converged or reconciled_at>deadline:raise RuntimeError('clean source reconciliation failed')
     conflict_run=create_conflict_fixture('localhost:49092')
     deadline=time.monotonic()+60
     while time.monotonic()<deadline:

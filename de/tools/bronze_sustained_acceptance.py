@@ -26,6 +26,8 @@ def completion_failures(snapshot, *, source_completed_at, now, deadline_seconds=
     if not partitions: failures.append('empty Bronze partition inventory')
     elif any(p.get('offset_distance')!=0 for p in partitions.values()): failures.append('Bronze checkpoint lag')
     if snapshot.get('canonical_rows')!=expected: failures.append('selected-run canonical output incomplete')
+    if snapshot.get('event_sets_match') is not True: failures.append('event ID sets differ')
+    if snapshot.get('required_hashes_match') is not True: failures.append('required hashes differ')
     if snapshot.get('lineage_rows')!=expected: failures.append('selected-run lineage incomplete')
     if snapshot.get('pending_intents')!=0: failures.append('pending persistence')
     if snapshot.get('pending_reconciliation')!=0: failures.append('pending reconciliation')
@@ -42,15 +44,27 @@ def completion_failures(snapshot, *, source_completed_at, now, deadline_seconds=
 def selected_run_snapshot(run, artifact_root, metrics, observed_at):
     import sqlite3
     import clickhouse_connect
+    from contracts.traffic_observation import observation_event_id
     root=Path(artifact_root)
+    manifest=json.loads((root/'runs'/run/'run_manifest.json').read_text(encoding='utf-8'))
+    participants=sorted(manifest['participatingIntersectionIds'])
+    # The workload requests 120 simulation seconds and emits one cycle per second.
+    cycles=120
+    expected_ids={observation_event_id(run,node,cycle) for cycle in range(1,cycles+1) for node in participants}
     db=sqlite3.connect((root/'kafka_outbox/v1-outbox.sqlite3').resolve().as_uri()+'?mode=ro',uri=True)
     rows=db.execute('SELECT payload_json,status,cycle_sequence FROM kafka_outbox WHERE simulation_run_id=?',(run,)).fetchall();db.close()
     events=[json.loads(row[0]) for row in rows]
-    participants=sorted({event['intersectionId'] for event in events})
-    cycles=len({row[2] for row in rows})
+    outbox_ids={event['eventId'] for event in events}
+    outbox_hashes={event['eventId']:event['payloadHash'] for event in events}
     client=clickhouse_connect.get_client(host='localhost',port=int(os.getenv('BRONZE_V1_CLICKHOUSE_PORT','18124')))
     raw=int(client.query('SELECT count() FROM smart_traffic.v1_raw_events WHERE simulation_run_id={run:String}',parameters={'run':run}).result_rows[0][0])
     canonical=int(client.query("SELECT count() FROM smart_traffic.bronze_observations_v1 WHERE namespace='live' AND simulation_run_id={run:String}",parameters={'run':run}).result_rows[0][0])
+    bronze_rows=client.query("SELECT event_id,payload_hash,immutable_envelope_hash,bronze_canonical_hash FROM smart_traffic.bronze_observations_v1 WHERE namespace='live' AND simulation_run_id={run:String}",parameters={'run':run}).result_rows
+    def normalized(value): return value.decode('ascii') if isinstance(value,bytes) else value
+    bronze_hashes={normalized(eid):normalized(payload) for eid,payload,_,_ in bronze_rows}
+    bronze_hashes_valid=(len(bronze_rows)==len(bronze_hashes) and all(
+        len(normalized(envelope))==64 and len(normalized(content))==64
+        for _,_,envelope,content in bronze_rows))
     lineage=int(client.query("SELECT count() FROM smart_traffic.bronze_delivery_dispositions_v1 WHERE namespace='live' AND disposition='ACCEPTED_NEW' AND event_id IN (SELECT event_id FROM smart_traffic.bronze_observations_v1 WHERE namespace='live' AND simulation_run_id={run:String})",parameters={'run':run}).result_rows[0][0]);client.close()
     stack=os.getenv('BRONZE_V1_STACK','phase2acceptance')
     group=subprocess.check_output(['docker','exec',stack+'-kafka-1','/opt/kafka/bin/kafka-consumer-groups.sh','--bootstrap-server','kafka:9092','--describe','--group','de-kafka-raw-v1'],text=True)
@@ -59,8 +73,10 @@ def selected_run_snapshot(run, artifact_root, metrics, observed_at):
         fields=line.split()
         if len(fields)>=6 and fields[0]=='de-kafka-raw-v1' and fields[1]=='traffic.observations.v1':
             lag.append(int(fields[5]) if fields[5]!='-' else 0)
-    return dict(source_process_ok=True,expected_events=len(rows),outbox_rows=len(rows),
+    return dict(source_process_ok=True,expected_events=len(expected_ids),outbox_rows=len(rows),
         outbox_acked=sum(row[1]=='ACKED' for row in rows),participants=participants,cycles=cycles,
+        event_sets_match=outbox_ids==expected_ids==set(bronze_hashes),
+        required_hashes_match=bronze_hashes_valid and outbox_hashes==bronze_hashes,
         raw_rows=raw,raw_group_lag=sum(lag) if lag else None,canonical_rows=canonical,lineage_rows=lineage,
         bronze_partitions=metrics.get('partitions'),pending_intents=metrics.get('pending_intents'),
         pending_reconciliation=metrics.get('pending_reconciliation'),integrity_faults=metrics.get('integrity_faults'),
@@ -95,12 +111,19 @@ def main():
             if process.poll() is not None:
                 assert process.returncode==0,'source failed'
                 if source_stopped is None:source_stopped=time.monotonic()
+                # The sampling above may have started before the producer exited.
+                # Obtain both measurements again after observing completion.
+                with urllib.request.urlopen('http://localhost:'+health_port+'/metrics',timeout=5) as response:
+                    metrics=json.load(response)
+                with urllib.request.urlopen('http://localhost:'+raw_port+'/metrics',timeout=5) as response:
+                    raw=json.load(response)
                 observed=time.monotonic()
                 final_snapshot=selected_run_snapshot(run,producer_root,metrics,observed)
-                failures=completion_failures(final_snapshot,source_completed_at=source_stopped,now=observed)
+                final_snapshot['raw_metrics']=raw
+                failures=completion_failures(final_snapshot,source_completed_at=source_stopped,now=time.monotonic())
                 if not failures:
                     break
-                assert observed-source_stopped<=60,'; '.join(failures)
+                assert time.monotonic()-source_stopped<=60,'; '.join(failures)
             time.sleep(1)
     report=dict(run_id=run,simulation_seconds=120,catchup_seconds=time.monotonic()-source_stopped,
                 elapsed=time.monotonic()-started,samples=len(samples),result='PASS',verification=final_snapshot)
