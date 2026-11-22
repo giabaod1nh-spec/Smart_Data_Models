@@ -5,6 +5,9 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any, Union
 
+from contracts.traffic_observation import canonical_json
+from de.silver.archive_resolver import VerifiedRunContext
+
 from de.silver.contracts import (
     ENTITY_INTERSECTION,
     ENTITY_VEHICLE_SENSOR,
@@ -25,6 +28,40 @@ DimensionRecord = Union[
     SilverDimApproach,
     SilverDimScenario,
 ]
+
+
+def build_v1_dimensions(context: VerifiedRunContext, artifacts_root: str) -> dict[str, dict[str, Any]]:
+    """Freeze archive-derived dimension content, excluding mutable lifecycle fields."""
+    base = f"{artifacts_root.rstrip('/')}/runs/{context.run_id}"
+    metadata = {key: value for key, value in context.manifest.items()
+                if key not in {"runStatus", "failedCycleCount"}}
+    participants = canonical_json(list(context.participants))
+    # The topology dimension is keyed by the immutable catalog digest, so it
+    # must describe the entire catalog even when this run uses a participant
+    # subset. Run scope belongs in the separate run and binding dimensions.
+    node_to_tls = context.catalog["node_to_tls"]
+    approaches = context.catalog["approach_edges"]
+    topology_directions = {
+        node: tuple(approaches[node_to_tls[node]])
+        for node in sorted(node_to_tls)
+    }
+    return {
+        "silver_run_dimension_v1": dict(
+            simulation_run_id=context.run_id, run_generation=context.generation,
+            topology_digest=context.topology_digest, manifest_identity=context.manifest_identity,
+            participant_ids_json=participants, manifest_metadata_json=canonical_json(metadata),
+            manifest_path=base + "/run_manifest.json"),
+        "silver_topology_dimension_v1": dict(
+            topology_digest=context.topology_digest, digest_algorithm_version="v1",
+            catalog_hash=context.catalog_file_hash,
+            intersection_ids_json=canonical_json(sorted(node_to_tls)),
+            approaches_by_intersection_json=canonical_json(topology_directions),
+            catalog_path=base + "/network_topology_catalog.json"),
+        "silver_run_topology_binding_v1": dict(
+            simulation_run_id=context.run_id, run_generation=context.generation,
+            topology_digest=context.topology_digest, manifest_identity=context.manifest_identity,
+            catalog_hash=context.catalog_file_hash, participant_ids_json=participants),
+    }
 
 
 @dataclass(frozen=True)

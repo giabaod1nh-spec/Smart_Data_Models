@@ -5,6 +5,15 @@ and CAS are verified against the real processor path (reader uses FakeClient).
 """
 from __future__ import annotations
 
+import pytest
+
+pytest.skip(
+    'Historical V2 stream/ledger processor contract retired by Phase 3; '
+    'V1 execution is covered by test_v1_journal_worker, test_v1_runtime_startup, '
+    'test_v1_recovery and test_health_api',
+    allow_module_level=True,
+)
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path

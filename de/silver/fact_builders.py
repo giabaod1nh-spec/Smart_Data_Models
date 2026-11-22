@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import Any, Optional, Union
 
+from contracts.traffic_observation import canonical_json, validate_observation
+from de.silver.archive_resolver import VerifiedRunContext
+
 from de.silver.contracts import parse_urn_id
 from de.silver.input_models import BronzeEntityInputRecord, BronzeRunInputRecord
 from de.silver.models import (
@@ -29,6 +32,81 @@ FactRecord = Union[
     SilverIntersectionStateFact,
     SilverRunEventFact,
 ]
+
+
+def build_v1_fact_rows(event: dict[str, Any], context: VerifiedRunContext,
+                       provenance: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Build exact V1 event bundles from the archived direction population.
+
+    The caller supplies Bronze-verified primary delivery provenance. Processing
+    timestamps are assigned by the repository when the frozen rows are written.
+    """
+    validate_observation(event)
+    context.validate_event(event)
+    payload = event["payload"]
+    required_provenance = (
+        "bronze_semantic_revision", "bronze_canonical_hash", "source_raw_ingestion_id",
+        "source_topic", "source_partition", "source_offset",
+        "source_physical_record_hash", "source_byte_hash",
+    )
+    missing = [key for key in required_provenance if key not in provenance]
+    if missing:
+        raise ValueError(f"primary provenance missing {missing}")
+    common = dict(
+        simulation_run_id=context.run_id, topology_digest=context.topology_digest,
+        run_generation=context.generation, manifest_identity=context.manifest_identity,
+        event_id=event["eventId"], cycle_sequence=event["cycleSequence"],
+        simulation_time_seconds=event["simulationTimeSeconds"],
+        intersection_id=event["intersectionId"], scenario_id=event["scenarioId"],
+        captured_at=event["capturedAt"], source_payload_hash=event["payloadHash"],
+        silver_schema_version="v1", **{key: provenance[key] for key in required_provenance},
+    )
+    traffic, signals = [], []
+    measured_counts = []
+    metrics = ("vehicle_count", "pcu_equivalent", "left_count", "straight_count",
+               "right_count", "average_speed_kmh", "waiting_vehicle_count",
+               "queue_length_m", "occupancy_pct")
+    for direction in context.directions[event["intersectionId"]]:
+        value = payload["directions"][direction]
+        availability = value.get("metric_availability", {})
+        flags = [f"METRIC_{status}:{name}" for name, status in sorted(availability.items())]
+        traffic.append(dict(common, source_direction=direction,
+            **{key: value[key] for key in metrics},
+            metric_availability_json=canonical_json(availability),
+            direction_payload_json=canonical_json(value),
+            quality_status="VALID_WITH_UNAVAILABLE" if flags else "VALID",
+            quality_flags_json=canonical_json(flags)))
+        measured_counts.append(value["vehicle_count"] if "vehicle_count" not in availability else None)
+        signals.append(dict(common, source_direction=direction,
+            signal_color=payload["colors"][direction], phase=payload["phase"],
+            next_phase=payload.get("next_phase"),
+            phase_remaining_seconds=payload.get("phase_remaining"),
+            phase_duration_seconds=payload.get("phase_duration"),
+            green_duration_seconds=payload.get("green_duration"),
+            yellow_duration_seconds=payload.get("yellow_duration"),
+            red_duration_seconds=payload.get("red_duration"),
+            timing_mode=payload.get("timing_mode"),
+            signal_payload_json=canonical_json({key: payload[key] for key in (
+                "colors", "phase", "next_phase", "phase_remaining", "phase_duration",
+                "green_duration", "yellow_duration", "red_duration", "timing_mode") if key in payload}),
+            quality_status="VALID", quality_flags_json="[]"))
+    complete = all(count is not None for count in measured_counts)
+    intersection = dict(common, phase=payload["phase"],
+        control_mode=payload["control_mode"], incidents_json=canonical_json(payload["incidents"]),
+        derived_traffic_state=payload.get("derived_traffic_state"),
+        operational_state_json=canonical_json(payload["operational_state"])
+            if "operational_state" in payload else None,
+        spillback_detected=int(payload["spillback_detected"])
+            if "spillback_detected" in payload else None,
+        intersection_box_blocked=int(payload["intersection_box_blocked"])
+            if "intersection_box_blocked" in payload else None,
+        downstream_edge_full=int(payload["downstream_edge_full"])
+            if "downstream_edge_full" in payload else None,
+        spillback_pressure=payload.get("spillback_pressure"),
+        intersection_payload_json=canonical_json(payload),
+        total_vehicle_count=sum(measured_counts) if complete else None,
+        total_vehicle_count_quality="COMPLETE_TOPOLOGY_SUM" if complete else "PARTIAL_OR_UNAVAILABLE")
+    return dict(traffic=traffic, signal=signals, intersection=[intersection])
 
 
 def format_quality_flags(flags: set[str]) -> str:

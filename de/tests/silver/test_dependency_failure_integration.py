@@ -8,8 +8,9 @@ REPO = Path(__file__).resolve().parents[3]
 
 def test_runbook_documents_clickhouse_outage_recovery_path():
     text = (REPO / "docs" / "shared" / "SILVER_RUNBOOK.md").read_text(encoding="utf-8")
-    plan = (REPO / "docs" / "siliver" / "SILVER_4_INTEGRATION_VALIDATION_PLAN.md").read_text(
+    plan = (REPO / "docs" / "DEv1" / "phase-3" / "plan.md").read_text(
         encoding="utf-8"
     )
     assert "ClickHouse" in text or "clickhouse" in text.lower()
-    assert "ClickHouse unavailable" in plan
+    assert "AUTHORITY_UNAVAILABLE" in plan
+    assert "retry" in plan.lower()

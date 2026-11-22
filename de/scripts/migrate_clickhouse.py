@@ -25,9 +25,12 @@ def select_migrations(
     gold_m1: bool = False,
     v1_raw: bool = False,
     v1_bronze: bool = False,
+    v1_silver: bool = False,
     migration: str | None = None,
 ) -> list[Path]:
     """Resolve the migration set without connecting to ClickHouse."""
+    if v1_silver:
+        return [migrations_dir / "008_create_silver_v1.sql"]
     if v1_bronze:
         return [migrations_dir / "006_create_kafka_raw_v1.sql",
                 migrations_dir / "007_create_bronze_v1.sql"]
@@ -67,6 +70,7 @@ def main() -> int:
     p.add_argument("--migration", default=None, help="Path to SQL migration file")
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--v1-bronze", action="store_true", help="Apply additive V1 Raw and Bronze migrations 006/007")
+    mode.add_argument("--v1-silver", action="store_true", help="Apply additive V1 Silver migration 008 only")
     mode.add_argument("--v1-raw", action="store_true", help="Apply additive V1 Raw migration 006 only")
     mode.add_argument(
         "--all",
@@ -96,6 +100,7 @@ def main() -> int:
         gold_m1=args.gold_m1,
         v1_raw=args.v1_raw,
         v1_bronze=args.v1_bronze,
+        v1_silver=args.v1_silver,
         migration=args.migration,
     )
     for f in files:

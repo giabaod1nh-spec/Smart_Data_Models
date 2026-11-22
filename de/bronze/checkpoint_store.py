@@ -566,7 +566,8 @@ class V1SemanticReader(V1SemanticStore):
     def read_invalidation_provenance(self, namespace, invalidation_id):
         """Return authority-owned invalidation context and both source deliveries."""
         row=self.db.execute('''SELECT v.*,i.simulation_run_id,i.intersection_id,
-            i.cycle_sequence,i.simulation_time_seconds,i.topology_digest,i.content_hash
+            i.cycle_sequence,i.simulation_time_seconds,i.topology_digest,i.content_hash,
+            i.change_sequence
             FROM v1_invalidations v JOIN v1_identity i
               ON i.namespace=v.namespace AND i.event_id=v.event_id
             WHERE v.namespace=? AND v.invalidation_id=?''',(namespace,invalidation_id)).fetchone()

@@ -1,3 +1,34 @@
+# Silver V1 operational runbook
+
+Current runtime is `python -m de.silver.main`, existing service `de-silver-processor`, port8095. Approved architecture, Python reader and acceptance contracts are in `docs/DEv1/phase-3/`.
+
+## Start and observe
+
+```bash
+docker compose --profile v1-raw --profile v1-bronze --profile v1-silver up -d de-kafka-raw-v1 de-bronze-v1 de-silver-processor
+docker compose ps de-silver-processor
+docker compose logs --tail 100 de-silver-processor
+curl -sS http://localhost:8095/health
+curl -sS http://localhost:8095/ready
+```
+
+Dependencies: healthy ClickHouse and `de-bronze-v1`, completed `de-migrate-v1-silver` applying008 after Bronze006/007. Silver opens Bronze/archive read-only and owns `de/artifacts/silver_v1/checkpoint.sqlite3`. Preserve that checkpoint, its WAL companions and lock path. Retain the bound Bronze authority and complete journals from1; never prune, replace or rewind beneath bound Silver/replay state.
+
+## Dependency failure and recovery
+
+ClickHouse/source/archive outages keep readiness false or degraded and retry with bounded backoff. Inspect `/health`, persisted obligations and lifecycle poll state; restore the same authority, then confirm cursor progress and `/ready`. Missing archive is retryable; malformed archive/schema/source-binding or same-key content conflict becomes FAULTED. Preserve evidence and resolve the mismatch before restart. Never clear frozen state to make readiness green. Canonical readers return typed AUTHORITY_UNAVAILABLE/SOURCE_LAG/INVALIDATION_LAG and no partial page.
+
+## Restart and replay
+
+`docker compose restart de-silver-processor` resumes frozen obligations and both journal cursors. Offline diagnostics: `python -m de.scripts.inspect_silver_v1` and `python -m de.scripts.inspect_silver_retention_v1` in the configured environment. Freeze replay with `python -m de.scripts.freeze_silver_replay_v1 --run-id RUN --replay-id ID`; see `python -m de.silver.replay --help` for execution/resume. Replay uses isolated state/locks/CH targets; changed semantic boundary aborts the ID. Whole-run gate: `python -m de.scripts.certify_silver_run_v1 --run-id RUN --cycles 120`.
+
+## Forbidden operations
+
+Do not start Gold V2 against Silver V1, clear/rewrite live state, bypass canonical validity through fact-table scans, or destructively modify historical V2 database objects. Phase4 owns Gold V1 implementation. The historical text below documents the retired V2 configuration and is not a current launch/recovery procedure.
+
+---
+
+# Archived historical V2 runbook
 # Silver Processor Runbook
 
 **Path:** `docs/shared/SILVER_RUNBOOK.md`  

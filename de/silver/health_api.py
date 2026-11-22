@@ -47,6 +47,8 @@ def health() -> dict[str, Any]:
         "clickhouse_ok": snap.clickhouse_ok,
         "sqlite_ok": snap.sqlite_ok,
         "schema_ok": snap.schema_ok,
+        "lifecycle_ok": snap.lifecycle_ok,
+        "lifecycle_error": snap.lifecycle_error,
         "lock_held": snap.lock_held,
         "namespace": snap.namespace,
         "mode": snap.mode,

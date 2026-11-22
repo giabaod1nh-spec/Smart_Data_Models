@@ -1,6 +1,6 @@
 services:
   de-migrate-v1-bronze:
-    profiles: ["v1-bronze"]
+    profiles: ["v1-bronze", "v1-silver"]
     build: {context: ., dockerfile: de/Dockerfile}
     environment: {K4_CLICKHOUSE_HOST: clickhouse}
     depends_on:
@@ -9,7 +9,7 @@ services:
     restart: "no"
 
   de-bronze-v1:
-    profiles: ["v1-bronze"]
+    profiles: ["v1-bronze", "v1-silver"]
     build: {context: ., dockerfile: de/Dockerfile}
     environment:
       DE_BRONZE_CLICKHOUSE_HOST: clickhouse
@@ -28,6 +28,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+
+  de-migrate-v1-silver:
+    profiles: ["v1-silver"]
+    build: {context: ., dockerfile: de/Dockerfile}
+    environment: {K4_CLICKHOUSE_HOST: clickhouse}
+    depends_on:
+      de-migrate-v1-bronze: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+    command: ["python", "-m", "de.scripts.migrate_clickhouse", "--v1-silver"]
+    restart: "no"
 
   de-migrate-v1:
     profiles: ["v1-raw"]
@@ -259,16 +269,16 @@ services:
       start_period: 30s
 
   de-silver-processor:
-    profiles: ["v2-legacy"]
+    profiles: ["v1-silver"]
     build:
       context: .
       dockerfile: de/Dockerfile
     container_name: de-silver-processor
     restart: unless-stopped
     depends_on:
-      de-migrate:
+      de-migrate-v1-silver:
         condition: service_completed_successfully
-      de-bronze-processor:
+      de-bronze-v1:
         condition: service_healthy
       clickhouse:
         condition: service_healthy
@@ -280,11 +290,13 @@ services:
       SILVER_CLICKHOUSE_DATABASE: smart_traffic
       SILVER_CLICKHOUSE_USER: default
       SILVER_CLICKHOUSE_PASSWORD: ""
-      SILVER_CHECKPOINT_PATH: /app/de/artifacts/silver/checkpoint.sqlite3
+      SILVER_CHECKPOINT_PATH: /app/de/artifacts/silver_v1/checkpoint.sqlite3
+      SILVER_V1_BRONZE_PATH: /app/de/artifacts/bronze_v1/checkpoint.sqlite3
+      SILVER_V1_ARCHIVE_ROOT: /app/Visualize/artifacts
       SILVER_NAMESPACE: live
       SILVER_DESTINATION_MODE: main
       SILVER_REPLAY_RUN_ID: ""
-      SILVER_TOPIC_ALLOWLIST: traffic.entity-events.v2,traffic.simulation-events.v2
+      SILVER_TOPIC_ALLOWLIST: traffic.observations.v1
       SILVER_HEALTH_HOST: 0.0.0.0
       SILVER_HEALTH_PORT: "8095"
       SILVER_BATCH_SIZE: "500"
@@ -296,7 +308,9 @@ services:
       SILVER_WORKER_COUNT: "1"
     command: ["python", "-m", "de.silver.main"]
     volumes:
-      - ./de/artifacts:/app/de/artifacts
+      - ./de/artifacts/bronze_v1:/app/de/artifacts/bronze_v1:ro
+      - ./Visualize/artifacts/runs:/app/Visualize/artifacts/runs:ro
+      - ./de/artifacts/silver_v1:/app/de/artifacts/silver_v1
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/ready', timeout=2)"]
       interval: 10s

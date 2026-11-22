@@ -199,6 +199,83 @@ class BronzeClickHouseRepository:
         finally:
             db.close()
 
+    def read_valid_observation(self, namespace, event_id, expected_revision, *, state_path=None):
+        """Read one current ACCEPTED event with its frozen Bronze output obligations.
+
+        The SQLite transaction pins semantic identity while the ClickHouse mirror
+        is checked. A second identity check after reconciliation rejects a source
+        transition committed during the external read.
+        """
+        import hashlib
+        import json
+        import sqlite3
+        from pathlib import Path
+        from contracts.traffic_observation import canonical_json, validate_observation
+
+        if not namespace or not event_id or int(expected_revision) < 1:
+            raise ValueError('namespace, event ID and positive revision required')
+        authority_path = state_path or self.settings.checkpoint_path
+        db = sqlite3.connect(Path(authority_path).resolve().as_uri() + '?mode=ro', uri=True,
+                             isolation_level=None)
+        db.row_factory = sqlite3.Row
+        try:
+            db.execute('PRAGMA query_only=ON')
+            db.execute('BEGIN')
+            identity = db.execute(
+                'SELECT * FROM v1_identity WHERE namespace=? AND event_id=?',
+                (namespace, event_id)).fetchone()
+            if identity is None or identity['state'] != 'ACCEPTED' or identity['revision'] != expected_revision:
+                return None
+            primary = db.execute(
+                "SELECT * FROM v1_intents WHERE namespace=? AND raw_id=? AND processing_status='COMPLETED'",
+                (namespace, identity['first_raw_id'])).fetchone()
+            if primary is None:
+                raise RuntimeError('accepted observation has no completed primary delivery')
+            obligations = json.loads(primary['expected_json'])
+            query = self.client.query(
+                'SELECT * FROM ' + self.database + '.bronze_observations_v1 '
+                'WHERE namespace={ns:String} AND event_id={eid:String} AND semantic_revision={rev:UInt64}',
+                parameters=dict(ns=namespace, eid=event_id, rev=expected_revision))
+            if not query.result_rows or self.reconcile_v1_outputs(obligations):
+                raise RuntimeError('accepted observation mirror or lineage missing')
+            event = None
+            for values in query.result_rows:
+                row = dict(zip(query.column_names, values))
+                row = {key: value.decode('ascii') if isinstance(value, bytes) else value
+                       for key, value in row.items()}
+                candidate = json.loads(row['observation_envelope_json'])
+                validate_observation(candidate)
+                digest = hashlib.sha256(canonical_json(dict(
+                    observation=candidate,
+                    normalization_version=row['normalization_version'],
+                    bronze_schema_version=row['bronze_schema_version'])).encode()).hexdigest()
+                if (digest != identity['content_hash'] or
+                        row['bronze_canonical_hash'] != digest or
+                        candidate['eventId'] != event_id or
+                        candidate['payloadHash'] != identity['payload_hash']):
+                    raise RuntimeError('accepted observation content mismatch')
+                if event is not None and event != candidate:
+                    raise RuntimeError('conflicting accepted observation mirrors')
+                event = candidate
+            db.execute('COMMIT')
+            # The CH query is outside SQLite's transaction domain. Reject a
+            # concurrently committed conflict before returning the envelope.
+            latest = db.execute('SELECT state,revision,content_hash FROM v1_identity '
+                                'WHERE namespace=? AND event_id=?',
+                                (namespace, event_id)).fetchone()
+            if (latest is None or latest['state'] != 'ACCEPTED' or
+                    latest['revision'] != expected_revision or
+                    latest['content_hash'] != identity['content_hash']):
+                return None
+            return dict(event=event, semantic_revision=expected_revision,
+                        change_sequence=identity['change_sequence'],
+                        bronze_canonical_hash=identity['content_hash'],
+                        primary_delivery=dict(primary))
+        finally:
+            if db.in_transaction:
+                db.execute('ROLLBACK')
+            db.close()
+
     def verify_tables(self) -> bool:
         for table in (
             "kafka_raw_events",

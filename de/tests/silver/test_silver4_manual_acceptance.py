@@ -21,5 +21,6 @@ def test_runbook_exists_and_covers_required_topics():
 
 
 def test_plan4_completion_or_review_docs_exist():
-    assert (REPO / "docs" / "siliver" / "SILVER_4_INTEGRATION_VALIDATION_PLAN.md").is_file()
-    assert (REPO / "docs" / "siliver" / "SILVER_4_PLAN_REVIEW.md").is_file()
+    phase3 = REPO / 'docs' / 'DEv1' / 'phase-3'
+    for name in ('plan.md', 'decisions.md', 'acceptance.md', 'handover.md'):
+        assert (phase3 / name).is_file()

@@ -22,24 +22,26 @@ def test_compose_has_de_silver_processor_with_locked_contract():
     assert svc["restart"] == "unless-stopped"
     assert svc["command"] == ["python", "-m", "de.silver.main"]
     assert "8095:8095" in svc["ports"]
-    assert "./de/artifacts:/app/de/artifacts" in svc["volumes"]
+    assert svc['profiles'] == ['v1-silver']
+    assert "./de/artifacts/bronze_v1:/app/de/artifacts/bronze_v1:ro" in svc["volumes"]
+    assert "./Visualize/artifacts/runs:/app/Visualize/artifacts/runs:ro" in svc["volumes"]
+    assert "./de/artifacts/silver_v1:/app/de/artifacts/silver_v1" in svc["volumes"]
 
     deps = svc["depends_on"]
-    assert deps["de-migrate"]["condition"] == "service_completed_successfully"
-    assert deps["de-bronze-processor"]["condition"] == "service_healthy"
+    assert deps["de-migrate-v1-silver"]["condition"] == "service_completed_successfully"
+    assert deps["de-bronze-v1"]["condition"] == "service_healthy"
     assert deps["clickhouse"]["condition"] == "service_healthy"
 
     env = svc["environment"]
     assert env["SILVER_CLICKHOUSE_HOST"] == "clickhouse"
     assert env["SILVER_CLICKHOUSE_PORT"] == "8123"
     assert env["SILVER_CLICKHOUSE_DATABASE"] == "smart_traffic"
-    assert env["SILVER_CHECKPOINT_PATH"] == "/app/de/artifacts/silver/checkpoint.sqlite3"
+    assert env["SILVER_CHECKPOINT_PATH"] == "/app/de/artifacts/silver_v1/checkpoint.sqlite3"
+    assert env['SILVER_V1_BRONZE_PATH'] == '/app/de/artifacts/bronze_v1/checkpoint.sqlite3'
     assert env["SILVER_NAMESPACE"] == "live"
     assert env["SILVER_DESTINATION_MODE"] == "main"
     assert env["SILVER_REPLAY_RUN_ID"] == ""
-    assert env["SILVER_TOPIC_ALLOWLIST"] == (
-        "traffic.entity-events.v2,traffic.simulation-events.v2"
-    )
+    assert env["SILVER_TOPIC_ALLOWLIST"] == 'traffic.observations.v1'
     assert env["SILVER_HEALTH_HOST"] == "0.0.0.0"
     assert env["SILVER_HEALTH_PORT"] == "8095"
     assert env["SILVER_BATCH_SIZE"] == "500"

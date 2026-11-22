@@ -81,3 +81,5 @@ class HealthSnapshot:
     fault_code: str = ""
     fault_message: str = ""
     streams: tuple[dict[str, Any], ...] = ()
+    lifecycle_ok: bool = False
+    lifecycle_error: str = ''

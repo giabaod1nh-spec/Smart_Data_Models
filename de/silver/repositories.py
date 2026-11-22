@@ -7,6 +7,8 @@ caller-supplied strings; every target is dispatched through a frozen allowlist/m
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
+from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import clickhouse_connect
@@ -66,6 +68,26 @@ class ReplayModeGuardError(SilverRepositoryError):
 # ── Static allowlists / replay mappings (Plan 3 §12.2) ──────────────────────
 
 QUARANTINE_TABLE = "silver_quarantine"
+V1_TABLES = frozenset({
+    "silver_traffic_observation_fact_v1", "silver_signal_state_fact_v1",
+    "silver_intersection_state_fact_v1", "silver_run_dimension_v1",
+    "silver_topology_dimension_v1", "silver_run_topology_binding_v1",
+    "silver_run_lifecycle_v1", "silver_event_validity_v1",
+    "silver_invalidation_v1", "silver_quarantine_v1",
+})
+V1_REPLAY_TABLES = frozenset(name.replace("_v1", "_replay_v1") for name in V1_TABLES)
+V1_KEY_COLUMNS = {
+    "silver_traffic_observation_fact_v1": ("simulation_run_id", "topology_digest", "event_id", "intersection_id", "source_direction", "bronze_semantic_revision"),
+    "silver_signal_state_fact_v1": ("simulation_run_id", "topology_digest", "event_id", "intersection_id", "source_direction", "bronze_semantic_revision"),
+    "silver_intersection_state_fact_v1": ("simulation_run_id", "topology_digest", "event_id", "intersection_id", "bronze_semantic_revision"),
+    "silver_run_dimension_v1": ("simulation_run_id", "run_generation"),
+    "silver_topology_dimension_v1": ("topology_digest",),
+    "silver_run_topology_binding_v1": ("simulation_run_id", "run_generation", "topology_digest"),
+    "silver_run_lifecycle_v1": ("simulation_run_id", "run_generation", "observed_at"),
+    "silver_event_validity_v1": ("namespace", "event_id", "semantic_revision", "created_at"),
+    "silver_invalidation_v1": ("namespace", "invalidation_sequence", "event_id", "invalidation_id"),
+    "silver_quarantine_v1": ("namespace", "failure_stage", "error_code", "created_at", "quarantine_id"),
+}
 QUARANTINE_REPLAY_TABLE = "silver_quarantine_replay"
 LEDGER_TABLE = "silver_processing_ledger"
 
@@ -587,3 +609,145 @@ class SilverClickHouseRepository:
         if not r.result_rows or r.result_rows[0][0] is None:
             return None
         return int(r.result_rows[0][0])
+
+    def verify_v1_schema(self, *, replay: bool = False) -> None:
+        """Check the complete V1 table family before declaring worker readiness."""
+        required = V1_TABLES | V1_REPLAY_TABLES
+        result = self.client.query(
+            "SELECT name FROM system.tables WHERE database={db:String} AND name IN {names:Array(String)}",
+            parameters={"db": self.database, "names": sorted(required)},
+        )
+        found = {str(row[0]) for row in result.result_rows}
+        missing = required - found
+        if missing:
+            raise SchemaMismatchError(f"Silver V1 tables missing: {sorted(missing)}")
+        ddl = (Path(__file__).resolve().parents[1] / "migrations" /
+               "008_create_silver_v1.sql").read_text(encoding="utf-8")
+        expected = {}
+        for match in re.finditer(
+                r"CREATE TABLE IF NOT EXISTS smart_traffic\.(\w+)\s*\(\s*(.*?)\s*\)\s*ENGINE",
+                ddl, re.S):
+            table, body = match.groups()
+            expected[table] = {}
+            for line in body.splitlines():
+                column, column_type = line.strip().rstrip(",").split(None, 1)
+                expected[table][column] = re.sub(r"\s+", "", column_type)
+        if set(expected) != required:
+            raise SchemaMismatchError("migration 008 table inventory differs from V1 runtime")
+        result = self.client.query(
+            "SELECT table,name,type FROM system.columns WHERE database={db:String} "
+            "AND table IN {names:Array(String)}",
+            parameters={"db": self.database, "names": sorted(required)},
+        )
+        actual = {table: {} for table in required}
+        for table, column, column_type in result.result_rows:
+            actual[str(table)][str(column)] = re.sub(r"\s+", "", str(column_type))
+        if actual != expected:
+            difference = sorted(table for table in required if actual[table] != expected[table])
+            raise SchemaMismatchError(f"Silver V1 column/type mismatch: {difference}")
+
+    def insert_v1_rows(self, table: str, rows: Sequence[Dict[str, Any]],
+                       *, replay_run_id: Optional[str] = None) -> None:
+        """Write frozen V1 rows through a static table allowlist."""
+        from datetime import datetime
+        if table not in V1_TABLES:
+            raise InvalidTargetTableError(table)
+        replay = replay_run_id is not None
+        self._guard_mode(replay=replay)
+        if not rows:
+            return
+        physical = table.replace("_v1", "_replay_v1") if replay else table
+        columns = tuple(rows[0])
+        if any(tuple(row) != columns for row in rows):
+            raise ValueError("V1 batch columns differ")
+        if replay and not replay_run_id:
+            raise ValueError("replay run ID required")
+        if replay:
+            columns = ("replay_run_id",) + columns
+        def cell(name: str, value: Any) -> Any:
+            if (name in {"created_at", "observed_at", "captured_at", "registry_updated_at"}
+                    and isinstance(value, str)):
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return value
+
+        data = [([replay_run_id] if replay else []) +
+                [cell(name, value) for name, value in row.items()] for row in rows]
+        self.client.insert(f"{self.database}.{physical}", data, column_names=list(columns))
+
+    def reconcile_v1_row(self, table: str, expected: Dict[str, Any],
+                         *, replay_run_id: Optional[str] = None) -> bool:
+        """Return false for missing; raise on any conflicting same-key content."""
+        from datetime import datetime, timezone
+
+        if table not in V1_TABLES:
+            raise InvalidTargetTableError(table)
+        replay = replay_run_id is not None
+        self._guard_mode(replay=replay)
+        physical = table.replace("_v1", "_replay_v1") if replay else table
+        keys = (("replay_run_id",) if replay else ()) + V1_KEY_COLUMNS[table]
+        expected_row = ({"replay_run_id": replay_run_id, **expected} if replay else expected)
+        if not set(keys) <= set(expected_row):
+            raise ValueError("V1 reconciliation key is incomplete")
+        params: Dict[str, Any] = {}
+        predicates = []
+        for index, name in enumerate(keys):
+            kind = ("DateTime64(6)" if name in {"created_at", "observed_at"}
+                    else "UInt64" if name in {"run_generation", "bronze_semantic_revision",
+                                           "semantic_revision", "invalidation_sequence"}
+                    else "String")
+            predicates.append(f"{name}={{k{index}:{kind}}}")
+            value = expected_row[name]
+            if kind == "DateTime64(6)" and isinstance(value, str):
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            params[f"k{index}"] = value
+        result = self.client.query(
+            f"SELECT * FROM {self.database}.{physical} WHERE " + " AND ".join(predicates) +
+            " LIMIT 1001", parameters=params)
+        if len(result.result_rows) > 1000:
+            raise FactBusinessKeyConflictError("excess physical V1 duplicates")
+
+        def normalized(name: str, value: Any) -> Any:
+            if isinstance(value, bytes):
+                value = value.decode("utf-8").rstrip("\x00")
+            if name in {"created_at", "observed_at", "captured_at", "registry_updated_at"} and value is not None:
+                if isinstance(value, str):
+                    value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                if isinstance(value, datetime):
+                    if value.tzinfo is None:
+                        value = value.replace(tzinfo=timezone.utc)
+                    if name == "captured_at":
+                        value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
+                    return value.astimezone(timezone.utc).isoformat(timespec="microseconds")
+            return value
+
+        for values in result.result_rows:
+            actual = dict(zip(result.column_names, values))
+            differing = sorted(set(actual) ^ set(expected_row))
+            differing.extend(name for name in expected_row if name in actual and
+                not (table in {"silver_run_dimension_v1", "silver_topology_dimension_v1",
+                               "silver_run_topology_binding_v1"} and name == "created_at") and
+                not (table == "silver_topology_dimension_v1" and name == "catalog_path") and
+                normalized(name, actual[name]) != normalized(name, expected_row[name]))
+            if differing:
+                raise FactBusinessKeyConflictError(
+                    "V1 same-key content differs in: " + ", ".join(differing))
+        return bool(result.result_rows)
+
+    def fetch_v1_event_rows(self, table: str, run_id: str, digest: str,
+                            event_id: str) -> List[Dict[str, Any]]:
+        """Bounded physical fact read; callers deduplicate by logical identity."""
+        if table not in {
+            "silver_traffic_observation_fact_v1", "silver_signal_state_fact_v1",
+            "silver_intersection_state_fact_v1",
+        }:
+            raise InvalidTargetTableError(table)
+        result = self.client.query(
+            f"SELECT * FROM {self.database}.{table} WHERE "
+            "simulation_run_id={run:String} AND topology_digest={digest:String} "
+            "AND event_id={event:String} LIMIT 1001",
+            parameters={"run": run_id, "digest": digest, "event": event_id})
+        if len(result.result_rows) > 1000:
+            raise FactBusinessKeyConflictError("V1 physical event row bound exceeded")
+        return [{name: (value.decode("utf-8").rstrip("\x00") if isinstance(value, bytes) else value)
+                 for name, value in zip(result.column_names, values)}
+                for values in result.result_rows]

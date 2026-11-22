@@ -133,12 +133,18 @@ class SilverSettings(BaseSettings):
     clickhouse_connect_timeout: float = 5.0
     clickhouse_query_timeout: float = 30.0
 
-    checkpoint_path: str = str(_REPO / "de" / "artifacts" / "silver" / "checkpoint.sqlite3")
+    checkpoint_path: str = str(_REPO / "de" / "artifacts" / "silver_v1" / "checkpoint.sqlite3")
+    v1_bronze_path: str = str(_REPO / "de" / "artifacts" / "bronze_v1" / "checkpoint.sqlite3")
+    v1_source_namespace: str = "live"
+    v1_replay_run_filter: str = ""
+    v1_archive_root: str = str(_REPO / "Visualize" / "artifacts")
+    v1_lifecycle_interval_sec: int = 5
+    v1_lifecycle_stale_intervals: int = 3
     namespace: str = "live"
     destination_mode: str = DestinationMode.MAIN.value
     replay_run_id: str = ""
 
-    topic_allowlist: str = "traffic.entity-events.v2,traffic.simulation-events.v2"
+    topic_allowlist: str = "traffic.observations.v1"
     batch_size: int = 500
     poll_interval_sec: float = 2.0
     discovery_interval_sec: float = 30.0
@@ -188,6 +194,16 @@ class SilverSettings(BaseSettings):
     def validate_mode_guards(self) -> None:
         if not self.single_instance:
             raise SilverConfigError("single_instance must be true")
+        if self.topic_list() != ("traffic.observations.v1",):
+            raise SilverConfigError("Silver V1 requires traffic.observations.v1 only")
+        if self.v1_source_namespace != "live":
+            raise SilverConfigError("Silver V1 Bronze source namespace must be live")
+        if not 1 <= self.v1_lifecycle_interval_sec <= 300:
+            raise SilverConfigError("V1 lifecycle interval must be 1..300 seconds")
+        if not 1 <= self.v1_lifecycle_stale_intervals <= 100:
+            raise SilverConfigError('V1 lifecycle stale threshold must be 1..100 intervals')
+        if Path(self.checkpoint_path).resolve() == Path(self.v1_bronze_path).resolve():
+            raise SilverConfigError("Silver and Bronze V1 state paths must differ")
         if self.destination_mode == DestinationMode.MAIN.value:
             assert_live_namespace(self.namespace)
             if self.replay_run_id:
