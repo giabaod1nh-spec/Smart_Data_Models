@@ -7,6 +7,11 @@ import { AnalyticsOverviewPage } from '@/pages/AnalyticsOverviewPage'
 import { IntersectionDetailPage } from '@/pages/IntersectionDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AppShell } from '@/components/layout/AppShell'
+import { OperationsPage } from '@/pages/OperationsPage'
+import { IntersectionsPage } from '@/pages/IntersectionsPage'
+import { AdaptiveControlPage } from '@/pages/AdaptiveControlPage'
+import { ExperimentsPage } from '@/pages/ExperimentsPage'
+import { SystemMonitoringPage } from '@/pages/SystemMonitoringPage'
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +27,14 @@ export const router = createBrowserRouter([
     ),
     children: [
       {
+        path: '/operations',
+        element: <OperationsPage />,
+      },
+      {
+        path: '/intersections',
+        element: <IntersectionsPage />,
+      },
+      {
         path: '/analytics',
         element: <AnalyticsOverviewPage />,
       },
@@ -30,9 +43,20 @@ export const router = createBrowserRouter([
         element: <IntersectionDetailPage />,
       },
       {
-        // Default redirect from root
+        path: '/adaptive-control',
+        element: <AdaptiveControlPage />,
+      },
+      {
+        path: '/experiments',
+        element: <ExperimentsPage />,
+      },
+      {
+        path: '/system',
+        element: <SystemMonitoringPage />,
+      },
+      {
         path: '/',
-        element: <AnalyticsOverviewPage />,
+        element: <OperationsPage />,
       },
     ],
   },

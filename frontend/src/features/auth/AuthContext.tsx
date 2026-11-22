@@ -6,6 +6,9 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import type { AuthUser } from '@/types/auth'
 import { getMe, login as apiLogin, logout as apiLogout } from '@/api/authApi'
 import type { LoginRequest } from '@/types/auth'
+import { UI_PREVIEW_MODE } from '@/utils/uiPreviewMode'
+
+const PREVIEW_USER: AuthUser = { username: 'preview', role: 'ADMIN' }
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -18,11 +21,12 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<AuthUser | null>(UI_PREVIEW_MODE ? PREVIEW_USER : null)
+  const [isLoading, setIsLoading] = useState(!UI_PREVIEW_MODE)
 
   // Restore session on app load
   useEffect(() => {
+    if (UI_PREVIEW_MODE) return
     getMe()
       .then((res) => {
         if (res.data) {
@@ -38,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Listen for 401 from httpClient interceptor
   useEffect(() => {
+    if (UI_PREVIEW_MODE) return
     const handleUnauthorized = () => {
       setUser(null)
     }
@@ -46,6 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback(async (req: LoginRequest) => {
+    if (UI_PREVIEW_MODE) {
+      setUser(PREVIEW_USER)
+      return
+    }
     const res = await apiLogin(req)
     if (res.data) {
       setUser({ username: res.data.username, role: res.data.role })
@@ -53,6 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
+    if (UI_PREVIEW_MODE) {
+      setUser(null)
+      return
+    }
     await apiLogout().catch(() => {/* ignore server error on logout */})
     setUser(null)
   }, [])

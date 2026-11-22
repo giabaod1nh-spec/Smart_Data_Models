@@ -1,0 +1,14 @@
+{
+  "approved": true,
+  "surface": "operations-dashboard",
+  "buildPath": "comp",
+  "source": "built-in image generation",
+  "promptSummary": "Data-first ITS dashboard with performance trends, congestion ranking, adaptive activity, experiment comparison, signal allocation, and separate pipeline evidence.",
+  "translationNotes": [
+    "No map on the overview surface.",
+    "Use only live realtime, Gold analytics, DQN status, or user-selected experiment runs.",
+    "Keep SUMO geometry available only in intersection detail.",
+    "Move pipeline health to the System page; use decision impact and data quality on Operations.",
+    "Never display illustrative comp values as live data."
+  ]
+}
