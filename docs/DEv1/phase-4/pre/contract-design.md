@@ -1,5 +1,8 @@
 # Phase 4A-Pre — Silver V1 to Gold V1 canonical incremental contract
 
+**Owner approval:** Option A, the Section 10 contract, and P4Pre-01–08 implementation are authorized at the approved planning baseline `a2f3ac6b98c7ca325213b617e603825481202023`. Stage A uses the Silver public API and a test consumer. Gold production integration and isolated `gold_v1` state are Core work.
+
+
 **Status:** proposed for owner review; planning only  
 **Evidence baseline:** Phase 3 commit `443f40e3ddde0f9cf657785b3fbf1851281897ea`  
 **Scope:** a Silver-owned source contract for the future Gold V1 runtime. This is not a claim of a cross-database snapshot or transaction. Sections 1–9 provide context and rationale; Section 10, “Normative contract v1,” is authoritative for API behavior, boundaries, serialization, errors and recovery.
@@ -122,6 +125,7 @@ Request DTOs (all IDs are nonempty strings; sequences are nonnegative integers; 
 SourceDiscoveryRequest:
   namespace: str
   expected_source_binding_id: str | None  # None only for a new binding
+  contract_version: str = "1"
 
 CanonicalChangePageRequest:
   namespace: str
@@ -131,6 +135,7 @@ CanonicalChangePageRequest:
   max_encoded_bytes: int                   # positive; owner-frozen cap
   max_processing_ms: int                   # page wall-clock budget; owner-frozen cap
   max_entry_processing_ms: int             # per-sequence evidence deadline; owner-frozen cap
+  contract_version: str = "1"
 
 CanonicalInvalidationPageRequest:
   namespace: str
@@ -141,9 +146,20 @@ CanonicalInvalidationPageRequest:
   max_encoded_bytes: int                    # owner-frozen cap
   max_processing_ms: int                    # owner-frozen cap
   max_entry_processing_ms: int              # per-invalidation deadline; owner-frozen cap
+  contract_version: str = "1"
 ```
 
-The `100` ceiling matches existing reader page limits as a conservative initial API ceiling, not a proven performance optimum. Byte, per-entry and time caps are configurable contract parameters; their initial values remain OPEN for owner approval after local resource review. `SourceDiscovery` advertises the server maxima including `max_single_entry_bytes` and `max_entry_processing_ms_cap`; requests above a server maximum are rejected. Implementations enforce actual encoded bytes incrementally and include the complete response envelope in the limit. API sequence values are signed 64-bit integers; in the canonical JCS projection all sequence values and any other integer-valued field outside the IEEE-754 safe-integer range are encoded as base-10 JSON strings, preserving exact identity. Counts, byte lengths, durations, versions and integer values within the safe range use interoperable JSON numbers. Source observation wire bytes/event hashes are not rewritten.
+Version 1 serves the `live` namespace, the existing Phase 3 authority. Other namespaces and malformed requests return `INVALID_REQUEST`. An unsupported contract version returns `UNSUPPORTED_CONTRACT_VERSION`.
+
+| Bound | Approved server maximum | Request default |
+|---|---:|---:|
+| Entries | 100 | 50 |
+| Full encoded response | 8 MiB | 4 MiB |
+| Single canonical entry | 4 MiB | Server bound |
+| Page processing | 60,000 ms | 30,000 ms |
+| Entry processing | 15,000 ms | 10,000 ms |
+
+These are owner-approved starting bounds. `FeedLimits` can lower them per read session, and `SourceDiscovery` advertises the effective limits. A request above an advertised limit is invalid. In Python, sequences use nonnegative signed-64 integers. The JCS projection uses canonical decimal strings for sequence fields, high waters, prefixes and integer fields outside the IEEE-754 safe integer range. Source observation hashes use their existing serialization.
 
 `SourceDiscovery` fields: `contract_version`, `namespace`, stable `source_binding_id`, `source_binding` (canonical source path/file identity/schema fingerprint/Bronze version), captured `bronze_change_high_water`, `bronze_invalidation_high_water`, `silver_change_applied_sequence`, `silver_invalidation_applied_sequence`, `verified_change_prefix`, `verified_invalidation_prefix`, server caps `max_entries_cap`, `max_encoded_bytes_cap`, `max_single_entry_bytes`, `max_processing_ms_cap`, `max_entry_processing_ms_cap`, `next_change_sequence=0`, `next_invalidation_sequence=0`, `bootstrap_required`, and `run_discovery_scope="journaled-runs-only"`. A new binding gets `bootstrap_required=true` and no consumer cursor initialized until the full streaming bootstrap check succeeds. An unchanged saved binding gets `bootstrap_required=false`; ordinary resume verifies static binding identity, cursor ranges and recent/next-prefix continuity, not all history. Any unsupported schema, binding replacement, lost retained history or rewind fails closed.
 
@@ -159,7 +175,7 @@ Disposition values remain exactly `BUNDLE_VALID`, `SUPERSEDED_BY_CONFLICT`, `CON
 
 ### Verified applied prefix and safety algorithm
 
-At request start Silver reads a consistent Bronze SQLite allocator boundary and Silver-local applied cursors, checking the existing static source binding. Let `Hc, Hi, Sc, Si` be those four values. Require `0 <= Sc <= Hc` and `0 <= Si <= Hi`; violations are `SOURCE_INTEGRITY_ERROR`, except a source rewind/replacement is `SOURCE_BINDING_CHANGED`. Define change ceiling `Pc=min(Hc,Sc)` and invalidation ceiling `Pi=min(Hi,Si)`. These are upper bounds, not proof for every item.
+At request start Silver reads a consistent Bronze SQLite allocator boundary and Silver-local applied cursors, checking the existing static source binding. Let `Hc, Hi, Sc, Si` be those four values. Require `0 <= Sc <= Hc` and `0 <= Si <= Hi`. Negative applied cursors return `SOURCE_INTEGRITY_ERROR`. Bronze allocators behind the applied cursors return `SOURCE_REWOUND`, and a replaced source returns `SOURCE_BINDING_CHANGED`. Define change ceiling `Pc=min(Hc,Sc)` and invalidation ceiling `Pi=min(Hi,Si)`. Silver verifies each item within those ceilings before returning it.
 
 Starting at `s=after_change_sequence+1`, Silver processes sequences in strict order through `Pc`, checking each sequence and serializing each complete entry before reading the next. For each accepted transition, Silver validates immutable transition evidence, its durable per-sequence obligations and canonical ClickHouse facts. It also reads the current Bronze identity and Silver-local current validity:
 
@@ -175,7 +191,7 @@ Before issuing a nonempty receipt, Silver rechecks static binding, verifies the 
 
 ### Receipt identity and serialization
 
-`CanonicalBatchReceipt` exact fields: `contract_version`, `receipt_kind` (`CHANGE` or `INVALIDATION`), `namespace`, `source_binding_id`, `requested_after_sequence`, `returned_after_sequence`, `returned_through_sequence`, `captured_bronze_change_high_water`, `captured_bronze_invalidation_high_water`, `captured_silver_change_applied_sequence`, `captured_silver_invalidation_applied_sequence`, `safe_invalidation_through_sequence` (change receipt only; null for invalidation receipt), `entry_count`, `encoded_bytes`, `batch_digest`, and `receipt_id`. Receipt records the checks/boundaries actually observed; it does not claim a distributed snapshot.
+`CanonicalBatchReceipt` exact fields: `contract_version`, `receipt_kind` (`CHANGE` or `INVALIDATION`), `namespace`, `source_binding_id`, `requested_after_sequence`, `returned_after_sequence`, `returned_through_sequence`, `captured_bronze_change_high_water`, `captured_bronze_invalidation_high_water`, `captured_silver_change_applied_sequence`, `captured_silver_invalidation_applied_sequence`, `safe_invalidation_through_sequence` (change receipt only; null for invalidation receipt), `entry_count`, `encoded_bytes`, `batch_digest`, and `receipt_id`. The invalidation receipt also includes `requested_through_invalidation_sequence` in its digest. A receipt records the boundaries and checks observed.
 
 Canonical receipt bytes use UTF-8 JSON Canonicalization Scheme (JCS), RFC 8785, without Unicode normalization or other string rewriting. Apply I-JSON constraints: no duplicate object keys, Unicode scalar strings only (reject lone surrogates), and JSON numbers representable as IEEE-754 binary64; reject NaN and infinities. To preserve exact 64-bit sequence identity, the JCS projection serializes sequence fields as canonical decimal strings; this projection rule is part of contract version 1. Optional absent fields are represented explicitly as `null`; arrays use specified sequence order; object-property order and primitive serialization follow RFC 8785. The established `contracts/traffic_observation.py` event canonicalization, event IDs and payload hashes are unchanged and are not reused as receipt canonicalization.
 

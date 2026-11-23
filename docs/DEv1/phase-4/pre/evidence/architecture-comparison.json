@@ -1,0 +1,31 @@
+{
+  "baseline": "a2f3ac6b98c7ca325213b617e603825481202023",
+  "base_counts": {
+    "errors": 0,
+    "failures": 11,
+    "skipped": 0,
+    "tests": 126
+  },
+  "current_counts": {
+    "errors": 0,
+    "failures": 10,
+    "skipped": 0,
+    "tests": 126
+  },
+  "unchanged_baseline_failures": [
+    "test_bronze_forbidden_imports",
+    "test_bronze_package_compliant",
+    "test_canonical_base_is_kafka_only_default_runtime",
+    "test_default_compose_render_is_exact_kafka_runtime",
+    "test_final_manifest_json_matches_static_service_contract",
+    "test_operator_tools_have_no_raw_v1_replay_entrypoint",
+    "test_raw_v1_reference_allowlist_is_repository_wide_and_exact",
+    "test_rollback_compose_render_has_full_activation_contract",
+    "test_server_does_not_depend_on_kafka_packages",
+    "test_top_level_compose_allowlist_is_exactly_one"
+  ],
+  "resolved_baseline_failures": [
+    "test_only_plan3_modules_import_io_stack"
+  ],
+  "new_failures": []
+}

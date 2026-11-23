@@ -2,7 +2,7 @@
 
 Statuses: **INHERITED** means approved upstream; **RECOMMENDED — OWNER APPROVAL** means a proposed 4A choice; **OPEN** means evidence/decision still required; **DEFERRED** means Phase 4B.
 
-**Phase 4A-Pre cross-phase proposal:** [contract design](pre/contract-design.md), [decision analysis](pre/decisions.md), [implementation packages](pre/plan.md), [acceptance gates](pre/acceptance.md), and [capacity/backpressure audit](pre/capacity-and-backpressure.md) specify the Silver-owned verified-prefix sequence feed proposed to resolve P4-D10/P4-D30. Those decisions remain open pending owner approval and evidence; end-to-end capacity remains `NOT MEASURED`.
+**Phase 4A-Pre authorization:** The owner approved Option A and the v1 receipt contract for Silver implementation under P4-D10/P4-D30. [Implementation status](pre/implementation-status.md) and [Stage A results](pre/acceptance-result.md) record the evidence gate. P4-D34's `gold_v1` state path is approved for the separate Core implementation. End-to-end capacity remains `NOT MEASURED`.
 
 ## Inherited decisions
 

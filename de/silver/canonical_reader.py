@@ -16,6 +16,8 @@ from de.bronze.checkpoint_store import V1SemanticReader
 from de.silver.source_binding import SourceVerificationError, verify_bronze_source
 from de.silver.archive_resolver import ArchiveUnavailable, ArchiveIntegrityError
 from de.silver.repositories import FactBusinessKeyConflictError, RetryableRepositoryError
+from de.silver.incremental_contract import FeedLimits
+from de.silver.incremental_reader import IncrementalSilverSource
 
 
 class CanonicalReadError(RuntimeError):
@@ -98,17 +100,22 @@ class InvalidationFeedPage:
     mirror_pending: int
 
 
-class CanonicalSilverReader:
+class CanonicalSilverReader(IncrementalSilverSource):
     """Caller supplies SELECT-only ClickHouse repositories; SQLite is opened RO."""
 
     def __init__(self, bronze_path: Path, silver_path: Path, silver_repo: Any,
-                 bronze_repo: Any, archive_resolver: Any):
+                 bronze_repo: Any, archive_resolver: Any, *, feed_limits: FeedLimits | None = None):
         self.bronze_path = Path(bronze_path)
         self.silver_path = Path(silver_path)
         self.silver_repo = silver_repo
         self.bronze_repo = bronze_repo
         self.archive_resolver = archive_resolver
+        self.feed_limits = feed_limits if feed_limits is not None else FeedLimits()
         try:
+            self._feed_file_identities = {}
+            for path in (self.bronze_path, self.silver_path):
+                info = path.stat()
+                self._feed_file_identities[path] = (info.st_dev, info.st_ino)
             self.bronze = V1SemanticReader(self.bronze_path)
             self.silver = sqlite3.connect(self.silver_path.resolve(strict=True).as_uri() +
                                           "?mode=ro", uri=True, isolation_level=None)
@@ -400,7 +407,7 @@ class CanonicalSilverReader:
 class CanonicalReadSession(CanonicalSilverReader):
     """Own all read connections; configure CH credentials with SELECT grants."""
 
-    def __init__(self, settings):
+    def __init__(self, settings, *, feed_limits: FeedLimits | None = None):
         from de.bronze.clickhouse_repository import BronzeClickHouseRepository
         from de.bronze.config import ObservationSettings
         from de.silver.archive_resolver import ArchiveResolver
@@ -421,7 +428,7 @@ class CanonicalReadSession(CanonicalSilverReader):
             self._owned_bronze_repo.connect()
             super().__init__(Path(settings.v1_bronze_path), Path(settings.checkpoint_path),
                 self._owned_silver_repo, self._owned_bronze_repo,
-                ArchiveResolver(Path(settings.v1_archive_root)))
+                ArchiveResolver(Path(settings.v1_archive_root)), feed_limits=feed_limits)
         except Exception as exc:
             self._owned_silver_repo.close()
             self._owned_bronze_repo.close()

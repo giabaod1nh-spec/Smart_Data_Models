@@ -1,6 +1,9 @@
-# Phase 4A-Pre decisions — proposed
+# Phase 4A-Pre decisions
 
-**Decision status:** proposed; owner approval required before implementation.  
+**Owner approval:** Option A, the Section 10 contract, and P4Pre-01–08 implementation are authorized at the approved planning baseline `a2f3ac6b98c7ca325213b617e603825481202023`. Stage A uses the Silver public API and a test consumer. Gold production integration and isolated `gold_v1` state are Core work.
+
+
+**Decision status:** Option A and the v1 contract are approved for Pre implementation. Capacity evidence and Core deployment retain separate gates.
 **Evidence baseline:** Phase 3 commit `443f40e3ddde0f9cf657785b3fbf1851281897ea`.
 
 **Final revision:** The verified-prefix, independent invalidation, exact API, and acceptance-stage decisions below supersede any earlier requirement to wait for Silver to reach the latest Bronze high-water. See [capacity-and-backpressure.md](capacity-and-backpressure.md) for source-grounded throughput and overload findings.
@@ -25,22 +28,22 @@ This recommendation follows from the existing source model: Bronze already persi
 
 Option B may be useful for fixture validation or a deliberately small, explicitly enumerated one-time baseline. It is not equivalent as the production incremental contract. In particular, it must not be described as complete unless run inventory and all required scope boundaries are available and its repeated scan/staging budget is measured and approved.
 
-## Proposed decision register
+## Decision register
 
 | ID | Proposed decision | Owner approval / unresolved point |
 |---|---|---|
-| P4Pre-D01 | Option A is the production source strategy. | Silver and Gold owners approve API ownership and cross-phase implementation. |
-| P4Pre-D02 | Feed is global per namespace and includes all source sequences; run filtering occurs downstream after coverage is established. | Confirm namespace partitioning and Gold's treatment of event-free runs. |
+| P4Pre-D01 | Option A is the production source strategy. | Approved for the Silver API and Stage A. Production Gold integration belongs to Core. |
+| P4Pre-D02 | Feed is global per namespace and includes all source sequences; run filtering occurs downstream after coverage is established. | Approved. v1 serves the live namespace and discovers runs represented in the journal. An event-free inventory requires a separate authority. |
 | P4Pre-D03 | One entry per change sequence, with only `BUNDLE_VALID`, `SUPERSEDED_BY_CONFLICT`, and `CONFLICTED` success dispositions. | Confirm whether a future durable Silver quarantine may be added under a new contract version. |
 | P4Pre-D04 | Current event-validity row is not historical proof; transition journal plus per-sequence Silver obligations establish disposition. | Approve explicit non-as-of semantics for superseded accepted revisions. |
 | P4Pre-D05 | Batch receipt carries frozen Bronze change/invalidation highwaters, Silver applied cursors, source binding and exact range/digest. | Freeze stable serialized receipt fields and digest algorithm in P4Pre-01. |
 | P4Pre-D06 | Change and invalidation are separate streams and separate Gold cursors. Gold applies invalidations idempotently through the change receipt's finite safe applied invalidation watermark before acknowledging that change receipt. | Approve the `Pi=min(Hi,Si)` watermark; do not wait for live `Hi`. |
 | P4Pre-D07 | Cold bootstrap starts at zero after full retained-history verification; no “start at latest” shortcut. | Confirm source retention/no-prune operational commitment and empty-run discovery requirement. |
-| P4Pre-D08 | Per-batch entry and byte caps plus single-record cap; overflow faults without progress. | Owner sets numeric caps from workload evidence; no numbers are invented in this plan. |
+| P4Pre-D08 | Per-batch entry and byte caps plus single-record cap; overflow faults without progress. | Approved maxima/defaults are in the Section 10 resource table. The limits are configuration inputs to Stage A. |
 | P4Pre-D09 | No cross-database atomicity or arbitrary historical snapshot claim. Conflicts after receipt are repaired through the independent feed and replay/current-state check; Phase 4A output stays unpublished. | Confirm downstream idempotency and unpublished-state boundary. |
 | P4Pre-D10 | A change batch may cover only verified applied prefix `Pc=min(Hc,Sc)`, then truncates before the first transition whose effective disposition/invalidation proof is unsafe. | Approve `PREFIX_BLOCKED` and no-skip semantics; never require `Sc==Hc` under continuous arrival. |
 | P4Pre-D11 | Independent invalidation prefix is `Pi=min(Hi,Si)`; change receipt carries frozen Pi. | Gold Core consumes invalidations through that fixed watermark before acknowledging the receipt. |
-| P4Pre-D12 | Public API methods are exactly `discover_canonical_source`, `read_canonical_changes_page`, and `read_canonical_invalidations_page`, with DTOs in `contract-design.md`. | Freeze byte, single-entry, deadline caps and exact serialization in P4Pre-01. |
+| P4Pre-D12 | Public API methods are exactly `discover_canonical_source`, `read_canonical_changes_page`, and `read_canonical_invalidations_page`, with DTOs in `contract-design.md`. | Approved v1 bounds and JCS serialization. |
 | P4Pre-D13 | Immutable transition identity is distinct from boundary-dependent effective disposition; same saved receipt is deterministic, later boundary may supersede accepted state. | Approve old receipt/version verification and conflict correction semantics. |
 | P4Pre-D14 | Stage A Pre acceptance uses real Silver API, real authority fixtures, independent journal oracle and test-only durable consumer. Gold SQLite/window integration is Stage B in Phase 4A-Core. | Approve test-only harness scope; it cannot certify production Gold performance. |
 | P4Pre-D15 | Cold bootstrap verifies full history once per new binding. Normal polling/restart verifies stable binding, cursor bounds and next-prefix continuity without rescanning full history. | Keep the no-prune/no-rewind assumption; source replacement requires explicit new generation. |

@@ -649,7 +649,7 @@ class SilverClickHouseRepository:
     def insert_v1_rows(self, table: str, rows: Sequence[Dict[str, Any]],
                        *, replay_run_id: Optional[str] = None) -> None:
         """Write frozen V1 rows through a static table allowlist."""
-        from datetime import datetime
+        from datetime import datetime, timezone
         if table not in V1_TABLES:
             raise InvalidTargetTableError(table)
         replay = replay_run_id is not None
@@ -665,9 +665,13 @@ class SilverClickHouseRepository:
         if replay:
             columns = ("replay_run_id",) + columns
         def cell(name: str, value: Any) -> Any:
-            if (name in {"created_at", "observed_at", "captured_at", "registry_updated_at"}
-                    and isinstance(value, str)):
-                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if name in {"created_at", "observed_at", "captured_at", "registry_updated_at"}:
+                if isinstance(value, str):
+                    value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                # V1 physical timestamps are UTC. A driver can return a naive
+                # UTC datetime, which would otherwise reinsert as local time.
+                if isinstance(value, datetime) and value.tzinfo is None:
+                    value = value.replace(tzinfo=timezone.utc)
             return value
 
         data = [([replay_run_id] if replay else []) +
@@ -700,7 +704,8 @@ class SilverClickHouseRepository:
             if kind == "DateTime64(6)" and isinstance(value, str):
                 value = datetime.fromisoformat(value.replace("Z", "+00:00"))
             params[f"k{index}"] = value
-        result = self.client.query(
+        from de.feed_read_budget import evidence_query
+        result = evidence_query(self.client,
             f"SELECT * FROM {self.database}.{physical} WHERE " + " AND ".join(predicates) +
             " LIMIT 1001", parameters=params)
         if len(result.result_rows) > 1000:
@@ -741,7 +746,8 @@ class SilverClickHouseRepository:
             "silver_intersection_state_fact_v1",
         }:
             raise InvalidTargetTableError(table)
-        result = self.client.query(
+        from de.feed_read_budget import evidence_query
+        result = evidence_query(self.client,
             f"SELECT * FROM {self.database}.{table} WHERE "
             "simulation_run_id={run:String} AND topology_digest={digest:String} "
             "AND event_id={event:String} LIMIT 1001",

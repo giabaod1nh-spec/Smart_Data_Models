@@ -1,0 +1,32 @@
+{
+  "request_scope": {
+    "namespace": "live",
+    "contract_version": "1",
+    "after_change_sequence": "0",
+    "expected_source_binding_id": "sha256:482bfb62092f43a1d6b6934155389265242b4ce48785414e0e853b97117ec67e"
+  },
+  "sha256": "4404ceab7c8e39b32d76d59eadc7f5ad7c43f849eb414b810b5da2696aa2f6e8",
+  "receipt": {
+    "batch_digest": "a9a9d18d3d90fabc234c7e8d500899b057b3f0338773d1298d92590b3862a1df",
+    "captured_bronze_change_high_water": "5",
+    "captured_bronze_invalidation_high_water": "0",
+    "captured_silver_change_applied_sequence": "1",
+    "captured_silver_invalidation_applied_sequence": "0",
+    "contract_version": "1",
+    "encoded_bytes": 18800,
+    "entry_count": 1,
+    "namespace": "live",
+    "receipt_id": "sha256:a9a9d18d3d90fabc234c7e8d500899b057b3f0338773d1298d92590b3862a1df",
+    "receipt_kind": "CHANGE",
+    "requested_after_sequence": "0",
+    "returned_after_sequence": "0",
+    "returned_through_sequence": "1",
+    "safe_invalidation_through_sequence": "0",
+    "source_binding_id": "sha256:482bfb62092f43a1d6b6934155389265242b4ce48785414e0e853b97117ec67e"
+  },
+  "entry_count": 1,
+  "encoded_bytes": 18800,
+  "sequence_ids": [
+    "1"
+  ]
+}

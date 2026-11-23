@@ -1,0 +1,221 @@
+{
+  "junit": "stage-a.xml",
+  "case": "test_conflict_blocks_then_converges_and_acknowledges_independently",
+  "checkpoint_snapshots_verified_by_test": [
+    {
+      "stream": "INVALIDATION",
+      "checkpoint": "before_commit",
+      "subprocess_exit": 73,
+      "sequences": {
+        "CHANGE": 0,
+        "INVALIDATION": 0
+      }
+    },
+    {
+      "stream": "INVALIDATION",
+      "checkpoint": "after_commit",
+      "subprocess_exit": 74,
+      "sequences": {
+        "CHANGE": 0,
+        "INVALIDATION": 1
+      }
+    },
+    {
+      "stream": "CHANGE",
+      "checkpoint": "before_commit",
+      "subprocess_exit": 73,
+      "sequences": {
+        "CHANGE": 0,
+        "INVALIDATION": 0
+      }
+    },
+    {
+      "stream": "CHANGE",
+      "checkpoint": "after_commit",
+      "subprocess_exit": 74,
+      "sequences": {
+        "CHANGE": 1,
+        "INVALIDATION": 0
+      }
+    }
+  ],
+  "retained_final_probe_databases": {
+    "probe.db": {
+      "committed_cursors": {
+        "CHANGE": 2,
+        "INVALIDATION": 1
+      },
+      "receipts": [
+        {
+          "receipt": {
+            "batch_digest": "8f1d84254395f5c0186e64c724de4dfb3a62176fc054ca5b52bcc21157d91c87",
+            "captured_bronze_change_high_water": "2",
+            "captured_bronze_invalidation_high_water": "1",
+            "captured_silver_change_applied_sequence": "2",
+            "captured_silver_invalidation_applied_sequence": "1",
+            "contract_version": "1",
+            "encoded_bytes": 2155,
+            "entry_count": 1,
+            "namespace": "live",
+            "receipt_id": "sha256:8f1d84254395f5c0186e64c724de4dfb3a62176fc054ca5b52bcc21157d91c87",
+            "receipt_kind": "INVALIDATION",
+            "requested_after_sequence": "0",
+            "requested_through_invalidation_sequence": "2",
+            "returned_after_sequence": "0",
+            "returned_through_sequence": "1",
+            "safe_invalidation_through_sequence": null,
+            "source_binding_id": "sha256:a5c651028530c7cdc2a15588044b7909393141157fe3287e4c633a4158857913"
+          },
+          "response_sha256": "13e0b1bd026633fe7a18e5b372249ffc7df3c9e140adcdd268cbbe58d4d2ab46",
+          "effective_entries": [
+            {
+              "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+              "invalidation_sequence": "1",
+              "mirror_status": "PENDING",
+              "source_transition_hash": "8d3fc3ff0185fcc61cf2e0485723b6dada2d4a6ccc9f65d80766717cab9956fd"
+            }
+          ]
+        },
+        {
+          "receipt": {
+            "batch_digest": "2a3ade1543e3e33f0aea7eb6d0f773cfdc6ec01804975798ea43feaac22678a6",
+            "captured_bronze_change_high_water": "2",
+            "captured_bronze_invalidation_high_water": "1",
+            "captured_silver_change_applied_sequence": "2",
+            "captured_silver_invalidation_applied_sequence": "1",
+            "contract_version": "1",
+            "encoded_bytes": 2857,
+            "entry_count": 2,
+            "namespace": "live",
+            "receipt_id": "sha256:2a3ade1543e3e33f0aea7eb6d0f773cfdc6ec01804975798ea43feaac22678a6",
+            "receipt_kind": "CHANGE",
+            "requested_after_sequence": "0",
+            "returned_after_sequence": "0",
+            "returned_through_sequence": "2",
+            "safe_invalidation_through_sequence": "1",
+            "source_binding_id": "sha256:a5c651028530c7cdc2a15588044b7909393141157fe3287e4c633a4158857913"
+          },
+          "response_sha256": "afc986439aea7d5a0267891d7038665c3a9e9f6ac8b39d5cd8c5bbf07bd28397",
+          "effective_entries": [
+            {
+              "change_sequence": "1",
+              "change_type": "ACCEPTED",
+              "effective_disposition": "SUPERSEDED_BY_CONFLICT",
+              "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+              "invalidation_sequence": "1",
+              "source_transition_hash": "690e1706fc5c471133fc4ef82e9da136f3cda730da6da36de6ae122eac30f44c"
+            },
+            {
+              "change_sequence": "2",
+              "change_type": "CONFLICTED",
+              "effective_disposition": "CONFLICTED",
+              "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+              "invalidation_sequence": "1",
+              "source_transition_hash": "8d3fc3ff0185fcc61cf2e0485723b6dada2d4a6ccc9f65d80766717cab9956fd"
+            }
+          ]
+        }
+      ]
+    },
+    "old-receipt-probe.db": {
+      "committed_cursors": {
+        "CHANGE": 2,
+        "INVALIDATION": 1
+      },
+      "receipts": [
+        {
+          "receipt": {
+            "batch_digest": "fc2b5201ad3abbc6a83c7150ac2e6b0372776fff1188120722b2a4ba9e2f2979",
+            "captured_bronze_change_high_water": "1",
+            "captured_bronze_invalidation_high_water": "0",
+            "captured_silver_change_applied_sequence": "1",
+            "captured_silver_invalidation_applied_sequence": "0",
+            "contract_version": "1",
+            "encoded_bytes": 14181,
+            "entry_count": 1,
+            "namespace": "live",
+            "receipt_id": "sha256:fc2b5201ad3abbc6a83c7150ac2e6b0372776fff1188120722b2a4ba9e2f2979",
+            "receipt_kind": "CHANGE",
+            "requested_after_sequence": "0",
+            "returned_after_sequence": "0",
+            "returned_through_sequence": "1",
+            "safe_invalidation_through_sequence": "0",
+            "source_binding_id": "sha256:a5c651028530c7cdc2a15588044b7909393141157fe3287e4c633a4158857913"
+          },
+          "response_sha256": "27113f135bfcae0dd50e386b316c33cb03414715ded76023c8afeee80bc8ec96",
+          "effective_entries": [
+            {
+              "change_sequence": "1",
+              "change_type": "ACCEPTED",
+              "effective_disposition": "BUNDLE_VALID",
+              "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+              "invalidation_sequence": null,
+              "source_transition_hash": "690e1706fc5c471133fc4ef82e9da136f3cda730da6da36de6ae122eac30f44c"
+            }
+          ]
+        },
+        {
+          "receipt": {
+            "batch_digest": "8f1d84254395f5c0186e64c724de4dfb3a62176fc054ca5b52bcc21157d91c87",
+            "captured_bronze_change_high_water": "2",
+            "captured_bronze_invalidation_high_water": "1",
+            "captured_silver_change_applied_sequence": "2",
+            "captured_silver_invalidation_applied_sequence": "1",
+            "contract_version": "1",
+            "encoded_bytes": 2155,
+            "entry_count": 1,
+            "namespace": "live",
+            "receipt_id": "sha256:8f1d84254395f5c0186e64c724de4dfb3a62176fc054ca5b52bcc21157d91c87",
+            "receipt_kind": "INVALIDATION",
+            "requested_after_sequence": "0",
+            "requested_through_invalidation_sequence": "2",
+            "returned_after_sequence": "0",
+            "returned_through_sequence": "1",
+            "safe_invalidation_through_sequence": null,
+            "source_binding_id": "sha256:a5c651028530c7cdc2a15588044b7909393141157fe3287e4c633a4158857913"
+          },
+          "response_sha256": "13e0b1bd026633fe7a18e5b372249ffc7df3c9e140adcdd268cbbe58d4d2ab46",
+          "effective_entries": [
+            {
+              "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+              "invalidation_sequence": "1",
+              "mirror_status": "PENDING",
+              "source_transition_hash": "8d3fc3ff0185fcc61cf2e0485723b6dada2d4a6ccc9f65d80766717cab9956fd"
+            }
+          ]
+        },
+        {
+          "receipt": {
+            "batch_digest": "fe22f162ed2bad84eb84c8c56d122ed1f934967513e8d91ba86ccb10644602d0",
+            "captured_bronze_change_high_water": "2",
+            "captured_bronze_invalidation_high_water": "1",
+            "captured_silver_change_applied_sequence": "2",
+            "captured_silver_invalidation_applied_sequence": "1",
+            "contract_version": "1",
+            "encoded_bytes": 2113,
+            "entry_count": 1,
+            "namespace": "live",
+            "receipt_id": "sha256:fe22f162ed2bad84eb84c8c56d122ed1f934967513e8d91ba86ccb10644602d0",
+            "receipt_kind": "CHANGE",
+            "requested_after_sequence": "1",
+            "returned_after_sequence": "1",
+            "returned_through_sequence": "2",
+            "safe_invalidation_through_sequence": "1",
+            "source_binding_id": "sha256:a5c651028530c7cdc2a15588044b7909393141157fe3287e4c633a4158857913"
+          },
+          "response_sha256": "ff98d6cf60974d82e6792c987bc5d157aefda7d5e68794919227ffce2c068443",
+          "effective_entries": [
+            {
+              "change_sequence": "2",
+              "change_type": "CONFLICTED",
+              "effective_disposition": "CONFLICTED",
+              "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+              "invalidation_sequence": "1",
+              "source_transition_hash": "8d3fc3ff0185fcc61cf2e0485723b6dada2d4a6ccc9f65d80766717cab9956fd"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

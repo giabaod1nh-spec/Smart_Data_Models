@@ -1,0 +1,220 @@
+{
+  "measured_profile": {
+    "workload": "Genuine V1 observation envelopes read-only from retained producer Outbox",
+    "replay_selection": [
+      {
+        "run_id": "phase3-silver-20261122-a01",
+        "cycles": 51
+      },
+      {
+        "run_id": "phase1-raw-20261119-long01",
+        "cycles": 0
+      }
+    ],
+    "durations_sec": {
+      "steady": 600,
+      "burst": 120,
+      "recovery": 300
+    },
+    "wall_cycle_interval_sec": 20,
+    "intersections_per_cycle": 5,
+    "offered_events": 255,
+    "reductions": "Paced replay, one capture cycle per 20 wall seconds. Initial five-second cadence exceeded measured replay/apply capacity. Kafka and Raw excluded.",
+    "consumer_peak_rss_limit_bytes": 536870912,
+    "page_entries": 50,
+    "page_encoded_bytes_limit": 4194304,
+    "page_processing_limit_ms": 30000,
+    "per_entry_limit_ms": 10000,
+    "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpu_count": 12,
+    "memory_bytes": 16889204736,
+    "baseline": "a2f3ac6b98c7ca325213b617e603825481202023",
+    "schedule_utc_epoch": [
+      1795449701.8482938,
+      1795450301.8482938,
+      1795450421.8482938,
+      1795450721.8482938
+    ],
+    "applied_steady": 150,
+    "acked_steady": 150,
+    "steady_applied_per_second": 0.25,
+    "steady_acked_per_second": 0.25,
+    "early_steady_backlog_max": 0,
+    "late_steady_backlog_max": 0,
+    "burst_backlog": 30,
+    "recovery_sec": 28.229955434799194,
+    "consumer_peak_rss_bytes": 65908736,
+    "oracle_match": true,
+    "oracle": {
+      "exact_oracle_match": true,
+      "verified_sequences": 255,
+      "verified_bundles": 255,
+      "verified_receipts": 221,
+      "verified_bytes": 5255148
+    },
+    "consumer_final": {
+      "kind": "end",
+      "time": 1795450722.0170102,
+      "cursor": 255,
+      "invalidation_cursor": 0,
+      "sqlite_statements": 127863,
+      "clickhouse_queries": 3519,
+      "encoded_bytes": 5255148,
+      "pages": 221
+    },
+    "final_resource_sample": {
+      "kind": "sample",
+      "time": 1795450721.4086208,
+      "cursor": 255,
+      "invalidation_cursor": 0,
+      "rss": 58327040,
+      "peak_rss": 65908736,
+      "cpu_s": 25.015625,
+      "read_bytes": 311178755,
+      "write_bytes": 17537189,
+      "sqlite_statements": 127759,
+      "clickhouse_queries": 3519,
+      "encoded_bytes": 5255148
+    },
+    "producer_peak_sampled_rss_bytes": 153485312,
+    "latency_ms": {
+      "p50": 828.0822999986412,
+      "p95": 949.0186000002723,
+      "p99": 1152.2633000004134
+    },
+    "max_page_bytes": 585688,
+    "encoded_bytes_per_second": 5152.105882352941,
+    "clickhouse_version": "24.3.18.7",
+    "clickhouse_memory_tracking_bytes": 1260765604,
+    "capacity_verdict": "SUSTAINABLE AT TESTED WORKLOAD"
+  },
+  "capture_pytest_exit": 0,
+  "evidence_revalidation_exit": 0,
+  "revalidated_capacity": {
+    "exact_oracle_match": true,
+    "verified_sequences": 255,
+    "verified_bundles": 255,
+    "verified_receipts": 221,
+    "verified_bytes": 5255148,
+    "steady_event_count": 150,
+    "steady_event_rate": 0.25,
+    "burst_backlog": 30,
+    "recovery_seconds": 28.229955434799194,
+    "peak_rss_bytes": 65908736,
+    "early_steady_backlog_max": 0,
+    "late_steady_backlog_max": 0,
+    "verdict": "SUSTAINABLE AT TESTED WORKLOAD",
+    "burst_verdict": "BURST RECOVERY VERIFIED"
+  },
+  "sixty_second_checkpoints": [
+    {
+      "elapsed_seconds": 0.0,
+      "applied": 0,
+      "acknowledged": 0,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 60.0,
+      "applied": 15,
+      "acknowledged": 15,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 120.0,
+      "applied": 30,
+      "acknowledged": 30,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 180.0,
+      "applied": 45,
+      "acknowledged": 45,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 240.0,
+      "applied": 60,
+      "acknowledged": 60,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 300.0,
+      "applied": 75,
+      "acknowledged": 75,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 360.0,
+      "applied": 90,
+      "acknowledged": 90,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 420.0,
+      "applied": 105,
+      "acknowledged": 105,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 480.0,
+      "applied": 120,
+      "acknowledged": 120,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 540.0,
+      "applied": 135,
+      "acknowledged": 135,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 600.0,
+      "applied": 150,
+      "acknowledged": 150,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 660.0,
+      "applied": 165,
+      "acknowledged": 150,
+      "completed_apply_group_backlog": 15
+    },
+    {
+      "elapsed_seconds": 720.0,
+      "applied": 180,
+      "acknowledged": 150,
+      "completed_apply_group_backlog": 30
+    },
+    {
+      "elapsed_seconds": 780.0,
+      "applied": 195,
+      "acknowledged": 195,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 840.0,
+      "applied": 210,
+      "acknowledged": 210,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 900.0,
+      "applied": 225,
+      "acknowledged": 225,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 960.0,
+      "applied": 240,
+      "acknowledged": 240,
+      "completed_apply_group_backlog": 0
+    },
+    {
+      "elapsed_seconds": 1020.0,
+      "applied": 255,
+      "acknowledged": 255,
+      "completed_apply_group_backlog": 0
+    }
+  ]
+}

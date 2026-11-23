@@ -1,7 +1,10 @@
 # Phase 4A-Pre implementation plan
 
-**Status:** planning only; no implementation is included in this plan artifact.  
-**Prerequisite:** owner approval of the proposed decisions in `decisions.md` and API/receipt freeze.  
+**Owner approval:** Option A, the Section 10 contract, and P4Pre-01–08 implementation are authorized at the approved planning baseline `a2f3ac6b98c7ca325213b617e603825481202023`. Stage A uses the Silver public API and a test consumer. Gold production integration and isolated `gold_v1` state are Core work.
+
+
+**Status:** approved implementation plan. Use [implementation-status.md](implementation-status.md) for the package and evidence gates.
+**Contract:** Option A and the initial request and server bounds are approved in [decisions.md](decisions.md).
 **Evidence baseline:** Phase 3 commit `443f40e3ddde0f9cf657785b3fbf1851281897ea`.
 
 **Final revision:** [contract-design.md](contract-design.md) defines the exact public API and verified-prefix algorithm. [capacity-and-backpressure.md](capacity-and-backpressure.md) records the end-to-end source audit, `NOT MEASURED` result, and separately gated remediation. Acceptance is split into Pre Stage A and Phase 4A-Core Stage B; neither implements application code in this plan.
@@ -133,16 +136,16 @@ The ordered packages above are the implementation handoff and each lists existin
 
 | Package | Handoff state | Exact gate |
 |---|---|---|
-| P4Pre-01 Contract freeze | **BLOCKED — OWNER DECISION REQUIRED** | Silver/Gold owner approval of DTO/error/JCS contract and no-as-of semantics; operator-approved configurable byte, single-entry and processing-time caps. Capacity target remains a separate benchmark decision. |
-| P4Pre-02 Public DTO/API | **READY AFTER CONTRACT APPROVAL** | Implement the three additive methods and versioned DTOs exactly from `contract-design.md`; preserve legacy canonical and invalidation method behavior. |
-| P4Pre-03 Sequence/disposition verification | **READY AFTER CONTRACT APPROVAL** | Prove per-sequence journal/obligation/current-identity checks with independent fixture oracle; no new validity authority. |
-| P4Pre-04 Frozen batches/receipts | **READY AFTER CONTRACT APPROVAL** | Frozen Hc/Hi/Sc/Si, actual contiguous through, byte/deadline policy, JCS vectors and final relevant-identity validation. |
-| P4Pre-05 Multi-run/bootstrap/recovery | **READY AFTER CONTRACT APPROVAL** | Sequence-zero new bind, cursor resume, run generation/archive identity, source replacement and no-prune/retention rules. |
-| P4Pre-06 Bounded consumption | **READY AFTER CONTRACT APPROVAL** | Streaming page construction, in-serialization envelope cap, N+1/query metrics and no history-sized memory. |
-| P4Pre-07 Invalidation/recovery contract | **READY AFTER CONTRACT APPROVAL** | New frozen-prefix API additive to the Phase 3 invalidation reader; Stage A harness proves receipt/cursor behavior; Gold work ordering remains Stage B. |
-| P4Pre-08 Stage A correctness/feed capacity | **BLOCKED — OWNER DECISION REQUIRED** | Correctness tests can start after API freeze; capacity verdict waits owner workload, duration/resource limits and target. Whole-path capacity remains `NOT MEASURED`. |
+| P4Pre-01 Contract freeze | **APPROVED** | Contract v1 and initial resource limits approved by the owner. |
+| P4Pre-02 Public DTO/API | **APPROVED FOR EXECUTION** | Add the three methods and versioned DTOs while retaining Phase 3 reader behavior. |
+| P4Pre-03 Sequence/disposition verification | **APPROVED FOR EXECUTION** | Compare per-sequence evidence against the independent fixture oracle. |
+| P4Pre-04 Frozen batches/receipts | **APPROVED FOR EXECUTION** | Validate captured bounds, serialized bytes, receipt vectors and relevant final identities. |
+| P4Pre-05 Multi-run/bootstrap/recovery | **APPROVED FOR EXECUTION** | Verify sequence-zero bootstrap, run identity, resume and explicit source replacement handling. |
+| P4Pre-06 Bounded consumption | **APPROVED FOR EXECUTION** | Verify page caps, query costs and bounded memory across retained-history growth. |
+| P4Pre-07 Invalidation/recovery contract | **APPROVED FOR EXECUTION** | Verify additive invalidation paging and durable recovery using the Stage A consumer. |
+| P4Pre-08 Stage A correctness/feed capacity | **APPROVED FOR EXECUTION** | Stage A includes the approved five-intersection profile, 10 minutes sustained, two minutes burst, five minutes recovery, and 512 MiB test-consumer RSS budget. Whole-path capacity remains `NOT MEASURED`. |
 
-No package has a missing algorithmic decision after P4Pre-01 approval. OPEN owner inputs do not block unrelated adapter/state work elsewhere in Phase 4A, but production source progress stays gated.
+The package gates are implementation and evidence gates. Production Gold source progress requires Core Stage B.
 
 ## End-to-end remediation boundary
 

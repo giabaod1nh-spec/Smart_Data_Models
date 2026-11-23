@@ -1,6 +1,9 @@
 # Phase 4A-Pre acceptance and evidence matrix
 
-**Purpose:** define evidence required before the Silver incremental source contract can be used for production Gold progress. This is a plan, not a test run; no measurements or pass claims are made here.
+**Owner approval:** Option A, the Section 10 contract, and P4Pre-01–08 implementation are authorized at the approved planning baseline `a2f3ac6b98c7ca325213b617e603825481202023`. Stage A uses the Silver public API and a test consumer. Gold production integration and isolated `gold_v1` state are Core work.
+
+
+**Purpose:** define the verification gates for the Silver incremental source contract. Executed cases, results, and evidence are in [Stage A acceptance results](acceptance-result.md).
 
 **Final staging:** Cases below are classified as Stage A Pre contract acceptance, Stage B Phase 4A-Core Gold integration, or pipeline benchmark. Stage A must run before Gold Core exists and uses a minimal test-only durable consumer. Current end-to-end capacity is `NOT MEASURED`; see [capacity-and-backpressure.md](capacity-and-backpressure.md).
 

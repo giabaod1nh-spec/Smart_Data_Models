@@ -1,0 +1,18 @@
+{
+  "simulation_run_id": "phase3-silver-20261122-a01",
+  "outbox_path": "Visualize/artifacts/kafka_outbox/v1-outbox.sqlite3",
+  "cycle_sequence": [
+    1,
+    51
+  ],
+  "event_count": 255,
+  "payload_fingerprint": {
+    "algorithm": "sha256",
+    "value": "dd5b337024a68db2e6e54e9c58697a34bb4d76b3a6dd34566864e54ad930a2cf",
+    "projection": "Each UTF-8 payload_json from the selected ACKED V1 rows, prefixed by its byte length as unsigned 8-byte big-endian. Order by cycle_sequence,outbox_sequence."
+  },
+  "archive": {
+    "Visualize/artifacts/runs/phase3-silver-20261122-a01/network_topology_catalog.json": "22661527783f86573141d89983398ce71e3666413b196b1e0757db4cff6c65cc",
+    "Visualize/artifacts/runs/phase3-silver-20261122-a01/run_manifest.json": "7c5d09deb73ee6e472351c8d9dc6e5f1a4a513dc85dd6875273db3b1d017be4f"
+  }
+}

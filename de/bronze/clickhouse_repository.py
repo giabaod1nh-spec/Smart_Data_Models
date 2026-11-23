@@ -105,7 +105,8 @@ class BronzeClickHouseRepository:
                 typ = 'UInt64' if key == 'semantic_revision' else 'String'
                 predicates.append(key+'={'+name+':'+typ+'}')
                 params[name] = expected[key]
-            result = self.client.query('SELECT * FROM '+self.database+'.'+table+
+            from de.feed_read_budget import evidence_query
+            result = evidence_query(self.client, 'SELECT * FROM '+self.database+'.'+table+
                                        ' WHERE '+' AND '.join(predicates), parameters=params)
             if not result.result_rows:
                 missing.append(obligation)
@@ -232,7 +233,8 @@ class BronzeClickHouseRepository:
             if primary is None:
                 raise RuntimeError('accepted observation has no completed primary delivery')
             obligations = json.loads(primary['expected_json'])
-            query = self.client.query(
+            from de.feed_read_budget import evidence_query
+            query = evidence_query(self.client,
                 'SELECT * FROM ' + self.database + '.bronze_observations_v1 '
                 'WHERE namespace={ns:String} AND event_id={eid:String} AND semantic_revision={rev:UInt64}',
                 parameters=dict(ns=namespace, eid=event_id, rev=expected_revision))

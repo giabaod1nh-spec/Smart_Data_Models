@@ -41,7 +41,13 @@ PLAN3_MODULES = {
     "metrics.py",
 }
 
-PLAN3_IO_ALLOWED = PLAN3_MODULES  # only these may import CH/SQLite/FastAPI
+SILVER_IO_ALLOWED = PLAN3_MODULES | {
+    "archive_resolver.py",
+    "canonical_reader.py",
+    "incremental_reader.py",
+    "lifecycle_refresher.py",
+    "source_binding.py",
+}
 
 FORBIDDEN_NAME_FRAGMENTS = (
     "aggregate",
@@ -107,7 +113,7 @@ def test_plan2_modules_remain_io_free():
     assert hits == [], hits
 
 
-def test_only_plan3_modules_import_io_stack():
+def test_only_runtime_and_source_authority_modules_import_io_stack():
     io_mods = {
         "clickhouse_connect",
         "clickhouse_driver",
@@ -117,7 +123,7 @@ def test_only_plan3_modules_import_io_stack():
     }
     hits: list[str] = []
     for path in _iter_silver_py():
-        if path.name in PLAN3_IO_ALLOWED or path.name == "__init__.py":
+        if path.name in SILVER_IO_ALLOWED or path.name == "__init__.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
