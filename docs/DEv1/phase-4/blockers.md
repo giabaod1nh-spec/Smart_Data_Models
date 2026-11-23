@@ -1,6 +1,6 @@
 # Phase 4A blockers and package gates
 
-Status reflects source inspection at `443f40e3ddde0f9cf657785b3fbf1851281897ea`. “Hard” is scoped to the dependent capability; it does not imply all of Phase 4A is blocked.
+Status reflects source inspection at `038261bed5fc59d86baa9d8007becad7ce2ad6ea` (current planning-document review baseline). “Hard” is scoped to the dependent capability; it does not imply all of Phase 4A is blocked.
 
 **Phase 4A-Pre proposal:** [contract design](pre/contract-design.md) and [acceptance matrix](pre/acceptance.md) define the recommended resolution for B4A-01/B4A-02. These blockers remain until the Silver/Gold owners approve the contract and implementation evidence passes.
 
@@ -30,10 +30,12 @@ Status reflects source inspection at `443f40e3ddde0f9cf657785b3fbf1851281897ea`.
 - **P4A-02B:** blocked by B4A-01/02; Option A Silver API is a cross-phase change request; Option B needs measured and approved scan budget.
 - **P4A-03:** generic SQLite source binding/work/lease/dirty schema can proceed; advancing accepted-change cursor is blocked by receipt/feed contract. Invalidation cursor can be implemented from current public invalidation feed.
 - **P4A-04:** identity, half-open membership, candidates and dirty mechanics can proceed once the identity/alignment version is recorded. B4A-04/05 block completeness/finality assertions only.
-- **P4A-05:** feed consumption and dirty tracking can proceed; B4A-06 acceptance requires eventual convergence and explicitly forbids a distributed atomicity claim.
+- **P4A-05:** generic dirty-tracking mechanics can proceed. Baseline-only tests may retain the existing invalidation page contract; production incremental consumption uses the new additive frozen-prefix method after Pre Stage A and preserves legacy `SNAPSHOT_STALE`. B4A-06 acceptance requires eventual convergence and forbids a distributed atomicity claim.
 - **P4A-06:** isolated replay metadata and fake-source recovery can proceed; source-scoped production replay waits for receipt and incremental strategy.
 - **P4A-07:** local refactor, health and observability development can proceed; production activation waits for B4A-01/02/03/06/07 gates. Business finality is not required while publication stays disabled.
 - **P4A-08:** tests and evidence harness can be developed throughout; full production acceptance waits for applicable source, resource, race, cutover and integration gates.
+
+P4-D34 adds a Core gate: V1 must use a physically distinct Gold checkpoint database and instance lock under the approved `gold_v1` path; preserve historical V2 state, migrate/configure/rollback explicitly, and run one active service. This blocks V1 state activation/cutover, not Phase 4A-Pre or unrelated adapter/scheduler design.
 
 ## Deferred business decisions (not Phase 4A blockers)
 

@@ -63,8 +63,8 @@ Option B may be useful for fixture validation or a deliberately small, explicitl
 2. Silver validates binding, captures allocator highwaters `Hc, Hi` and Silver cursors `Sc, Si`, requires `0<=Sc<=Hc` and `0<=Si<=Hi`, and sets `Pc=min(Hc,Sc)`, `Pi=min(Hi,Si)`. It does not wait for full source catch-up.
 3. Silver sets `through<=Pc`, visits exact sequence order, truncates before any entry whose effective validity/invalidation proof is not safely applied, and enforces entry/byte/time limits during serialization. No sequence may be skipped.
 4. For each sequence, validate journal transition, linked current identity and/or later conflict, Silver obligation, archive identity, and canonical output evidence. Assign exactly one disposition.
-5. Validate source binding and relevant identities again. Do not require allocator H to remain unchanged. If an included event advanced beyond the boundary and its disposition is no longer valid, return `STALE_BATCH`, no receipt. New unrelated append sequences above H remain for the next call.
-6. Emit receipt only for an exact, nonempty, bounded and validated interval. It records Hc/Hi/Sc/Si and safe invalidation watermark Pi; it is not a cross-database snapshot. Empty no-op never advances a cursor; an unsafe first entry returns retryable `PREFIX_BLOCKED`, not empty success.
+5. Validate source binding and relevant identities again. Do not require allocator H to remain unchanged. If an included event or binding changes before final validation, return `BOUNDARY_STALE`, no receipt. New unrelated append sequences above captured H remain for the next call.
+6. Emit receipt only for an exact, nonempty, bounded and validated interval. It records Hc/Hi/Sc/Si and safe invalidation watermark Pi; it is not a cross-database snapshot. Change `EMPTY` is allowed only when `after==Hc==Sc`; `after==Sc<Hc` is `SOURCE_LAG`. Empty no-op never advances a cursor; an unsafe first entry returns retryable `PREFIX_BLOCKED`, not empty success.
 
 ### 3. Per-sequence disposition
 
@@ -82,7 +82,9 @@ Option B may be useful for fixture validation or a deliberately small, explicitl
 
 ### 5. Invalidation coordination
 
-Invalidations have their own cursor and receipt and are delivered only through `Pi=min(Hi,Si)`. Gold reads them independently and records conflict suppression/dirty obligations and its invalidation cursor in one local transaction. Before committing a change receipt, Gold must durably consume invalidations through that receipt's finite `safe_invalidation_through_sequence` (Pi), not live Hi. A later source/Silver append is outside that receipt and is handled on a later request. If an invalidation races with Gold work, its local transaction must compare dirty generation and retain a recompute/suppress intent; no final cross-database check eliminates a later conflict.
+Invalidations have their own cursor and receipt and are delivered through the captured `Ic=min(requested_ceiling,Hi,Si)`. A page covers a contiguous actual interval and remains valid while included identities/binding remain valid; unrelated invalidations appended above captured Hi are deferred and do not stale it. If a fixed requested ceiling is ahead of `Ic`, Silver returns any nonempty available prefix; after the consumer reaches `Ic`, another request returns `INVALIDATION_LAG` until Silver applies more. The old Phase 3 `read_invalidation_page()` retains its `SNAPSHOT_STALE` behavior; the new method is additive. A pending ClickHouse mirror does not block feed delivery when durable local suppression exists.
+
+Gold reads the feed independently and records conflict suppression/dirty obligations and its invalidation cursor in one local transaction. Before committing a change receipt, Gold must durably consume invalidations through that receipt's finite `safe_invalidation_through_sequence` (Pi), not live Hi. A later source/Silver append is outside that receipt and is handled on a later request. If an invalidation races with Gold work, its local transaction must compare dirty generation and retain a recompute/suppress intent; no final cross-database check eliminates a later conflict. Phase 4A-Core work-creation/suppression invariants are owned by Phase 4 `decisions.md` P4-D14 and `plan.md` P4A-03/P4A-05.
 
 ### 6. Restart, binding change, and concurrent producer
 
@@ -98,3 +100,5 @@ This proposal extends Phase 3's Bronze semantic authority, append-only journal a
 ### Acceptance staging and capacity result
 
 **Stage A — Pre contract acceptance:** test the real Silver public API with real Bronze/Silver authority fixtures, independent raw-journal oracle, real ClickHouse reconciliation where required, and a minimal test-only durable consumer harness for receipt/cursor crash replay. No Gold application dependency or production Gold claim. **Stage B — Phase 4A-Core:** actual Gold SQLite cursors, window work intents, invalidation dirty-generation fencing, replay and recovery. Stage B occurs after Stage A and must not gate Phase 4A-Core implementation. Current whole-path capacity verdict is **NOT MEASURED**; see `capacity-and-backpressure.md`.
+
+`contract-design.md` is the sole normative source for DTOs, EMPTY/SOURCE_LAG/PREFIX_BLOCKED, invalidation page boundaries, receipt hashing, byte/deadline handling, and public error classification. This file records rationale and ownership; it does not define alternate error aliases.

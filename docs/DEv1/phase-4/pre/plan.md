@@ -53,7 +53,7 @@
 - **Inspect/change:** `de/silver/canonical_reader.py`, `de/silver/source_binding.py`, Bronze sequence reader, and receipt/version documentation. Use allocator highwaters rather than the reader's present `max(sequence)` as the boundary authority.
 - **New files:** none unless receipt serialization is isolated from canonicalization as in P4Pre-02.
 - **Dependencies:** P4Pre-03.
-- **Failure modes:** producer append changes the boundary mid-page; receipt issued for incomplete pages; source binding or relevant event changes; accidental reliance on H staying globally unchanged.
+- **Failure modes:** included source identity/binding changes during the page; receipt issued for incomplete pages; accidental reliance on live H staying globally unchanged. Unrelated appends above captured H are expected and deferred, not stale-batch failures.
 - **Tests/evidence:** frozen H with append above H; append/conflict touching included identity; source replacement; exact interval and digest validation; receipt absent on stale/error paths.
 - **Acceptance:** entries exactly cover `(after, through]`; appends above H are deferred; stale relevant changes produce no receipt; receipt fields and digest reproduce deterministically.
 - **Phase 3 compatibility:** source checks remain stricter or equal; no existing Bronze atomicity claim is broadened.
@@ -93,12 +93,12 @@ Normal unchanged-binding restart uses `verify_bronze_source(full_history=False)`
 
 ### P4Pre-07 — Invalidation and recovery contract
 
-- **Inspect/change:** Silver `read_invalidation_page`, checkpoint store, source binding, Bronze invalidation provenance and mirror logic; Gold proposed SQLite runtime state design/docs. Runtime Gold files are in scope only after separate Phase 4A package approval.
+- **Inspect/change:** Silver existing `read_invalidation_page`, checkpoint store, source binding, Bronze invalidation provenance and mirror logic; Gold proposed SQLite runtime state design/docs only. The new Silver API is additive; preserve the legacy reader behavior. No Gold runtime code belongs to Pre.
 - **New files:** none required for Silver unless a typed invalidation receipt needs a dedicated DTO module.
 - **Dependencies:** P4Pre-04, P4Pre-05, P4Pre-06.
 - **Failure modes:** treating invalidation as change acknowledgment; lost invalidation cursor; conflict race between data staging and local dirty intent; stale binding silently resets cursor; incomplete batch acknowledged.
-- **Tests/evidence:** independent cursors, invalidation before/after change receipt, races in both orderings, Gold local transaction rollback, crash before/after durable ack, same receipt replay.
-- **Acceptance:** Gold changes each local cursor only with its complete durable obligations; invalidation is idempotent and eventual; a source change never silently resets progress.
+- **Tests/evidence:** Stage A test-only harness covers independent cursors, invalidation before/after change receipt, fixed Pi ordering, crash before/after its simulated durable acknowledgment, and replay. Actual Gold SQLite rollback, suppression-before-work and dirty-CAS races are Stage B in Phase 4A-Core.
+- **Acceptance:** Pre proves Silver's additive feed and receipt behavior with the harness; it hands Gold the rule that each local cursor commits atomically with its complete obligations, suppression survives independently of work rows, and source change never silently resets progress. Actual Gold enforcement is not claimed until Stage B.
 - **Phase 3 compatibility:** preserves Silver invalidation-before-change processing, independent feed sequence and current local validity semantics.
 
 ### P4Pre-08 — Integration and sustained-load acceptance
@@ -127,38 +127,23 @@ Normal unchanged-binding restart uses `verify_bronze_source(full_history=False)`
 
 Phase 4A baseline adapter, scheduler mechanics, and generic state design can proceed independently where current plan allows. Production source progress, source cursor advancement, replay from source, and activation remain gated on P4Pre-08 and the existing P4-D10/P4-D30/P4-D31 owner decisions. The work exits only when the public contract is implemented, acceptance evidence is recorded, and owners accept resource budgets and residual eventually-consistent invalidation window.
 
-## Implementation-wide decisions and gates
+## Final implementation-readiness gate
 
-The normative API and race behavior are in `contract-design.md`; this section records package gates and cross-phase boundaries. It supersedes any implication that full live Bronze catch-up is required before Gold can read an already applied Silver prefix.
+The ordered packages above are the implementation handoff and each lists existing files, dependencies, failure modes, tests/evidence, acceptance and Phase 3 compatibility. Their common independent oracle is the Phase 3 Bronze journal + Silver obligations + ClickHouse/archive evidence; the Stage A harness is not production Gold. Owner-frozen page byte/single-entry/time caps remain explicit inputs and are not to be guessed by the coding agent. The initial `max_entries<=100` is a configurable conservative API ceiling, not a throughput target.
 
-### P4Pre-01 — exact decisions to freeze
+| Package | Handoff state | Exact gate |
+|---|---|---|
+| P4Pre-01 Contract freeze | **BLOCKED — OWNER DECISION REQUIRED** | Silver/Gold owner approval of DTO/error/JCS contract and no-as-of semantics; operator-approved configurable byte, single-entry and processing-time caps. Capacity target remains a separate benchmark decision. |
+| P4Pre-02 Public DTO/API | **READY AFTER CONTRACT APPROVAL** | Implement the three additive methods and versioned DTOs exactly from `contract-design.md`; preserve legacy canonical and invalidation method behavior. |
+| P4Pre-03 Sequence/disposition verification | **READY AFTER CONTRACT APPROVAL** | Prove per-sequence journal/obligation/current-identity checks with independent fixture oracle; no new validity authority. |
+| P4Pre-04 Frozen batches/receipts | **READY AFTER CONTRACT APPROVAL** | Frozen Hc/Hi/Sc/Si, actual contiguous through, byte/deadline policy, JCS vectors and final relevant-identity validation. |
+| P4Pre-05 Multi-run/bootstrap/recovery | **READY AFTER CONTRACT APPROVAL** | Sequence-zero new bind, cursor resume, run generation/archive identity, source replacement and no-prune/retention rules. |
+| P4Pre-06 Bounded consumption | **READY AFTER CONTRACT APPROVAL** | Streaming page construction, in-serialization envelope cap, N+1/query metrics and no history-sized memory. |
+| P4Pre-07 Invalidation/recovery contract | **READY AFTER CONTRACT APPROVAL** | New frozen-prefix API additive to the Phase 3 invalidation reader; Stage A harness proves receipt/cursor behavior; Gold work ordering remains Stage B. |
+| P4Pre-08 Stage A correctness/feed capacity | **BLOCKED — OWNER DECISION REQUIRED** | Correctness tests can start after API freeze; capacity verdict waits owner workload, duration/resource limits and target. Whole-path capacity remains `NOT MEASURED`. |
 
-Freeze `Pc=min(Hc,Sc)`, `Pi=min(Hi,Si)`; per-entry current-identity/invalidation safety truncation; `PREFIX_BLOCKED`; empty response semantics; immutable transition/effective disposition split; exact API and DTO schemas; deterministic canonical JSON/digest; typed errors/retryability; source binding and bootstrap/resume; entry/byte/single-event/deadline maxima; Stage A versus Stage B; capacity worksheet and verdict taxonomy. Owner provides workload and numeric resource targets before capacity can pass.
+No package has a missing algorithmic decision after P4Pre-01 approval. OPEN owner inputs do not block unrelated adapter/state work elsewhere in Phase 4A, but production source progress stays gated.
 
-### P4Pre-02 — public DTO/API
-
-Add only the additive public Silver surface. Export fixed request/response/error types. Reject invalid sequence types (including bool), negative cursors, unknown versions, over-server-limit caps and namespace/binding mismatches. `EMPTY` means `through=after`, zero entries, no receipt and no progress. `PREFIX_BLOCKED` is retryable and never represented as successful empty coverage. `has_more` means source sequences remain within captured `min(Hc,Sc)`; the next sequence may still be blocked by conflict safety.
-
-### P4Pre-03 — transition and effective-state verification
-
-Keep transition identity immutable: source binding, change sequence, event ID, semantic revision, change type, previous/new state, transition evidence hash and linked invalidation ID. Keep effective disposition, current identity revision/state, superseding sequence, invalidation reference, canonical bundle/hash and boundary identity separate. A saved receipt is deterministic; a newer boundary may supersede accepted state without immutable journal corruption. Hash/sequence/link disagreement is permanent integrity failure.
-
-### P4Pre-04 — verified-prefix receipt
-
-Select `Pc/Pi` from captured Hc/Hi/Sc/Si; verify each sequence on demand in order; truncate before the first transition not safely applied; record the actual returned through sequence and safe invalidation watermark. Enforce the byte cap while encoding. A single oversized item yields actionable `RECORD_TOO_LARGE`; no silent skip or unchanged-limit retry loop. Unrelated appends beyond capture are deferred. Included identity conflict before final check makes the page stale; post-receipt conflict is eventual invalidation convergence and no serving output.
-
-### P4Pre-06 — bounded consumption and source efficiency
-
-Use source pagination and only bounded in-flight serialization/evidence. Caps include entries, actual serialized bytes with receipt overhead, maximum single bundle and processing deadline. A timeout or oversized item cannot produce a receipt past the affected sequence. Measure query amplification by operation/table before batch-query redesign. Safe page-level sharing is limited to static binding, captured allocator/cursor boundary and archive identity proven identical within a batch. Keep per-event current identity, local validity, obligation hashes, physical fact keys/hashes and final relevant-identity checks. No broad cache, duplicate persistent payload store or unproven full-history stage is authorized here.
-
-### P4Pre-07 — invalidation and test-only consumer
-
-Stage A harness stores binding, receipt bytes, dispositions and exclusive cursor in a minimal test-only durable store. It injects pre/post-commit crashes and verifies idempotent replay. It is not Gold runtime and has no production work/window semantics. It consumes invalidations through each change receipt's fixed Pi before acknowledging the change receipt. Gold SQLite work intents, dirty-generation CAS, recompute and replay remain Stage B.
-
-### P4Pre-08 — independently staged gates
-
-**Stage A correctness:** real public API/authority fixtures and independent journal oracle; actual ClickHouse reconciliation where needed; test-only acknowledgment harness. **Stage A capacity:** test-only consumer and real API under sustained/burst/outage workloads; Silver feed rate, source verification/query amplification, RSS, backlog slope, bootstrap/resume cost. No Gold runtime claim. **Phase 3 regression:** existing Bronze/Silver obligations, reader, archives, nullable semantics and invalidation recovery. **Stage B Phase 4A-Core:** actual Gold cursors/work intents/windows, dirty fencing, recovery/replay and production integration after implementation. Core work must not be a prerequisite for Pre acceptance.
-
-### End-to-end remediation boundary
+## End-to-end remediation boundary
 
 Pipeline scheduling, batch-size, query, worker-count, or SUMO-pacing changes are separate gated work after measurement; do not rewrite earlier accepted phases under the Pre contract package. Silver's 10-entry/2-second setting is a source-confirmed limit with roughly five journal entries/second idealized ceiling before processing cost, not measured production throughput. Current whole-path capacity is `NOT MEASURED`; see [capacity-and-backpressure.md](capacity-and-backpressure.md).
