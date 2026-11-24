@@ -1,0 +1,104 @@
+# End-to-end performance audit
+
+**Status:** local planning artifact; no implementation or new performance run was performed.  
+**Repository snapshot:** branch `codex/phase-1-v1-raw`, HEAD `a92767728ee6eec906a26104a2cb7fb0d33b8bb2`; clean at audit start.  
+**Reference:** Phase 4A-Core implementation `7c5386b16fbaf3615d6dcd1021717ed307547894`, acceptance/evidence baseline `a92767728ee6eec906a26104a2cb7fb0d33b8bb2`.
+
+## Scope and method
+
+Read the Phase 1–4 documents and Core evidence, inspected active producer, transport, Raw V1, Bronze V1, Silver V1, public feed, Gold Core, migration, test, tool and Compose paths. This is source and retained-evidence inspection, not an instrumented profile. Existing measurements are reported as measurements only where the retained JSON supports them. Older performance figures are cited from retained phase reports when present; absent historical raw artifacts are called out.
+
+## Runtime path and durable boundaries
+
+```text
+SUMO TraCI step
+  → snapshot/metrics and immutable observation cycle
+  → SQLite Outbox FULL/WAL commit
+  → asynchronous Kafka delivery and Outbox ACK
+  → Kafka V1 consumer batch → ClickHouse Raw/Quarantine insert/reconcile
+  → SQLite Raw ledger confirmation → synchronous Kafka offset commit → Raw ledger progress
+  → Bronze bounded Raw read → semantic identity/change/invalidation decision
+  → frozen Bronze output obligations → ClickHouse reconciliation → SQLite checkpoint/journal CAS
+  → Silver bounded contiguous Bronze journal scan (max 10/pass in active loop)
+  → archive/event validation, lifecycle/fact/dimension work and frozen obligations
+  → ClickHouse fact reconciliation/visibility → final Bronze point-read → SQLite VALID + cursor CAS
+  → Silver public verified change and independent invalidation feeds
+  → Gold bounded reads, receipt verification and independent durable SQLite ACKs
+  → Gold suppression/membership/generation scheduling
+  → streamed canonical member reads → durable generation-fenced work completion
+```
+
+The producer and downstream analytical stages have different grains. Physical Kafka deliveries, semantic Bronze changes, Silver fact rows/obligations, Gold feed sequences, event-window memberships and completed windows are not interchangeable counts. Any comparison must state the unit and boundary.
+
+### Producer and Kafka
+
+`Visualize/simulation/backend.py:365` (`SumoBackend.step`), `602` (`get_snapshot`), `622` (`_build_physical_snapshot_dict`), `631` (`_merge_context_into_snapshot`), and `Visualize/observation/snapshot_provider.py` own simulation stepping and snapshot calculations. `Visualize/app/traci_runner.py:134` (`capture_entity_list`), `166` (`fanout_publish_cycle`) and run-loop capture invoke the capture/validation path; the same snapshot has a realtime Orion branch and an optional V1 Kafka branch. The V1 branch deep-copies the entities and persists a cycle before delivery. The default realtime scheduler can therefore be affected by snapshot/capture/serialization and SQLite append, while network/Kafka delivery is asynchronous. PERF instrumentation must time each portion on the TraCI thread and compare source-step pacing and cycle completion without changing observation frequency or semantics.
+
+`Visualize/integration/kafka/outbox_store.py:154` (`KafkaOutboxStore`), `219–229` (WAL/FULL pragmas), `417` (`append_v1_cycle`), `626` (`fetch_eligible`) and `665` (`mark_acked_batch`) use per-thread SQLite connections, WAL, `synchronous=FULL`, bounded samples and batch state operations. `Visualize/integration/kafka/outbox_worker.py:19` and `197` own dispatch batching; `durable_publisher.py:35` owns lifecycle/config. Defaults include worker poll 0.1s, publisher `linger_ms=10`, `max_in_flight=32`, Outbox ACK retention 7 days; inspect `Visualize/configuration/config.py` and live accepted configuration before changing. Queue limits and retry behavior must be measured; the durable queue is finite only through available disk and fault thresholds, not a rate limiter.
+
+### Raw V1
+
+`de/kafka_raw/v1_consumer.py:34–40` configures no auto-commit/auto-store; `119` (`flush`) reconciles/persists a batch and `152–157` commits only the confirmed prefix and records progress. Startup/assignment checks broker-vs-ledger retention and commit ranges (`69–103`). `de/kafka_raw/config.py` defaults include `batch_size=500`, flush 500 ms, max poll records 500, bounded record/byte/batch buffers, and a 300 s max poll interval. `de/kafka_raw/clickhouse_repository.py:134` inserts and `164` reconciles physical evidence; `ledger_store.py` is the local durable transport/accounting authority. Instrument poll wait, buffer wait, validation, insert, reconciliation, ledger commit and broker commit separately, by topic/partition and batch size. Do not convert confirmation into a weaker offset policy.
+
+### Bronze V1
+
+Active V1 service is `de/bronze/processor.py:644` (`BronzeV1Processor.step`), `336` (`_process_batch`) and `118` (`materialize_v1_delivery`); `de/bronze/checkpoint_store.py` owns semantic identity, frozen intents, append-only change/invalidation sequences, faults and offset checkpoint. `de/bronze/clickhouse_repository.py:85` reconciles outputs, `128` persists outputs, `148` reads accepted observations and `302` reads bounded Raw batches. `de/bronze/config.py:ObservationSettings` defaults to 500 source rows per batch and one-second poll. Bronze output rows can differ from one-per-delivery and a conflict can create invalidation obligations. Instrument Raw page reads, validation/hash, identity lookup, disposition, intent transaction, each CH insert/reconcile, CAS and per-partition queue age. Existing Core steady evidence shows Bronze change output rate 5.07 sequences/s and Raw 4.94 deliveries/s, but does not separate time/cost or prove headroom over higher semantic fan-out/conflict rates.
+
+### Silver V1 (measured limiting stage)
+
+`de/silver/processor.py:290–351` (`_run_v1`) calls `run_v1_journal_pass` with `batch_size=min(configured_batch,10)` and `max_entries=10`; `poll_interval_sec` defaults to 2.0 s (`de/silver/config.py:148–149`). `run_v1_journal_pass` begins at line 555, captures bounded source high-water, validates exact sequence prefix and applies entries sequentially. Change and invalidation work share the bounded pass budget; accepted change (`391`), invalidation (`481`), conflict (`525`), obligation recovery (`365`) and cursor finalization execute sequentially. `process_v1_accepted_change` performs Bronze valid-observation reads, archive resolution/event validation, lifecycle and fact/dimension construction, durable obligation freeze, per-obligation ClickHouse reconciliation/persist/visibility, final source revalidation and atomic validity/cursor finalization. `de/silver/repositories.py` contains source and output CH queries; `de/silver/checkpoint_store.py` stores obligations, validity, cursors and generation CAS; `de/silver/archive_resolver.py` validates archived source files.
+
+Measured: Silver advanced 523 sequences during the 544.92 s steady interval, about 0.960 sequences/s; Bronze-to-Silver pending sequence distance grew 2,239, about 4.109 sequences/s. This establishes Silver as the first limiting queue on the tested profile. It does **not** identify which inner operation caused the limit. Fixed wait/cap is a source-confirmed configuration ceiling/opportunity, but removing it alone is not a root-cause fix. Required profile: one monotonic span/counter per pass and accepted/invalidation/conflict/recovery operation; nested spans for archive, source evidence, fact/dimension, every reconciliation round trip, insert, visibility and final read; SQLite transaction/read latency; CPU time; CH query ids/bytes/rows; wait/backoff; and idle-vs-backlogged scheduler time. Instrument with bounded-cardinality labels and bounded memory.
+
+### Silver canonical public feed and Gold Core
+
+`de/silver/incremental_reader.py:122` discovers a fixed boundary/source binding; `465` constructs a page with contiguous sequence/disposition proofs and end-boundary check. `de/feed_read_budget.py` limits feed query/evidence work. Public reads are intentionally correctness-heavy. `de/gold_runtime/silver_readers.py` verifies serialized DTO/receipt/binding and bounded CH reads. `GoldCoreProcessor` in `de/gold_runtime/processor.py:1084` has separate discovery (`1136`), bootstrap (`1181`), receipt ACK (`1205`), invalidation (`1229`), change (`1246`) and window-work (`1269`) lanes; cursors/receipt headers commit to `GoldCoreStore` in `de/gold_runtime/checkpoint_store.py:680+`, while `processing_ledger.py` maintains transitions, suppression, memberships and work generations. `CoreInputStream` (`1009`, `1031`) streams a bounded number of canonical members, reading exact source sequence evidence. Gold's per-member public reads and invalidation-fence restarts are possible later limits; current evidence does not establish a sustainable Gold window-work service rate.
+
+Measured: 317 change pages were durably ACKed at 0.960 sequences/s matching Silver's output over the observed interval. One work proof completed in 219.96 seconds over scheduler interleaving; 440 member reads and 9.12 MB of envelopes were recorded. One work proof is not a service-rate distribution. Gold page-to-durable-ack p95 was 1.906 s, but source-to-Gold ACK p95 459.80 s includes backlog waiting and is not observed for unacknowledged observations. Gold has bounded page/read budgets, but cumulative receipt/transitions/membership/work metadata grows with retained history; actual retention/storage budget is unapproved.
+
+### Shared resource contention
+
+`docker-compose.yml` has shared ClickHouse 24.3, Kafka 3.8.1, Orion-LD/Mongo, projector and V1 DE services; several realtime services use `restart: always/unless-stopped`. The Core capacity trial used an isolated DE stack, not the full realtime project stack. Compose declares no explicit CPU or memory reservations/limits for the audited services. ClickHouse query totals in the benchmark are from a shared upstream principal and cannot be attributed to Bronze vs Silver; Gold reader query counts are distinct. PERF must sample host and per-container CPU/RSS/block IO/network, CH active merges/parts/query attribution and Kafka disk/lag while running the integrated stack. Analytical workers must not starve TraCI, Orion or Projector.
+
+## Finding matrix
+
+| Stage / operation | Finding class | Evidence and impact | Required profiling / correctness fence | Candidate, not pre-approved |
+|---|---|---|---|---|
+| SUMO step, TraCI capture, snapshot and validation | UNMEASURED | Normal Core run reached ~1x simulation pacing with 1-second diagnostic step; no per-step/capture breakdown. Repeated TraCI calls may delay simulation but are not evidenced as a bottleneck. | Span step, per-node reads, derivation, mapping, contract validation, serialization, append and realtime Orion. Preserve exact cadence, topology, fields and ordering. | Reuse immutable/static topology lookups; reduce only redundant reads proven semantically equivalent. Any fidelity/cadence/payload change needs owner approval. |
+| Outbox SQLite append/ACK | POTENTIAL BOTTLENECK | WAL/FULL and per-cycle durable append are required; historical Core workload had zero pending at snapshots, not a peak outage/resource proof. | Lock wait, append tx/commit, ACK tx, fsync proxy, WAL/disk, queue rows/bytes/oldest age, device health. | Batch only independent status updates while cycle durability stays synchronous; retain at-least-once and disk fault. |
+| Kafka publisher/broker | UNMEASURED | Core benchmark reports Kafka lag peak 55 and end 20, while Raw had 9 pending; no broker/service breakdown. | Poll/batch/delivery callback/retry/acks, per-partition throughput, producer queue, broker request/disk, retention headroom. | Tune batch/linger/compression/in-flight after same-payload sweep; preserve keying, order, durability and backpressure. |
+| Kafka → Raw | MEASURED PERFORMANCE SYMPTOM | Raw persisted 4.938 deliveries/s for input 4.946/s in interval; final 2,991/3,000 persisted. Similar rate does not show maximum capacity. | Split consumer poll, validation, CH insert, physical reconciliation, SQLite ledger, broker commit; partition skew and old-age. | Tune batch/flush/buffers and partition count only from per-stage profile; preserve safe offset accounting and source bytes. |
+| Raw → Bronze | POTENTIAL BOTTLENECK | Bronze emitted 5.069 semantic change sequences/s vs measured input 4.938 deliveries/s, indicating output grain is distinct. Historical Phase 2 reported catch-up but used finite workload. | Per-batch source read, semantic lookup, classification, output fanout, per-table CH write/reconcile, SQLite prepare/CAS; disposition/fanout distribution. | Batch CH/identity work with unchanged conflict/lineage oracle; evaluate more workers only with semantic-key/SQLite ownership proof. |
+| Bronze → Silver | CONFIRMED BOTTLENECK | Bronze/Silver pending +162→+2401 in 544.92 s, growth 4.109 seq/s; Silver service 0.960 seq/s vs offered sequence arrivals about 5.069/s. | Instrument nested spans as above; split accepted/conflicted/invalidation/recovery mixes and one-operation microprofiles under backlogged isolated source. | Remove fixed idle delay under backlog; tune bounded batch by measured resource curve; batch/reuse reconciliation/source validation only where versioned evidence and content hashes preserve decisions. |
+| Silver polling/cap | CONFIRMED CONFIGURATION LIMIT | Active journal pass is clamped to ten entries and has configured 2s polling delay. At max batch plus delay, this limits the envelope and adds queue waiting; not necessarily the only bottleneck. | Compare idle/backlog poll schedule; actual pass duration and tail; max cap hit rate; queue-age by lane. | Backlog-aware immediate bounded polling, fair lanes, configurable cap guarded by validation. Never unbound a pass or starve invalidations. |
+| Silver canonical feed | POTENTIAL BOTTLENECK | Each requested sequence can cause evidence/journal/obligation/validity/archive/bundle checks; strict validation and byte/time budgets. Gold performed 585 page reads for 317 ACKs; no feed-specific CH attribution. | Query count/time/rows/bytes per sequence/disposition; entry budget, end validation and concurrent append; successful vs retryable page outcomes. | Source evidence batching/cache only after freshness/binding semantics formalized; keep sequence-complete verification and fixed boundary. |
+| Gold change ACK | MEASURED PERFORMANCE SYMPTOM | 317 pages; p95 page-to-durable ACK 1.906s, rate matched Silver's 0.960 seq/s. Current source starves Gold from a higher-rate capacity conclusion. | Repeat with controlled canonical feed rate; feed read vs JCS hash vs SQLite tx vs scheduler lanes; pages and bytes. | Batch sizes/page budget and independent lane fairness; preserve receipt/hash/fixed-Pi atomic ordering. |
+| Gold window work | UNMEASURED | 440 member reads, 9.12MB, one completed proof in 219.96s. Acknowledgment/cursor zero lag is not window completion. | Standalone fixed-rate source, then whole path. Record candidate age, 60/300 completion rates, reads/member, proof restarts due invalidation high-water, CPU/CH/WAL and dirty generations. | Query API batch only if Silver contract cost is measured; bounded parallelism/coalescing after generation-fence and invalidation race proofs. |
+| ClickHouse common service | MEASURED PERFORMANCE SYMPTOM | 49,761 completed queries on shared upstream identity, 13,332 Gold reader queries; upstream count not attributable to stages. | Per-user/query_id/comment attribution, duration/rows/bytes/read_bytes/memory, merge queue/parts, disk/CPU, query log retention. | Stage batch operations or indexes only after query-level profile and CH schema/partition evidence. |
+| Lifecycle/archive/filesystem | UNMEASURED | Archive resolution, file reads/fingerprints and lifecycle polling participate in Silver; no per-op timing or file I/O attribution. | archive cache hit/miss/validation bytes, lifecycle registry call, file open/read/hash; cold vs warm. | Bounded cache keyed by immutable content/version; invalidate/fail closed on fingerprint/binding changes. |
+| Compose contention | UNMEASURED | Full projector/Orion/Spring/Dashboard stack was not part of Core throughput run; no explicit Compose resource limits. | Integrated workload resource samples and realtime latency/freshness before/after. | CPU/memory reservations and worker concurrency based on measured local envelope, operator approved. |
+
+## Historical evidence scope
+
+- Phase 1 acceptance: 6,000 observations/1,200 simulation seconds; Raw measured about 15.57 deliveries/s over first-to-last Raw timestamps; zero final Kafka lag. It is Raw-only isolated evidence, not a complete pipeline maximum.
+- Phase 2: retained `docs/DEv1/phase-2/acceptance.md` records 600 observations/120 cycles, 12.322 s catch-up and other finite runs; historical catch-up is not steady λ/μ. The requested named `phase2-measured-70f64d12e4` / `phase2-measured-ffbed382b2` raw directories are not tracked in this checkout (`rg --files` found no such paths); treat detailed sample values (including ~415 transient count difference) as historical, not recalculated here.
+- Phase 3: current tracked `acceptance.md` marks A34 sustained throughput optional; `acceptance-result.md` certifies a finite 600-event A01 run and later finite source catch-up to 2,200 at the then-current worktree, not a controlled continuous-capacity campaign. The cited historical query improvement (~2.637s to ~0.002115s) is a targeted pending-obligation index result and is not the Core Silver loop profile.
+- Phase 4A-Pre: `pre/capacity-and-backpressure.md` states no end-to-end capacity certified, cites an initial five-observation 14–15 s attempt and final 0.25 obs/s focused path as test-specific. It is not runtime full-path evidence.
+- Phase 4A-Core: use `baseline.md` and original `core-evidence/*.json`; capacity was insufficient at tested 4.95 observations/s.
+
+## Evidence gaps blocking causal optimization
+
+No operation-level Silver profile; no per-stage equivalent-unit backlog age for the entire trial; no attribution of shared upstream CH query totals; no per-sequence Silver applied timestamp to Gold ACK; no controlled Gold work capacity with a faster source; no continuous conflict/invalidation test; no complete backlog drain; no full integrated application profile; no approved throughput/latency/resource/recovery objective. These are implementation/acceptance blockers, not reasons to change semantics by assumption.
+
+## Source inventory
+
+| Area | Primary inspected files |
+|---|---|
+| Producer/contracts | `Visualize/app/traci_runner.py`, `Visualize/simulation/backend.py`, `Visualize/simulation/traci_adapter.py`, `Visualize/observation/snapshot_provider.py`, `Visualize/observation/metrics_derivation.py`, `Visualize/observation/canonical_cycle.py`, `Visualize/runtime/run_manifest.py`, `Visualize/integration/kafka/outbox_store.py`, `outbox_worker.py`, `durable_publisher.py`, `producer.py`, `contracts/traffic_observation.py`, canonical JSON and V1 event schema |
+| Raw | `de/kafka_raw/v1_consumer.py`, `consumer.py`, `clickhouse_repository.py`, `ledger_store.py`, `config.py`, migration `006_create_kafka_raw_v1.sql` |
+| Bronze | `de/bronze/processor.py`, `checkpoint_store.py`, `clickhouse_repository.py`, `models.py`, `validator.py`, `payload_codec.py`, `lineage_resolver.py`, `config.py`, migration `007_create_bronze_v1.sql` |
+| Silver | `de/silver/processor.py`, `repositories.py`, `checkpoint_store.py`, `archive_resolver.py`, `fact_builders.py`, `dimension_builders.py`, `source_binding.py`, `incremental_reader.py`, `incremental_contract.py`, `config.py`, migration `008_create_silver_v1.sql`, `de/feed_read_budget.py` |
+| Gold | `de/gold_runtime/processor.py`, `silver_readers.py`, `checkpoint_store.py`, `processing_ledger.py`, `config.py`, `window_scheduler.py`, `de/gold/windowing.py`, `de/tools/gold_core_capacity.py` |
+| Integration/tests/deploy | `docker-compose.yml`, Raw/Bronze/Silver/Gold Runtime tests, migrations 006–008, retained `core-evidence/*.json`, Phase 1–4 docs and Phase 4A-Pre docs |
+
+This inventory is targeted at the active V1 path; it is not a full-project audit. Legacy V2 processors/readers should not be treated as active V1 path without deployment/profile evidence.
