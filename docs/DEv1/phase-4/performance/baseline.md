@@ -1,7 +1,7 @@
 # Verified performance baseline
 
-**Snapshot:** `a92767728ee6eec906a26104a2cb7fb0d33b8bb2`; branch `codex/phase-1-v1-raw`.  
-**Source files:** `core-evidence/pipeline-normal-sustained.json` (229 time-series samples), `pipeline-accelerated.json`, `pipeline-prefix-oracle.json`, `pipeline-restart.json`, `pipeline-clickhouse-outage.json`, `clickhouse-query-window.json`, `test-results.json`, and `acceptance-result.md`.
+**Core evidence snapshot:** `a92767728ee6eec906a26104a2cb7fb0d33b8bb2`; **planning revision baseline:** `ca5cc3d7abc2b363922f885fa0999812dae48b83`, branch `codex/phase-1-v1-raw`.
+**Source files:** Core `core-evidence/pipeline-normal-sustained.json` (229 time-series samples), `pipeline-accelerated.json`, `pipeline-prefix-oracle.json`, `pipeline-restart.json`, `pipeline-clickhouse-outage.json`, `clickhouse-query-window.json`, `test-results.json`, and `acceptance-result.md`; Phase 2 tracked reports/samples in `de/artifacts/bronze_v1/acceptance/`.
 
 ## Recalculated normal sustained trial
 
@@ -22,6 +22,8 @@ The JSON reports a steady interval of 544.921664 seconds. For monotonic counters
 Last snapshot: Outbox 3,000 ACKed; Raw 2,991 persisted; Bronze 2,945 change sequences; Silver 544 applied; Gold 544 ACKed. The values count different types of work. Do not subtract semantic change sequence counts from delivery counts as a loss measure.
 
 The steady source byte rate in the artifact is 19,776 bytes/s. Accelerated trial emitted 300 observations for 60 simulation seconds at 31.138 observations/s during active capture; 295 Kafka ACKed and five remained pending at sampled endpoint. This finite burst ran while earlier backlog was draining. It is not a requirement to support 31 observations/s and does not certify capacity.
+
+These source counters are not interchangeable: expected/scheduled captures, successfully captured entities, durable Outbox rows, Outbox ACK, Kafka deliveries, Raw persisted deliveries, Bronze COMPLETED physical-input intents, semantic journal sequences, Silver applied sequences and Gold work each have distinct boundaries. During outage/overload, Kafka ACK can lag actual capture, and a capture slowdown can falsely make downstream appear sustainable. Instrument and report every counter independently.
 
 ## Latency and Gold work
 
@@ -61,16 +63,31 @@ Stage B correctness, actual transaction crash barriers, invalidation races and i
 | Phase | Retained result | Valid interpretation |
 |---|---|---|
 | Phase 1 Raw V1 | 6,000 observations / 1,200 simulation seconds, about 15.57 Raw deliveries/s; zero final Kafka lag; isolated Raw-focused stack | Producer/Raw workload observation, not Raw max or full-path capacity. |
-| Phase 2 | `phase2-measured-ffbed382b2`: 600 observations / 120 cycles, 12.322 s catch-up and 42.259 s total; `phase2-measured-70f64d12e4`: 600 / 120 cycles and 37.301 s catch-up under a declared 60 s post-source limit. | Finite catch-up under a different stack/profile. These are post-source drain times, not continuous λ/μ. The suggested ~15.81 s and ~415 transient counter difference do not appear in the tracked Phase 2 acceptance text or available files, so are not recalculated or asserted here. |
+| Phase 2 final `ffbed382b2` | `de/artifacts/bronze_v1/acceptance/phase2-measured-ffbed382b2/report.json`: 600 events; 14 samples; catch-up 12.3217934 s; total 42.2592266 s. | Independently read tracked JSON; finite post-source catch-up, not λ/μ or sustainable throughput. |
+| Phase 2 prior `70f64d12e4` | `de/artifacts/bronze_v1/acceptance/phase2-measured-70f64d12e4/report.json`: 600 events; 23 samples; catch-up 37.3013543 s; total 73.9950448 s. | Finite catch-up under a different stack/profile; not a capacity sweep. |
+| Phase 2 independent hardening `bc3c691c4a` | `de/artifacts/bronze_v1/acceptance/independent-hardening/hardening-5383496c/phase2-measured-bc3c691c4a/report.json`: 600 expected/Outbox ACK/Raw/canonical/lineage rows; 14 samples; catch-up 15.8129024 s; total 49.3353630 s. | Separate finite hardening trial with source verification; not comparable as a continuous rate. |
+| Phase 2 sampled difference | `.../phase2-measured-ffbed382b2/samples.json`: for each row compute `raw.raw_deliveries - bronze.processing_status_counts.COMPLETED`; max **415** at elapsed 29.94s (2,030 minus 1,615). | Samples may observe different transaction boundaries; this is a sampled counter difference, not necessarily an exact simultaneous durable backlog. It does not establish Bronze maximum service capacity. |
 | Phase 3 | A34 explicitly optional; later 600-event source oracle and eventual cursor 2,200, obligations reconciled | Correctness and finite backlog recovery; no sustained capacity certification. The ~2.637s→0.002115s query improvement is one indexed pending-obligation query, not a whole-stage profile. |
 | Phase 4A-Pre | no whole path capacity result; five-event early attempt around 14–15s and 0.25 obs/s focused test path | Fixture-specific throughput symptom only. |
 | Phase 4A-Core | 4.946 obs/s offered; Silver 0.960 seq/s; Bronze→Silver backlog growth 4.109 seq/s | Current retained diagnostic clearly insufficient at this offered workload. |
 
-Phase 2 raw directories named `phase2-measured-70f64d12e4` and `phase2-measured-ffbed382b2` are absent from the tracked checkout inventory, so the two durations above are verified from the committed report text, not independently recalculated from raw samples. The ~15.81 s trial and ~415 sampled counter difference are not located in tracked files. Phase 1–3 reports are historical and have different implementation/environment boundaries.
+All cited Phase 2 report/sample paths are confirmed by `git ls-files`; reports were parsed directly and the maximum sample difference was recalculated as described above. These are finite 120-second simulation workloads. Phase 1–3 runs have different implementation/environment boundaries.
+
+## SUMO workload profiles
+
+Normal source defaults: `SUMO_STEP_LENGTH=0.01` simulation seconds (`Visualize/configuration/model_parameters.yaml`), `PUBLISH_INTERVAL=1.0` simulation seconds, participants `A,B,C,D,M`, and `OBSERVATION_INTERVAL_SEC=1.0` simulation seconds. Scenario changes may request extra captures. V1 publish and Kafka Outbox flags default off and must be explicitly recorded as enabled for the benchmark. Wall pacing is separate. Core's benchmark overrides the step to 1.0s, materially different from normal operation.
+
+| Profile | Definition and use |
+|---|---|
+| W1 Historical Comparable | Reproduce Core's 1.0s diagnostic step, 600 simulation seconds, five participants, same payload/topology/scenario/seed/pacing and isolated stack. Matched before/after only; not intended-operation certification. |
+| W2 Intended Operation | Normal 0.01s step, G0-approved capture/cache/publish settings, participants/scenario, and normal co-resident stack. Current expectation near five observations/wall-second at 1x is only a hypothesis until measured with capture counts and simulation pacing. |
+| W3 Controlled Stress | Reproducibly increase offered work using actual accelerated SUMO and/or clearly labeled deterministic component fixtures. Keep declared cadence, payload and semantics; component fixtures do not certify full E2E capacity. |
+
+Report steps/s, simulation seconds/wall second, scheduled cycles, completed captures, event rows/cycle, bytes/s, Outbox inserts/ACK/pending, Kafka ACK and each stage's unit. A run whose source slows below the approved pacing is not a passing offered-load trial.
 
 ## Measurement limitations
 
-- Core used a one-second SUMO step, explicitly a diagnostic measurement setting; normal project configuration differs and must be recorded in future trials.
+- Core used a one-second SUMO step; normal YAML config is 0.01s. It is a diagnostic profile, not W2.
 - The report retains collision and detector-fingerprint warnings. The observed workload needs a clean semantic/fidelity review and matched normal configuration.
 - Some regression tests ran concurrently and could contend for resources.
 - The measured path is isolated DE/SUMO and not the complete normal stack with Projector, Orion-LD, MongoDB, Spring, PostgreSQL and Dashboard.

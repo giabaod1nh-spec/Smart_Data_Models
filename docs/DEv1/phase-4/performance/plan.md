@@ -1,100 +1,99 @@
-# End-to-end optimization implementation plan
+# End-to-end performance optimization implementation plan
 
-**Execution remains unauthorized until owner approves the requirements, design and unresolved decisions. This document is planning only.** Work packages are dependency-ordered, but profiling evidence can reorder PERF-02..05. Every source change requires package-specific tests plus applicable Phase 1–4A regressions and full-path oracle.
+**Planning only. No optimization or Core fix is implemented in this revision.** The measured bottleneck is Silver apply; its inner cause is not measured. Gold completed-work capacity is unknown and must be profiled early to prevent bottleneck transfer. PERF-02/03 inspect every upstream stage but implement changes only when evidence shows need or a stage prevents valid downstream profiling.
 
-## PERF-00 — Owner objectives and benchmark freeze
+## Dependency order
 
-- **Objective:** approve target workload, step/capture semantics, source rate, recovery backlog/time, latency goals, resource envelope, retention and test duration.
-- **Evidence/root cause:** current 4.95 obs/s diagnostic is insufficient but is not an approved operating target; no SLO/resource objectives exist.
-- **Prerequisite:** review `requirements.md`, baseline, source configuration and warning/fidelity status.
-- **Changes:** likely docs/config fixture only; no production code until target freezes. Benchmark manifest records commit/config/topology/pacing/seed/image/DB versions/state/backlog/contention.
-- **Correctness/contract:** no source cadence/payload or availability change. Public contract unchanged.
-- **Tests/DoD:** validate manifest reproducibility; repeat baseline trial sufficiently to estimate variation; preserve raw samples. Owner signs workload and thresholds.
-- **Failure/rollback/approval:** if intended workload cannot be represented, stop optimization acceptance and resolve workload contract; preserve diagnostic results.
-- **Phase 3 compatibility:** none; benchmark uses Phase 3 behavior as immutable oracle.
+```text
+PERF-00A workload/compatibility freeze (G0)
+  → PERF-00B Core correctness hardening
+  → PERF-01 end-to-end instrumentation + controlled baseline
+  → profile all stages, including Silver apply and early Gold G-A/G-B
+  → PERF-01 evidence packet and G1 performance-objective freeze
+  → evidence-gated optimization: PERF-04 Silver, PERF-05 feed/Gold,
+       PERF-02/03 upstream only where measured or required
+  → PERF-06 integrated balancing
+  → PERF-07 acceptance L0–L4, PA-01..PA-12
+  → owner approves evidence → Phase 4B planning
+```
 
-## PERF-01 — End-to-end instrumentation and independent stage accounting
+If an upstream limit makes Silver/Gold profiling invalid, move the relevant PERF-02/03 optimization earlier with measured rationale. Gold component/canonical profiling starts after PERF-01, before selecting Silver optimization parameters. After every significant optimization: run applicable correctness regression, operation test, stage profile, matched full-path trial, inspect every queue and shared resource, identify migration, and choose next work based on evidence. Every package includes this end-to-end regression gate.
 
-- **Objective:** establish trustworthy per-operation profiles, queue ages, rates, resource use and trace attribution before tuning.
-- **Existing evidence:** 229 Core samples and Gold reader query summary; no per-op Silver profile, stage CH attribution or full app resource series.
-- **Files to inspect/change:** producer runner/backend/snapshot/provider; Outbox store/worker/publisher; Raw V1 consumer/repository/ledger/metrics; Bronze V1 processor/repository/checkpoint/metrics; Silver processor/repository/checkpoint/archive/feed; Gold processor/store/reader/ledger/metrics; health APIs, Compose, benchmark tool and support tests. Prefer additive metrics modules where they match repository conventions; no schema migration unless durable sampling needs are justified (prefer external evidence files).
-- **Steps:** add bounded counters/timers/spans; query IDs/context; stage-specific backlog age/bytes and resource sampler; workload manifest and raw time-series writer; verify `input = output + pending + disposition` oracle.
-- **Dependencies:** PERF-00 workload snapshot; no authority or public DTO changes.
-- **Correctness:** metrics are observational and never determine disposition, cursor, output or retry behavior.
-- **Tests/acceptance:** unit test monotonic counters/errors/cardinality; instrumentation overhead A/B; real integration path stage-accounting oracle; resource samples align across services.
-- **Failure modes:** high-cardinality memory growth, slow metrics endpoint, wall-clock jumps, query labeling leak. Roll back instrumentation independently, preserve acceptance artifacts.
-- **DoD:** all required stages attributable per `instrumentation.md`; missing attribution quantified; raw samples and manifests reproducible.
-- **Phase 3 compatibility:** add-only metrics/health fields; no change to validity, invalidation, archive, cursor or readiness semantics.
+## PERF-00A — Initial workload and compatibility freeze (G0)
 
-## PERF-02 — Profile and tune producer, Outbox, Kafka and Raw
+- **Objective/evidence:** freeze W1/W2/W3 and existing semantics before implementing instrumentation. Core uses 1.0s diagnostic step; normal YAML is 0.01s; normal publish/cache interval is one simulation-second, participants A/B/C/D/M by default; current ~5 observations/wall-second is an estimate, not an approved cadence.
+- **Owner inputs:** intended scenario/topology and capture semantics; relevant application-stack scope; available hardware and initial safe diagnostic resource ceilings; isolation/fault-test boundaries; fidelity constraints. No final latency/recovery SLO required.
+- **Files:** docs `requirements.md`, `baseline.md`, run manifests and benchmark fixtures only. Inspect `Visualize/configuration/model_parameters.yaml`, config env overrides, CLI/run loop, `gold_core_capacity.py`, contracts and handovers. Do not change runtime config.
+- **Steps/tests:** validate manifest captures effective environment/config, scheduled vs completed capture counters, simulation/wall pacing, source event/byte shape, seeds and stack inventory; verify W1 reproduces historical benchmark and W2 uses normal config. Any reduced cadence/payload fails.
+- **DoD/compatibility:** owner records G0 workload/compatibility decision; no source/contract behavior changed. If W2 cannot be produced at intended pace, resolve source issue before performance conclusions.
 
-- **Objective:** establish whether producer/durable transport/Raw has headroom at the approved workload and optimize only measured dominant stage(s).
-- **Hypotheses:** TraCI capture or FULL/WAL cycle append can consume simulation budget; Raw insert/reconcile/commit could be near offered rate. Neither is yet a confirmed ceiling.
-- **Files:** `Visualize/app/traci_runner.py`, simulation/backend and observation packages, Outbox/publisher/worker, `de/kafka_raw/v1_consumer.py`, Raw repo/ledger/config, migrations only if evidence supports additive index/schema.
-- **Steps:** capture same payload profile; controlled batch/flush/linger/in-flight sweep, partition skew, outage/backpressure and disk runway. Keep exact event bytes, cycle identity and Raw persistence-before-offset commit.
-- **Alternatives:** tune batch vs partitions vs query/index work; do not relax acknowledgments, remove Outbox or reduce source fidelity.
-- **Tests:** contract byte equality; duplicate/retry/ambiguous insert; offsets never skip unresolved; restart/retention gap; burst plus ongoing input; resource budget.
-- **Failure/rollback:** any unaccounted delivery, payload mismatch, unsafe commit, Outbox overflow or simulation semantic drift rejects build; restore prior config/image and reconcile.
-- **DoD:** approved normal rate + required recovery headroom, bounded queues at early/middle/late, profile shows margin, downstream Bronze/Silver/Gold are not starved.
-- **Phase 3:** upstream behavior stays identical; Silver receives same canonical Bronze histories.
+## PERF-00B — Core correctness hardening
 
-## PERF-03 — Profile and tune Bronze V1 semantic materialization
+- **Objective:** reproduce and minimally remediate the static replay final-boundary transient failure path only if confirmed. In `de/gold_runtime/processor.py:run_cycle`, final replay `discover()` before marking COMPLETE is outside `_lane()` retry/backoff.
+- **Changes:** deterministic failure injection at final replay validation; transient authority failure must not mark COMPLETE or terminate through wrong path; temporary dependency restoration retries and completes; permanent binding/boundary change remains fail-closed/ABORTED. Implement minimal change only after reproduction.
+- **Files/tests:** `de/gold_runtime/processor.py`, replay/runtime tests, Gold checkpoint/store tests, Core isolated test fixtures. Verify live SQLite bytes/cursors/work unaffected and replay/live namespaces isolated; run full Core correctness regressions.
+- **Failures/DoD:** if not reproducible, record versioned evidence and retain static finding as not reproduced; do not label defect fixed. If reproduced, fix preserves replay contract; transient, permanent, restart and source replacement tests pass. No data state migration expected; if changed, compatibility matrix and approval are mandatory.
+- **Silver compatibility:** inspect scheduler before any fairness work. Preserve startup recovery precedence, invalidations-before-changes within fixed boundary, `CONFLICTED` requires local invalidation, exact contiguous source prefixes. Do not implement naive round-robin. PERF-04 tests continuous changes/invalidation, related/unrelated invalidation, outstanding recovery, conflict before accepted finalization, append during pass, outage/restart and busy-loop protection.
 
-- **Objective:** confirm capacity beyond approved input and preserve semantic/invalidation authority.
-- **Evidence:** current benchmark Bronze output rate 5.069 sequences/s while input 4.938 deliveries/s; no per-op timings; Phase 2 had finite transient backlog/catch-up evidence.
-- **Files:** `de/bronze/processor.py`, `checkpoint_store.py`, `clickhouse_repository.py`, `models.py`, Raw adapter/ledger, `metrics.py`, tests in `de/tests/bronze` and integration acceptance; migration 007 only if query profile justifies additive index.
-- **Steps:** profile per offset/batch source read, validation/hash, identity lookup, output fanout and each CH reconciliation, invalidation/journal writes and CAS. Compare batch size/poll/no-op discovery; consider safe batched identity/reconciliation. One SQLite owner retained unless redesigned explicitly.
-- **Invariants:** duplicate/conflict classification, append-only sequence links, invalidation and full Raw lineage unchanged; exact reconciliation before cursor.
-- **Tests:** independent semantic oracle; duplicates same/different bytes; conflict after acceptance; CH ambiguity; missing/corrupted source; interleaved partitions and gaps; full downstream Silver/Gold oracle.
-- **Failure/rollback:** mismatch in state/disposition/sequence/output refuses rollout; migration additive forward-only, retain old image/state restore plan.
-- **DoD:** sustained approved arrival plus derived recovery demand with bounded Raw→Bronze queue and matching source oracle.
-- **Phase 3:** journal ordering and disposition unchanged; Silver receives equivalent entries and invalidation feed.
+## PERF-01 — Complete instrumentation, stage profiling and controlled baseline
 
-## PERF-04 — Silver V1 confirmed bottleneck optimization
+- **Objective:** independent offered-load accounting, hidden-backlog visibility, nested operation costs, Gold work lifecycle and shared-resource/query attribution.
+- **Files to inspect/change if authorized later:** producer/TraCI/backend/snapshot/config; Outbox/publisher; Raw V1 consumer/repository/ledger; Bronze V1 processor/repository/checkpoint; Silver processor/repository/checkpoint/archive/feed; Gold reader/processor/ledger/store; health/metrics; `de/tools/gold_core_capacity.py`; Compose for evidence-only sampling; tests. Do not modify contracts or authority schema for telemetry absent justification.
+- **Steps:** implement bounded counters/spans and workload manifest; distinguish scheduled/completed captures, Outbox append/pending/ACK, Kafka/Raw/Bronze/Silver/Gold units; expose each memory/durable queue and age/bytes; per-stage host/container resources; exact or confidence-labeled CH query attribution; measured overhead. Run L0-L2 controlled profiles to identify producer/Outbox/Kafka/Raw/Bronze, Silver accepted/conflict/invalidation/recovery, feed and Gold cost.
+- **Gold early work:** run G-A local fixture and G-B actual canonical read capacity after instrumentation; G-C full pipeline starts when source can reach target. Separate ACK from eligible current-generation 60/300 completion.
+- **Tests/DoD:** counter accounting oracle, no high cardinality or blocking TraCI, output/authority invariance; spans correlate every critical operation or explicitly mark attribution unavailable; sample overhead measured; all-stage initial baseline includes W1/W2 and raw evidence. No optimization selected on aggregate query count.
+- **Compatibility:** observation-only fields; no event payload, checkpoint, authority, cursor, disposition or health readiness decision changed. Applicable Phase 1–4A regression plus independent full-path oracle after implementation.
 
-- **Objective:** move Silver service rate above approved arrival plus recovery headroom while preserving materialization and invalidation semantics.
-- **Evidence:** measured 0.960 sequences/s; pending +162→+2401 at +4.109/s. Active worker cap 10 and configured 2s wait are confirmed configuration limits, but inner bottleneck is unmeasured.
-- **Prerequisite:** PERF-01 spans and isolated/profiled Silver work mix. Do not guess that poll delay alone explains the gap.
-- **Files:** `de/silver/processor.py`, `config.py`, `repositories.py`, `checkpoint_store.py`, `archive_resolver.py`, fact/dimension builders, `incremental_reader.py`, `feed_read_budget.py`, Silver and real integration tests; migration 008 only if measured SQL needs an additive index.
-- **Steps:** (1) baseline accepted/conflict/invalidation/recovery span; (2) backlog-aware poll and fair bounded lane scheduling; (3) tune batch cap with peak RSS/CH latency; (4) reduce repeated per-entry/per-obligation reconciliation via exact grouped content query or transaction only if supported; (5) bounded immutable archive/dimension reuse only by fingerprint/version; (6) rerun Bronze→Silver and all public feed proofs.
-- **Alternatives:** single-owner bounded batching first; worker parallelism deferred due SQLite serialization, sequence ordering and invalidation races. Do not skip final Bronze source point read, obligation freezing, output visibility/reconciliation or VALID+cursor atomic finalization.
-- **Correctness tests:** accepted→conflicted lifecycle; replay/current validity; fact set/value/availability/lineage; obligation immutability; CH before/after ambiguous write; failed validity/CAS transaction rollback; source replacement/gap; concurrent append; sequence continuity; independent invalidation progress; archive mutation; phase-3 real migration and regressions.
-- **Perf tests:** accepted-only and mixed disposition passes; throughput vs batch size; CH query attribution; CPU/SQLite/CH/archive share; latency and memory; source append during scan; finite backlog drain while input continues.
-- **Failure/rollback:** any semantic mismatch, invalidation starvation, unbounded pass/memory, or cursor advancement on incomplete obligation rejects. Revert code/config, retain Silver authority and reconcile from durable cursor.
-- **DoD:** approved λ + B/T target with stable Bronze→Silver backlog, bounded age/resources, full exact canonical oracle; no degradation to raw/fact correctness.
-- **Phase 3:** strongest compatibility gate; all accepted A01–A33 evidence/invariants remain true. No edits to prior evidence/results.
+## G1 — Evidence-based performance-objective freeze
 
-## PERF-05 — Silver feed and Gold ACK/window work
+After PERF-01, engineering proposes normal rate, burst/outage B/T and global recovery, source→ACK and eligible-work latency, backlog/age envelope, resources/history/retention, realtime regression and L3/L4 duration. Each includes observed data, product rationale, resource/trade-off and test method. Owner approves target values; they are not invented here. Do not begin final tuning claims or PA pass/fail threshold before G1.
 
-- **Objective:** establish independent sustainable Gold ACK and completed-work rates once source can supply them; optimize window path without conflating ACK with work completion.
-- **Evidence:** ACK rate matched Silver's 0.960/s; 440 member reads/9.12MB; one completed proof over 219.96s; current source-limited benchmark cannot estimate Gold capacity.
-- **Files:** `de/silver/incremental_reader.py`, feed contract/budget, public DTO serializer/tests; `de/gold_runtime/silver_readers.py`, `processor.py`, `processing_ledger.py`, `checkpoint_store.py`, `window_scheduler.py`, `de/gold/windowing.py`, `config.py`, `gold_core_capacity.py`, Gold runtime and Silver feed tests. Additive contract/version migration only with measured proof and separate approval.
-- **Steps:** fixed-rate repeatable Silver source; separate feed ACK from member materialization. Profile JCS/receipt, page budgets, exact `after=s-1` reads, invalidation-fence restart, membership fanout, 60/300 completion, generation churn. Then test bounded batch-read/API, local member input cache or generation coalescing one at a time.
-- **Correctness:** full sequence receipts, independent invalidation cursor and fixed Pi, exact suppression, membership identity, current-effective bundle and source binding, fixed high-water fence, generation CAS; lifecycle/completeness/finality semantics unchanged.
-- **Tests:** all concurrent append, invalidation before/during/after work, unrelated invalidations, stale generation, replay isolation, crash between source and local ACK, exact memberships, terminal OPEN windows, long history, service outage and independent oracle.
-- **Failure/rollback:** any skipped invalidation, stale work completion, missed member, duplicate authoritative work or contract disagreement rejects. Revert to prior public method and preserve old Gold checkpoint compatibility.
-- **DoD:** controlled source ACK capacity and separate 60/300 proof service satisfy approved arrival+recovery demand; full path confirms same results.
-- **Phase 3:** Silver public API remains backward-compatible unless explicit additive contract approval; no raw fact table bypass.
+## PERF-02 — Producer / Outbox / Kafka / Raw optimization (conditional)
 
-## PERF-06 — Integrated shared-resource and pipeline balance
+- **Trigger:** PERF-01 shows an upstream bottleneck, insufficient headroom, or upstream rate prevents valid downstream component measurement. Investigation always occurs; code/config changes do not happen absent evidence.
+- **Files:** `Visualize/app/traci_runner.py`, `Visualize/simulation/backend.py`, observation stack, Outbox store/worker/publisher, Kafka producer and `de/kafka_raw/v1_consumer.py`, Raw repository/ledger/config; additive migration only if measured and separately approved.
+- **Design:** controlled payload-equivalent capture, Outbox batch/status/SQLite profile, Kafka batch/flush/linger/partition, Raw poll/validation/insert/reconcile/ledger/commit. Preserve V1 bytes, identity, at-least-once Outbox and persistence-before-offset commit. No frequency/fidelity reduction.
+- **Tests/DoD:** bytes/contract equality; duplicate, retry, ambiguous write, no unsafe offsets, retention gap, outage, restart, bounded buffers and measured B/T. After each change run Raw/Bronze/Silver/Gold full E2E accounting and realtime pacing check. Rollback image/config without deleting or rewinding data.
 
-- **Objective:** verify optimized complete pipeline under normal app resource contention and tune service budgets fairly.
-- **Files:** `docker-compose.yml`, worker Dockerfiles/dependency versions, all service configs/metrics, isolated/integrated benchmark runner and runbook. Avoid changing Spring/Dashboard business semantics.
-- **Steps:** run matched isolated and full app stacks; collect host and container profiles, query attribution, workload and realtime service metrics; sweep CPU/memory budgets and worker settings with one variable at a time. Exercise finite burst then normal arrivals and outages.
-- **Tests:** SUMO pacing/capture fidelity; Projector/Orion successful work and latency; all analytical queues and Gold work; controlled CH/Kafka contention; disk exhaustion warning boundary in disposable state.
-- **DoD:** all stage and realtime metrics remain inside owner-approved envelope; no moving backlog into unmeasured buffers; recover within approved target.
-- **Rollback:** restore Compose limits/config and previous image; never truncate Kafka/SQLite/CH evidence.
-- **Phase 3:** valid/lineage semantics unchanged; integration profile may alter resource allocation only.
+## PERF-03 — Bronze V1 semantic processing optimization (conditional)
 
-## PERF-07 — Performance Acceptance certification
+- **Trigger:** per-operation profile shows Bronze is limiting or insufficiently headroomed, or its output rate prevents Silver/Gold measurement. Phase 2 catch-up does not alone trigger a change.
+- **Files:** `de/bronze/processor.py`, checkpoint/repository/metrics/config, Raw source reader and Bronze tests; migration 007 only on measured index/query need.
+- **Design/tests:** profile bounded Raw reads, hash/identity, disposition, fan-out, frozen intent, per-target CH write/reconcile, invalidation/journal/checkpoint. Candidate batching retains exact per-observation result, conflict classification, original Raw lineage and append-only sequence. Test same/different payload duplicate, conflict after accept, missing/corrupt source, ambiguous CH, interleaved partitions, gaps, outage/restart and phase3 invalidation oracle.
+- **DoD/rollback:** equivalent semantic outputs and source lineage, stable Bronze and every downstream queue under approved load; same E2E gate. One owner remains unless separately approved state/ordering redesign. Additive state compatibility matrix required for migration.
 
-- **Objective:** execute PA-01..PA-12 using the accepted optimized build, isolated state, production-like config, independent source oracles and owner-approved thresholds.
-- **Prerequisite:** PERF-00..06 DOD; no critical blocker; owner confirms acceptance campaign resource allocation.
-- **Evidence:** raw benchmark time series, workload manifest, query attribution, container/host telemetry, JUnit/runtime logs, independent source and stage oracle, hashes, failures and full drain inventory.
-- **DoD:** every required scenario passes all correctness, stable backlog, work completion, latency, recovery, resource, history and realtime coexistence objectives; before/after matrix supports no regression. Phase 4B only after owner reviews and approves evidence.
-- **Failure:** any continuous queue growth, incomplete eligible Gold work, semantic mismatch, unsafe cursor/offset, unbounded resource, unacceptable realtime regression or missing independent oracle means fail; retain data and revert optimization.
-- **Phase 3 compatibility:** complete applicable Phase 1–4A regression matrix unchanged; no tests removed/weakened.
+## PERF-04 — Silver V1 apply optimization
 
-## Package ordering summary
+- **Trigger/evidence:** first confirmed backlog bottleneck at tested profile (+4.109 change sequences/s backlog, Silver ~0.960/s); inner operation cost required from PERF-01.
+- **Files:** `de/silver/processor.py`, config, repositories, checkpoint, archive resolver, fact/dimension builders, tests; migration 008 only if profiled query justifies it.
+- **Candidate order:** (1) backlog-aware polling; (2) bounded entry/byte/time cap sweep; (3) grouped frozen-obligation reconciliation design in `design.md`; (4) reduce measured redundant source/evidence reads only with equivalent source binding/final revalidation; (5) bounded immutable archive/dimension reuse keyed by fingerprints/version; (6) transaction reduction preserving SQLite atomic finalization. Single-owner first; concurrency deferred.
+- **Exact batch rule:** per-obligation classifications survive partial success; 99/100 match leaves exact outstanding row and blocks any later source sequence beyond incomplete prefix. Ambiguous writes reconcile by key/hash before retry; conflicts fault; local status commits after CH evidence; crash repeats safely. Single-entry fallback for ambiguity. Final Bronze current point-read and atomic VALID+cursor remain.
+- **Scheduler tests:** preserve recovery-before-new-work, invalidation prefix before changes, conflict local suppression, exact fixed boundaries and safe prefix. Prove fairness across independently processable lanes without violating dependency; related/unrelated invalidation, ongoing inputs, unresolved obligation, blocked prefix, retry/backoff/no-spin, source append and outage/restart.
+- **DoD:** exact Phase 3 facts/value/availability/lineage/obligation and validity equivalence, full regressions; throughput/backlog/resource headroom meets G1 on Silver and complete path, with Gold work and every upstream queue measured. Roll back without state rewind.
 
-`PERF-00 → PERF-01 → (PERF-02 and PERF-03 measured as needed) → PERF-04 → PERF-05 → PERF-06 → PERF-07`. PERF-02/03 may precede PERF-04 if instrumentation shows upstream constraints; PERF-05 source-only profile can run after PERF-01 in parallel operationally but must not be treated as full-path certification. No work starts by assuming a later stage is fast enough.
+## PERF-05 — Silver canonical feed and Gold work optimization
+
+- **Trigger/evidence:** early G-A/G-B establishes feed/member query and work costs. Current per-member `entries=1` calls and global invalidation fence are measured risks; no API or cache is approved.
+- **Files:** Silver incremental reader/contract/budget; Gold `silver_readers.py`, `processor.py`, `processing_ledger.py`, store, scheduler, windowing and `gold_core_capacity.py`; acceptance tests. New public contract/migration only after separate owner approval.
+- **Alternatives:** Option A internal optimization of existing feed; B additive bounded Silver sparse-member API; C bounded Gold-owned verified working representation; D hybrid. Selection criteria in `design.md`; A first, B/D require architectural approval, C requires persistent state compatibility.
+- **Work generation:** state-specific OPEN/PENDING coalescing; RUNNING invalidation/fencing; COMPLETE immutable; DIRTY durable recompute; atomic Gold SQLite update; preserve receipts and suppression. Never blindly delete history.
+- **Tests:** exact sparse/non-contiguous member set; current validity; bundle/transition hash; append/conflict/invalidation; cache stale/fingerprint/eviction/restart; replay/live isolation; invalidation within/outside window/other run/final check; crash before/after coalescing; multiple pending/late input/stale completion; old dirty window; 60/300 exact membership and persistent state matrix.
+- **DoD:** G-B ACK/member read and both duration-specific completed current-generation work rates meet G1 with invalidation/recompute demand; G-C confirms no transfer; full Gold/Core and end-to-end regressions. Retain current global invalidation fence absent equivalent verified narrower proof.
+
+## PERF-06 — Integrated resource and pipeline balance
+
+- **Files:** Compose/resource profiles and all affected services, benchmark tools; no automatic config change before owner approval.
+- **Steps/tests:** matched W2 normal app stack and isolated comparison; host/container CPU/RSS/IO/network/disk, CH/Kafka pressure, SUMO pacing, projector/Orion/Spring/Dashboard; tune one resource/control at a time. Test burst with normal production and isolated dependency outages.
+- **DoD:** every queue and work set stays in G1 envelope; global recovery and realtime regression pass; full source oracle exact. Restore prior code/config on failure; never truncate authority/source.
+
+## PERF-07 — Tiered Performance Acceptance
+
+- **Prereq:** G0+G1, PERF-00B/01, required evidence-driven PERF-02..06; L1/L2 pass before L3 and L4; no unclassified correctness or resource issue.
+- **Execution:** PA-01..PA-12 in `acceptance.md`; L0 microprofile, L1 2–5m smoke, L2 10–15m matched iteration, L3 30–60m integrated qualification, L4 2–4h+ only when final endurance/history confidence justifies.
+- **DoD:** exact independent accounting; queue trend and global recovery; Gold ACK and eligible 60/300 work sustained; resources/history/realtime within approved objectives; full Phase 1–4A regressions. Owner approves before Phase 4B. Any gate failure/inconclusive keeps Phase 4B blocked.
+
+## Cross-cutting compatibility and rollback gates
+
+Every optimization-changing batch, cache, transaction, concurrency or persistence requires tests for partial success, ambiguous responses, conflict, missing evidence, crash before/after local commit and incomplete earlier sequence. Cache/API cases include source append, invalidation, binding/archive replacement, restart and eviction before dirty recompute. Persistent changes require matrix: old code/old state; new/old; new/new; old/new explicitly supported or forbidden. Define forward recovery, backup boundary, retained sources and owner/operator steps. Never assume image rollback reverses state; never rewind/truncate authority.
+
+All packages preserve Outbox at-least-once, original Raw bytes, safe Kafka offsets, Bronze semantic authority, Silver canonical authority/frozen obligations/contiguous prefixes, independent invalidations, public receipt integrity, Gold-local atomicity/suppression/current-effective input/generation fencing/replay isolation and V1/V2 state isolation. Windows stay pure 60s/300s event-time, epoch-zero, half-open; completeness UNKNOWN and finality DISABLED. No KPI/marts/API/Dashboard implementation.

@@ -30,24 +30,37 @@ For stage `i`, define actual arrival rate `λᵢ` and sustainable service rate `
 8. **History:** demonstrate indexed access, startup, replay, SQLite metadata and CH merge behavior across expected retained history. Specify retention and disk headroom before live deployment.
 9. **Realtime coexistence:** run full normal app stack and prove no unacceptable SUMO pacing, Projector/Orion or Dashboard-serving regression against matched baseline.
 
-## Workload profiles
+## Workload profiles and gates
 
-Maintain two comparisons:
+| Profile | Frozen meaning | Use |
+|---|---|---|
+| W1 Historical Comparable | Core tool profile: `SUMO_STEP_LENGTH=1.0`, 600 simulation seconds, five-node participant set, exact archived topology/payload/scenario/seed/pacing and isolated stack. | Reproduce historical before/after; not intended-operation certification. |
+| W2 Intended Operation | Normal YAML step 0.01s; approved capture/cache/publish cadence, nodes and scenario triggers; actual normal application stack. Current ~5 observations/wall-second is an estimate at 1x pacing, to verify from scheduled and completed capture counters. | Operating workload after G0, with rate/bytes distribution evidence. |
+| W3 Controlled Stress | Declared controlled offered-load sweep using accelerated SUMO and/or deterministic component fixtures; distinguish source type and preserve event semantics/payload. | Saturation, headroom and overload behavior. Fixture-only results do not certify canonical or E2E rates. |
 
-- **Historical comparable profile:** reproduce Core benchmark settings (including one-second diagnostic step) solely for before/after comparability; same topology, payloads, seeds/scenario, container versions, isolated state and offered workload.
-- **Intended operation profile:** use the current approved SUMO configuration and actual normal stack with exact run manifest, topology, capture schedule and scenario triggers. Do not use one-second capture if normal semantics specify another cadence.
+All profiles record commit, full config/env hash, SUMO step and simulation/wall pacing, cache/capture/publish interval, expected schedule, completed captures, entities/cycle, bytes/s, participants/topology, scenario/seed, versions, initial retained history/backlog, resources and contention. Do not reduce fidelity/cadence or permit slow simulation to lower offered work.
 
-Both profiles record commit, config hash, step length, capture cadence, participants, topology digest, scenario/seed, event size distribution, rate/bytes, pacing, initial data/history/backlog, service image/runtime/database versions, CPU/RAM/disk/filesystem, Docker limits, external contention and test times. Before/after runs require equivalent inputs and isolated state.
+### G0 — initial workload and compatibility freeze
 
-## Provisional duration methodology
+Before implementation, owner approves W1/W2/W3 bounds, intended SUMO config and capture semantics, participant topology/scenario, complete path endpoint, existing authority/durability/recovery invariants, available hardware, initial safe diagnostic resource limits, isolated benchmark/fault approach, and prohibition on source reduction. G0 authorizes PERF-00B hardening, instrumentation and controlled profiling. It does **not** require final numeric latency, throughput or recovery SLOs.
 
-**Recommended starting design, pending owner approval:** at least a four-hour uninterrupted representative steady run after a declared warm-up, followed by measured finite backlog recovery under ongoing normal input. Four hours is a test-design recommendation, not an SLO: it yields 48 non-overlapping 300-second simulation windows at 1x pacing, supports early/mid/late comparisons, and exposes multi-hour WAL/storage/merge drift better than the existing 545-second interval. Extend the run if change-point analysis, resource trend or retained-history growth has not stabilized; a short run may be accepted only as a diagnostic, never final certification. Include additional duration for current normal SUMO pacing if 1x simulation takes longer.
+### G1 — evidence-based performance objective freeze
 
-Choose sampling interval from expected queue dynamics and ensure at least 30 samples in each early/middle/late analysis segment. Report time-series and confidence method; account for autocorrelation and workload phases. Exclude warm-up only by predefined time/rule and retain its samples. The owner must approve duration, workload and confidence method before PERF-07.
+After PERF-01 and component/whole-path profiling, engineering proposes normal offered throughput, source-to-ACK and eligible-work completion latency distributions, stage backlog/age envelope, burst/outage demand and global recovery deadline, resource/disk/retention limits, realtime regression tolerance, and benchmark duration. Every proposal includes measured evidence, product/operation rationale, hardware impact, trade-offs and validation method. Owner approves G1 before optimization acceptance targets are treated as pass/fail. Do not invent ten-second latency or per-stage rates before evidence.
+
+## Tiered duration methodology
+
+Use L0–L4: L0 operation/batch microprofile; L1 2–5 minute smoke; L2 10–15 minute matched iteration; L3 30–60 minute integrated qualification with multiple 300s windows; L4 2–4 hours or longer where history/resource drift warrants. These are duration recommendations, not objectives. Do not run L4 before shorter levels show correctness and a plausible stable operating point. Define warm-up, measurement and early-stop rules per level in `acceptance.md`. Select final duration using W2/W3, completed work proofs, backlog trend confidence, repeated-run variance, resource/history growth and machine envelope. Retain all early termination evidence as FAIL or INCONCLUSIVE.
+
+Sampling must yield at least 30 observations per analysis segment where practical; account for autocorrelation, workload phases and measurement overhead. Warm-up is predefined and retained separately. Four-hour endurance is reserved for final sustained/history confidence where L1–L3 and observed growth justify it, not every optimization iteration.
 
 ## Backlog and headroom method
 
 For each edge, sample source high-water and durable consumer cursor/queue in the matching unit, plus age buckets and bytes. Fit backlog slope separately over early/middle/late steady intervals, report interval estimates and compare against zero. Use rolling rates and bounded batch-cycle phase alignment to distinguish cyclic queue from drift. A stage passes only if no positive sustained trend beyond agreed noise margin, max queue/storage remains within approved budget, oldest age meets an approved objective, and finite burst backlog drains with source continuing. Derive headroom from `μ_target ≥ λ_normal + B/T_recovery`, use a controlled offered rate sweep to establish margin, and repeat runs to expose variance.
+
+This formula is a planning estimate, not proof of global recovery. Draining an upstream queue can temporarily raise downstream arrival rates; include all downstream queues and Gold eligible work. Define recovery start as end of genuine finite burst or restored dependency; recovery end is when **all** queues return to the approved steady envelope while W2 production continues.
+
+Global recovery accounting must include Outbox pending rows/age; Kafka lag; Raw pending deliveries; Bronze unresolved intents/source backlog; Silver change and invalidation lag plus pending reconciliation obligations; Gold change/invalidation lag; current-generation eligible work and dirty/recompute work; retries/resource pressure; and independent observation accounting. Distinguish OPEN, not-yet-eligible windows from incomplete eligible work. Report each stage recovery, maximum downstream backlog after upstream drain, oldest event/work age, total elapsed global recovery and correctness. No stage-only catch-up is a global recovery pass.
 
 Gold's event-to-window work demand is at least two membership contributions per eligible event for the fixed 60s and 300s specs; unique windows per event vary by event time/run and boundary. Conflicts can invalidate and regenerate multiple window obligations. Measure membership reads per completed proof and invalidation impact cardinality rather than deriving total work from observation count alone.
 
