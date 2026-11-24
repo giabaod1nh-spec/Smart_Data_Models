@@ -1,48 +1,41 @@
-# Phase 4A blockers and package gates
+# Phase 4A-Core blockers and gates
 
-Status reflects source inspection at `038261bed5fc59d86baa9d8007becad7ce2ad6ea` (current planning-document review baseline). “Hard” is scoped to the dependent capability; it does not imply all of Phase 4A is blocked.
+Status is reviewed at `9adc6fc7d4dd6ecada8b01b6d53b6ffe2d3b6a1b`. A resolved Pre dependency does not mean Gold Stage B, whole-pipeline capacity, or production readiness has passed.
 
-**Phase 4A-Pre proposal:** [contract design](pre/contract-design.md) and [acceptance matrix](pre/acceptance.md) define the recommended resolution for B4A-01/B4A-02. These blockers remain until the Silver/Gold owners approve the contract and implementation evidence passes.
+## Resolved Phase 4A-Pre blockers
 
-**Capacity status:** the end-to-end audit in [pre/capacity-and-backpressure.md](pre/capacity-and-backpressure.md) found source-level batch/poll limits and durable-buffer behavior but no retained continuous-load result. Whole-pipeline capacity is `NOT MEASURED`; no service is certified sustainable from the Phase 3 fixture report.
+| ID | Status | Resolution and boundary |
+|---|---|---|
+| B4A-01 | RESOLVED — Silver contract implemented; Stage A accepted | `CanonicalSilverReader`/`CanonicalReadSession` expose `discover_canonical_source`, `read_canonical_changes_page`, `read_canonical_invalidations_page`. `de/silver/incremental_reader.py` verifies sequence/disposition evidence and frozen boundaries. Gold integration is still pending. |
+| B4A-02 | RESOLVED — public receipt implemented; Stage A accepted | Frozen per-page receipts use the Pre contract's DTO/JCS/SHA-256 rules. Actual Gold receipt verification and durable local acknowledgment remain Stage B. |
+| B4A-03 | RESOLVED for production source polling | The selected feed is bounded by entry/byte/time limits. Existing `read_complete_scan()` still materializes a tuple and is restricted to bounded fixture/compatibility/smoke uses; it is not a production progress path. |
 
-## Hard technical blocker for a dependent capability
+## Remaining implementation and activation blockers
 
-| ID | Finding | Blocked capability | Resolution / owner |
+| ID | Status | Blocks | Resolution / owner |
 |---|---|---|---|
-| B4A-01 | `CanonicalSilverReader` has bounded pages and complete scans but no public accepted-change cursor/feed or run enumeration. Query requires explicit run/digest/time interval; page order is event ID. | P4A-02B Gold integration and any production source cursor claiming no skipped observations. | Complete P4A-Pre verified-applied-prefix API/receipt and Stage A acceptance; owner approves API. Never checkpoint by event ID, CH timestamp or row count. |
+| B4A-04 | OPEN — business contract deferred | Window completeness or publication based on expected coverage | Keep `window_completeness=UNKNOWN`; Phase 4B approves cadence, expected population, denominator, thresholds and missing-data semantics. Does not block Core candidate scheduling/membership. |
+| B4A-05 | OPEN — business finality deferred | Any `FINALIZED` transition or business publication | Core fixes `publication_finality=DISABLED`. Phase 4B owns lateness, terminal-run and correction/revision policy. |
+| B4A-06 | Architectural limit accepted; Stage B proof pending | Claim of distributed atomicity/snapshot or serving-safe output | Implement Gold-local atomicity, independent invalidation consumption, suppression and dirty-generation fencing; test real cross-store races and crashes. No distributed transaction/snapshot claim. |
+| B4A-07 | OPEN — production deployment | Live cutover / operational-readiness PASS | Approve concrete one-owner maintenance/cutover/rollback procedure, readiness thresholds and resource/disk headroom after Stage B evidence. |
+| B4A-08 | OPEN — Phase 4A-Core implementation | Actual durable Gold acknowledgment | Implement V1 state at approved separate paths, receipt validation, work obligations and transactional independent cursors. Pre's test SQLite harness is not Gold evidence. |
+| B4A-09 | OPEN — capacity certification | Sustainable whole-pipeline capacity claim | `NOT MEASURED`; instrument and benchmark the actual end-to-end path at approved workload and resource limits after Core Stage B correctness. |
+| B4A-10 | OPEN — window identity freeze | Durable production window keys | Decide numeric precision/normalization and run-boundary handling while retaining epoch-zero preferred alignment and pure 60s/300s tumbling. This does not block feed/state development. |
 
-## Conditional production activation blockers
+## Package gates
 
-| ID | Finding | Does not block | Blocks until resolved |
-|---|---|---|---|
-| B4A-02 | Current reader exposes no public sequence-page receipt; token is opaque and not a durable public receipt. Gold cannot rely on Silver private methods or decode token claims. | P4A-02A adapter baseline and controlled scans; generic SQLite schemas; scheduler mechanics. | P4A-02B/production source checkpoint and replay wait for the per-page `CanonicalBatchReceipt` and Stage A proof of exact applied-prefix coverage. |
-| B4A-03 | `read_complete_scan()` accumulates all bundles in RAM and returns a tuple. | Bounded fixture scans with explicit bundle/byte/time caps and memory measurement. | Unbounded production scans; select temporary SQLite page staging behind a Silver page stream/receipt, or a measured scan scope budget. Configure stage quota and cleanup. |
-| B4A-04 | No approved per-window expected-observation contract, cadence/coverage denominator or missing-sample rule. | Generic window identity, event membership, candidate scheduling, lifecycle capture and dirty/recompute mechanics. | Marking window completeness true and any publication eligibility based on coverage. Keep completeness UNKNOWN until contract exists. |
-| B4A-05 | No approved lateness, finality, terminal-run or consumer correction policy; existing runtime constants are legacy. | Candidate scheduling, source tracking, work intent, dirty generation and recovery. | Any `FINALIZED`/publication transition or serving-visible revision. Finality remains disabled in 4A. |
-| B4A-06 | No transaction spans Silver page validation, Bronze conflict/invalidation, Gold SQLite and ClickHouse. Source can advance immediately after a valid page/receipt. | Foundation metadata processing under a recorded receipt and eventual invalidation convergence. | Any claim of distributed snapshot consistency or safe serving. Require durable invalidation, dirty-generation CAS and race/crash acceptance; 4A publishes no marts. |
-| B4A-07 | Production deployment thresholds, cutover and rollback are not approved. | Local runtime refactor, config/health development, isolated tests. | Production activation under P4A-07; approve one-service cutover, safe rollback and readiness thresholds. |
+- P4A-01 can begin after owner approval of this revised plan; it freezes source/API, state, window and module contracts.
+- P4A-03 builds isolated SQLite state and transactional primitives. For a new source, initialize both exclusive cursors at zero only after successful cold `discover_canonical_source`; advance beyond zero only with a verified receipt and complete local obligations.
+- P4A-02A is limited to bounded fixtures/compatibility; P4A-02B is the only production source path and requires P4A-03 transaction integration.
+- P4A-04 production integration requires P4A-02B/P4A-03 and the window precision/run-boundary resolution before durable IDs. Fixture-only membership can be developed earlier. Window completeness stays unknown and finality disabled.
+- P4A-05 requires P4A-02B/P4A-03/P4A-04 and proves fixed-watermark invalidation-before-change acknowledgment, suppression and dirty fencing.
+- P4A-06 requires durable state and invalidation semantics; production replay additionally freezes the accepted feed boundary and uses isolated state.
+- P4A-07 in-place runtime refactor can proceed after contracts; live activation waits for all applicable Stage B, isolation, deployment and readiness gates.
+- P4A-08 is actual Gold Stage B integration and acceptance. It must not be reported as passed from Pre Stage A evidence.
 
-## Owner decisions by package
+## Non-blocking limitations and historical failures
 
-- **P4A-01:** close architecture register and assign Silver API/state owners; no technical blocker.
-- **P4A-02A:** can proceed on current public API with controlled scope and no durable source cursor.
-- **P4A-02B:** blocked by B4A-01/02; Option A Silver API is a cross-phase change request; Option B needs measured and approved scan budget.
-- **P4A-03:** generic SQLite source binding/work/lease/dirty schema can proceed; advancing accepted-change cursor is blocked by receipt/feed contract. Invalidation cursor can be implemented from current public invalidation feed.
-- **P4A-04:** identity, half-open membership, candidates and dirty mechanics can proceed once the identity/alignment version is recorded. B4A-04/05 block completeness/finality assertions only.
-- **P4A-05:** generic dirty-tracking mechanics can proceed. Baseline-only tests may retain the existing invalidation page contract; production incremental consumption uses the new additive frozen-prefix method after Pre Stage A and preserves legacy `SNAPSHOT_STALE`. B4A-06 acceptance requires eventual convergence and forbids a distributed atomicity claim.
-- **P4A-06:** isolated replay metadata and fake-source recovery can proceed; source-scoped production replay waits for receipt and incremental strategy.
-- **P4A-07:** local refactor, health and observability development can proceed; production activation waits for B4A-01/02/03/06/07 gates. Business finality is not required while publication stays disabled.
-- **P4A-08:** tests and evidence harness can be developed throughout; full production acceptance waits for applicable source, resource, race, cutover and integration gates.
-
-P4-D34 adds a Core gate: V1 must use a physically distinct Gold checkpoint database and instance lock under the approved `gold_v1` path; preserve historical V2 state, migrate/configure/rollback explicitly, and run one active service. This blocks V1 state activation/cutover, not Phase 4A-Pre or unrelated adapter/scheduler design.
-
-## Deferred business decisions (not Phase 4A blockers)
-
-KPI formulas, mart grain/schema, business coverage threshold, output revision selection, serving queries, Spring Analytics API and Dashboard requirements remain in `deferred-phase-4b.md`. They do not block generic source adapter, state, window identity, invalidation, recovery or foundation acceptance. They block only their corresponding 4B outputs and publication contract.
-
-## Non-blocking source limitations
-
-- The unsigned Base64 pagination token is acceptable only as opaque, in-process continuity data; no cross-trust-boundary use is planned.
-- Silver lifecycle projection separates registry state, archive/manifest mirror and freshness. Nullable `failure_evidence_json` does not prove producer failure evidence is populated; Gold must preserve unknown.
-- Phase 3 runtime evidence is retained in its acceptance report; this plan revision does not independently rerun Docker/ClickHouse acceptance.
+- Source discovery is journaled-run-only; an event-free run needs a separately approved run-registration source if it must be represented.
+- Bronze journal retention/no-prune/no-rewind remains an operational assumption. Replacement/rewind/retention gap fails closed; no in-place cursor reset.
+- The repository's 10 historical architecture failures listed in `pre/evidence/architecture-comparison.json` remain documented baseline failures. They are not evidence that the complete repository passes and must not be blanket-skipped or silently dropped from future regression reports.
+- All business analytics, coverage, publication, API and dashboard requirements in Phase 4B are deferred and do not block Core foundation correctness.

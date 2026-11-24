@@ -1,46 +1,40 @@
-# Phase 4A handover contract
+# Phase 4A-Core to Phase 4B handover
 
-This is the planned contract between a future accepted Phase 4A foundation and Phase 4B. It is not evidence that either phase has been implemented.
+This is the future handover contract, not evidence that Core or Phase 4B is implemented. Phase 4A-Pre Stage A passed; actual Gold integration, whole-pipeline capacity and production operations remain pending.
 
-The Silver API contract and Stage A acceptance must be complete before Phase 4A-Core Gold integration (Stage B); the Pre test-only cursor harness is not production Gold evidence. Whole-pipeline capacity is currently `NOT MEASURED`; finite Phase 2/3 catch-up evidence and its limits are recorded in [pre/capacity-and-backpressure.md](pre/capacity-and-backpressure.md).
+## Core outputs Phase 4B may rely on after Stage B acceptance
 
-## Phase 4A outputs Phase 4B may rely on after acceptance
-
-- A single in-place Gold V1 runtime consuming canonical Silver bundles and invalidation feed; no V2 table or realtime API source path.
-- Physically isolated Gold V1 SQLite checkpoint and instance lock at the owner-approved V1 path (recommended `de/artifacts/gold_v1/checkpoint.sqlite3` and `de/artifacts/gold_v1/instance.lock`); historical V2 stays under `de/artifacts/gold/`. No silent V2 schema/cursor reuse or destructive reset. P4-D34 and Stage B/C21 cover config, migration, startup and rollback; exactly one runtime is active.
-- Approved canonical adapter contract and typed error map; Gold-owned components never directly query physical Silver fact tables. Silver's internal canonical reader may query them to construct/reconcile valid bundles.
-- Stable processing identity: namespace, simulation run ID, generation, topology digest, immutable manifest identity, Silver schema/source binding and Gold processor version.
-- Public source-boundary receipt for each approved bounded incremental page, with exact Bronze change/invalidation high-waters, Silver applied cursors, binding/version, returned sequence interval, disposition entries and digest. Gold must not decode tokens, call private Silver methods, read Bronze journals or infer progress.
-- Production source progress uses the approved sequence feed. The existing `read_complete_scan()` is a legacy/fixture path that accumulates O(N) bundles and has no durable page receipt; it cannot justify production incremental cursor progress. Any separately approved one-time bounded rescan must remain explicitly scoped and must not replace the frozen incremental contract.
-- Durable exclusive source progress only for the approved Phase 4A-Pre per-page receipt/change API and independent invalidation sequence/binding cursor. Silver may deliver through `min(Bronze H, Silver applied cursor)` after per-event conflict/invalidation guards; it does not wait for live source catch-up. Gold acknowledges invalidations through the receipt's fixed safe applied invalidation watermark before acknowledging the change receipt. Gold SQLite transactions are atomic locally, but no cross-database snapshot exists.
-- Bounded-memory limits and measured page/staging bytes, RSS, scan duration, quota, restart cleanup and stale-scan behavior. Temporary staging is non-authoritative until final receipt and Gold commit.
-- Deterministic generic window identity: namespace, run ID, generation, topology digest, manifest identity, window-spec version, duration and boundaries. Scenario remains event-level; a scenario transition does not split or relabel the work window.
-- Half-open simulation-time membership and approved alignment; source completeness, window completeness, publication finality and dirty/recompute dimensions remain separate. 4A never assumes a single scenario per window or marks `FINALIZED` without approval.
-- Durable retry/fault/obligation and replay metadata, with isolated replay DB/lock/namespace and current-boundary refusal rules.
-- Nullable source values, per-metric availability/quality and archived topology preserved in processing inputs; no invented zero or fixed direction population.
-- Foundation health and lag/backlog visibility, with analytics readiness explicitly separate.
-- Historical migration-005 objects/data preserved and before/after evidence retained.
+- One in-place Gold runtime consumes the Silver public sequence feed and independent invalidation feed. No direct Gold reads from Bronze journals or physical Silver facts; Silver's internal fact reconciliation remains legitimate.
+- A separate durable V1 SQLite database at `de/artifacts/gold_v1/checkpoint.sqlite3` and lock at `de/artifacts/gold_v1/instance.lock`. V2 state remains under `de/artifacts/gold/`, with migration 005 and historical rows unchanged. No silent V2 cursor/schema adoption, destructive reset or dual active owner.
+- A validated receipt per bounded page: contract version, namespace, binding, requested exclusive cursor, returned interval and exact contiguous sequences, count, complete-envelope JCS byte length, SHA-256 digest/receipt ID, captured Bronze/Silver boundaries and safe invalidation watermark. Gold advances to the actual returned `through_sequence` only with all downstream obligations durable.
+- Independent, durable change and invalidation cursors. Invalidation through the receipt's fixed safe `Pi=min(Hi,Si)` is acknowledged locally before the associated change receipt. A pending ClickHouse mirror does not cancel an authoritative Silver-local invalidation.
+- Immutable source transition hashes and acknowledged receipt history preserved separately from boundary-dependent effective disposition and bundle hash. A legitimate later disposition change is handled as correction/suppression; a changed immutable hash under the same committed source identity fails closed.
+- Durable event identity, suppression, membership, work intent, dirty generation, recompute obligations, retry/fault state and current-effective replay manifest. Indexed event-to-window mapping enables corrections without a history scan.
+- Pure simulation-time Tumbling Windows at 60s and 300s; half-open `[start,end)`, deterministic versioned identity and approved precision/run-boundary behavior. Scenario is event-level provenance and is excluded from generic window identity. Both durations can receive the same observation.
+- Independent window candidate eligibility, source-boundary state, completeness, processing state, dirty/recompute state, finality and run lifecycle. Completeness stays `UNKNOWN` absent a Phase 4B expected-coverage contract; publication finality stays `DISABLED` through Core.
+- Current-effective-state replay with frozen source binding/boundary and isolated namespace, SQLite DB and lock. No arbitrary historical as-of claim or live cursor/work mutation.
+- Operational evidence for Foundation health, per-stage backlogs, latency distributions, resource growth, recovery, retention headroom and actual Gold integration. Core correctness is not capacity or business-serving readiness.
 
 ## What 4B must not infer
 
-Foundation readiness does not certify an approved KPI formula, business coverage threshold, finality policy, output mart grain/schema, latest revision selection, serving query, Spring contract or Dashboard behavior. Candidate window identity is not proof that every expected observation exists. A work candidate/receipt is not a finalized analytical result. Silver current-effective state does not provide arbitrary historical as-of reconstruction.
+Candidate membership is not evidence that expected observations exist. A COMPLETE run is not proof of window completeness. Source receipt or durable work metadata is not a business result. Core emits no business marts and does not make `FINALIZED` reachable. Current-effective Silver state is not arbitrary historical as-of state. Do not infer formulas or policy from V2.
 
-## Cross-database consistency limit
+## Consistency guarantee
 
-Silver guarantees page validity and source-boundary checks for the returned page/receipt. Gold commits each cursor atomically with its complete local obligations. Suppression is keyed by event independently of existing windows; every new work creation checks suppression/dirty state before including an event. Bronze may publish a conflict after Silver's last boundary check and before that Gold commit; no final recheck prevents every such race. The durable invalidation feed converges state: an invalidation before work creation suppresses the later work; one during work increments dirty generation and fences stale completion; one after work commit creates durable suppression/dirty work. A crash before feed acknowledgment causes replay from the last Gold cursor; after acknowledgment, suppression and its cursor recover together. This is eventual recovery correctness for processing metadata, not distributed snapshot isolation or a guarantee that derived state is safe to serve. Phase 4A publishes no business output. Stage B, not the Pre harness, proves actual Gold behavior.
+Silver validates each returned page at its checked boundary; it does not create a cross-store snapshot. Gold makes each cursor atomic with its full local obligations. A source conflict just after the boundary may temporarily leave metadata for the earlier boundary; the durable invalidation feed eventually suppresses the event and dirties affected windows. Work creation checks durable suppression. In-flight work is fenced by dirty-generation CAS. A crash before a local acknowledgment replays from the previous cursor; after commit, cursor and complete local obligations recover together. This is **Gold-local atomicity and eventual convergence**, not a distributed transaction or snapshot isolation and not permission to serve stale output.
 
-## Handover evidence required
+## Evidence required at handover
 
-1. Accepted P4A acceptance matrix with assertion-level results and retained failure/resolution evidence.
-2. Versioned canonical reader/invalidation adapter contract, typed errors and public receipt/boundary semantics (or explicit baseline-only limitation).
-3. Gold runtime/state schema and migration inventory; proof that migration-005 V2 definitions/data are unchanged.
-4. Documented window origin/durations, scenario-neutral work identity, completeness limitations and finality state. An approved lateness/revision policy is required only if finality is enabled; otherwise show finality disabled.
-5. Replay manifest examples, stable-boundary evidence, crash recovery/cursor snapshots and live/replay isolation proof.
-6. Operational configuration, credential grants, Compose dependency graph, health-state definitions and observed source-lag/recompute behavior.
-7. Phase 4B requirements register with owner and approval state; no business semantics silently inherited from V2.
-8. Measured bounded-memory limits, stage cleanup/restart evidence, resource budget and whether production uses incremental feed or bounded rescan.
-9. Cross-database race timeline, dirty-generation fencing, crash convergence evidence and explicit no-distributed-snapshot statement.
+1. Assertion-level CORE, RESILIENCE and INTEGRATION acceptance, actual Gold plus actual Silver evidence, independent sequence/event/window oracle, and retained failures/resolution notes.
+2. Source-binding verification; receipts/digests and both cursors; multi-run/late-event/duplicate/correction results; proof no ordinary full-history scan.
+3. SQLite schema, indexes, transaction boundaries, idempotent migrations, V1/V2 physical isolation, migration-005 and V2 sentinel preservation, exactly-one-owner evidence.
+4. Tumbling membership at both durations, boundary/precision/run rules, scenario preservation, completeness `UNKNOWN`, finality `DISABLED` and zero business-mart writes.
+5. Invalidation-before/during/after-work, fixed-Pi ordering, suppression, dirty fencing, late accepted events, crash before/after both acknowledgments and eventual convergence snapshots.
+6. Replay manifest and stable-boundary evidence, abort on boundary mismatch, retry transient outages, isolated replay state, and unchanged live-state snapshots.
+7. Runtime configuration, credential/query boundary, deployment graph, foundation health, retry/backoff/fairness and graceful shutdown.
+8. End-to-end benchmark evidence with workload, observed source rate and simulation/wall progression, per-stage backlog, latency distributions, CPU/RSS, SQLite/WAL, ClickHouse load, catch-up and disk/retention headroom. Distinguish tested capacity from maximum sustainable capacity.
+9. Open architecture and operations decisions with named owner and approval state; Phase 4B requirement register remains explicitly deferred.
 
 ## Phase 4B entry gate
 
-The project owner approves business requirements item-by-item in `deferred-phase-4b.md`; architecture maps approved KPIs to reusable analytical grains, source fields, windows and revision policy; nullable/API consequences are reviewed before mart/API code. If 4A has not resolved incremental discovery, Phase 4B may not claim complete historical/current coverage from a scheduler cursor. The foundation must not be described as completed analytics. Unapproved finality, KPI, coverage and Dashboard decisions do not retroactively block an accepted scheduler foundation whose publication-finality state remains disabled.
+The owner must approve Phase 4B business requirements item-by-item in [`deferred-phase-4b.md`](deferred-phase-4b.md). Architecture then maps approved KPIs to reusable grains, canonical source fields, completeness/coverage semantics, window/finality and correction rules before any business mart, Spring API or Dashboard change. Use completed historical intervals under the selected Tumbling strategy. Rolling Window and Provisional Aggregation are excluded from the current roadmap. Do not design one table per chart.
