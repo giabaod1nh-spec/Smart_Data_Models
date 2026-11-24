@@ -261,3 +261,72 @@ def replay_settings_from(live: GoldSettings, replay_id: str, **overrides: Any) -
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# Core replay uses Silver's live namespace with separate Gold processing state.
+
+from dataclasses import asdict
+import math
+
+from de.silver.incremental_contract import MAX_SEQUENCE, canonical_hash
+
+
+class CoreReplayBoundaryChanged(RuntimeError):
+    """A frozen current-effective replay cannot continue under a new authority."""
+
+
+@dataclass(frozen=True)
+class CoreReplayManifest:
+    binding_id: str
+    boundary: tuple[int, int, int, int]
+    run_id: str
+    run_generation: int
+    topology_digest: str
+    manifest_identity: str
+    start_simulation_time: float
+    end_simulation_time: float
+    contract_version: str = "1"
+    source_schema_version: str = "v1"
+    processor_version: str = "gold-core-v1"
+    manifest_version: str = "1"
+
+    def __post_init__(self):
+        hc, hi, sc, si = self.boundary
+        if (not all(type(v) is int and 0 <= v <= MAX_SEQUENCE for v in self.boundary)
+                or hc != sc or hi != si):
+            raise ReplayManifestError("Replay requires a fully applied frozen capture")
+        if (any(not isinstance(value, str) or not value for value in
+                (self.binding_id, self.run_id, self.topology_digest, self.manifest_identity))
+                or type(self.run_generation) is not int or self.run_generation < 0):
+            raise ReplayManifestError("Replay requires an immutable run and binding identity")
+        for value in (self.start_simulation_time, self.end_simulation_time):
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ReplayManifestError("Replay requires finite time bounds")
+        if not 0 <= self.start_simulation_time < self.end_simulation_time:
+            raise ReplayManifestError("Invalid replay simulation time scope")
+        if (self.contract_version, self.source_schema_version, self.processor_version,
+                self.manifest_version) != ("1", "v1", "gold-core-v1", "1"):
+            raise ReplayManifestError("Unsupported replay version")
+
+    @property
+    def replay_id(self):
+        return canonical_hash(asdict(self))
+
+    @property
+    def namespace(self):
+        return replay_namespace(self.replay_id)
+
+    @classmethod
+    def load(cls, path):
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        data["boundary"] = tuple(data["boundary"])
+        return cls(**data)
+
+    def includes(self, entry, simulation_time):
+        return ((entry.run_id, entry.run_generation, entry.topology_digest, entry.manifest_identity)
+                == (self.run_id, self.run_generation, self.topology_digest, self.manifest_identity)
+                and self.start_simulation_time <= simulation_time < self.end_simulation_time)
+
+    def check(self, binding_id, boundary):
+        if (binding_id, boundary) != (self.binding_id, self.boundary):
+            raise CoreReplayBoundaryChanged("Replay source identity or frozen boundary changed")

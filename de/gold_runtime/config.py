@@ -468,3 +468,62 @@ class GoldSettings(BaseSettings):
 @lru_cache
 def get_settings() -> GoldSettings:
     return GoldSettings().validate_all()
+
+
+class GoldCoreSettings(BaseSettings):
+    """Settings for the active Gold V1 entrypoint."""
+
+    model_config = SettingsConfigDict(env_prefix="GOLD_", extra="ignore")
+
+    checkpoint_path: Path = _REPO / "de/artifacts/gold_v1/checkpoint.sqlite3"
+    instance_lock_path: Path = _REPO / "de/artifacts/gold_v1/instance.lock"
+    replay_root: Path = _REPO / "de/artifacts/gold_v1/replay"
+    replay_manifest: Path | None = None
+    health_host: str = "0.0.0.0"
+    health_port: int = 8096
+    health_snapshot_max_age_sec: float = 120
+    idle_poll_sec: float = 1
+    retry_initial_sec: float = 0.5
+    retry_max_sec: float = 30
+    max_entries: int = 25
+    max_encoded_bytes: int = 8 * 1024 * 1024
+    max_processing_ms: int = 30_000
+    max_entry_processing_ms: int = 10_000
+    promotion_limit: int = 50
+    min_free_bytes: int = 128 * 1024 * 1024
+
+    def validate_core(self):
+        maxima = {"max_entries": 100, "max_encoded_bytes": 8 * 1024 * 1024,
+                  "max_processing_ms": 60_000, "max_entry_processing_ms": 15_000,
+                  "promotion_limit": 500, "health_port": 65535}
+        for key, bound in maxima.items():
+            if not 1 <= getattr(self, key) <= bound:
+                raise GoldConfigError(f"Invalid Core setting {key}")
+        if (not 0 < self.retry_initial_sec <= self.retry_max_sec < float("inf")
+                or not 0 < self.idle_poll_sec < float("inf")
+                or not 0 < self.health_snapshot_max_age_sec < float("inf")
+                or self.min_free_bytes < 0):
+            raise GoldConfigError("Invalid Gold Core runtime budget")
+        return self
+
+    def state_paths(self, silver, replay=None):
+        names = (self.checkpoint_path, self.instance_lock_path)
+        if replay is not None:
+            folder = self.replay_root / replay.replay_id
+            names = (folder / "checkpoint.sqlite3", folder / "instance.lock")
+        checkpoint, lock = (path.resolve() for path in names)
+        old_root = (_REPO / "de/artifacts/gold").resolve()
+        protected = tuple(Path(item).resolve() for item in (
+            silver.checkpoint_path, silver.v1_bronze_path,
+            old_root / "checkpoint.sqlite3", old_root / "instance.lock",
+            old_root / "instance.lock.live"))
+        if replay is not None:
+            protected += (self.checkpoint_path.resolve(), self.instance_lock_path.resolve())
+        for path in (checkpoint, lock):
+            if (path.is_relative_to(old_root) or path in protected
+                    or (path.exists() and any(other.exists() and path.samefile(other)
+                                             for other in protected))):
+                raise GoldConfigError("Gold Core state overlaps an existing authority")
+        if checkpoint == lock or (checkpoint.exists() and lock.exists() and checkpoint.samefile(lock)):
+            raise GoldConfigError("Gold Core checkpoint and lock must be physically distinct")
+        return checkpoint, lock

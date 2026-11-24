@@ -1,6 +1,6 @@
 # Phase 4A-Core implementation plan
 
-**Status:** implementation plan for owner review. No Phase 4A-Core code is implemented. Phase 4A-Pre is complete; its public contract is normative in [`pre/contract-design.md`](pre/contract-design.md), and Stage A evidence is in [`pre/acceptance-result.md`](pre/acceptance-result.md). Stage A correctness and focused Silver-feed/test-consumer capacity passed. Gold Stage B integration is not run. Whole-pipeline capacity is `NOT MEASURED`; production operational readiness is not established.
+**Status:** approved implementation baseline. Local Core delivery and measured gates are recorded in [implementation-status.md](implementation-status.md) and [acceptance-result.md](acceptance-result.md). Pre Stage A remains the Silver contract evidence. Its [normative contract](pre/contract-design.md) governs the active Gold adapter.
 
 ## Target runtime and ownership
 
@@ -38,11 +38,11 @@ Logical entities and required keys/invariants:
 |---|---|
 | Source binding | Namespace + binding ID + contract/source/schema/reader versions; immutable once used by a cursor. One active binding per live namespace. Replacement requires explicit new bootstrap generation. |
 | Feed cursor | `(namespace, feed_kind)` unique; feed kind CHANGE/INVALIDATION; exclusive sequence, binding, CAS generation. Independent rows. |
-| Page receipt / transition | Unique `(binding, feed_kind, returned_after, returned_through, receipt_id)`; change transitions unique `(binding, change_sequence)`, invalidations unique `(binding, invalidation_sequence)`. Store exact immutable transition hash and receipt bytes/projection; effective disposition is boundary-versioned and does not rewrite old history. Index sequence and event identity. |
+| Page receipt / transition | One bound authority per store. Retain immutable receipt headers and sequence/disposition/provenance, transition hashes and bundle hashes. Verify complete canonical page bytes before acknowledgment. Complete historical page bytes are kept only for selected disposable acceptance fixtures. A persisted digest cannot reconstruct historical payloads. See the [implementation contract](implementation-status.md#final-review-decisions). |
 | Event identity/suppression | Unique source binding + event identity; source hash/revision, pinned run identity, current effective status, suppression reason and source invalidation sequence. Suppression exists without a window row. |
 | Window candidate/state | Unique versioned full generic window identity. Independent eligibility, source boundary, completeness, processing, dirty generation, finality and run lifecycle fields. Index state/eligible time. `UNKNOWN` completeness and `DISABLED` finality in Core. |
 | Membership | Unique `(event_identity, window_identity)` with simulation-time coordinates/scenario provenance; indexed by event for invalidation impact. At most one membership per duration for an event/window specification. |
-| Work/recompute | Unique deterministic work ID from window, input-set hash and source/processor versions; status/attempt/error, captured dirty generation and immutable work receipt. Index `(namespace,status,created_at)` and window/generation. Terminal work history is immutable; correction is a new obligation/generation. |
+| Work/recompute | Unique window/generation work row and deterministic completed work ID from processing namespace, window, generation, input hash and versions. Keep immutable completed work. Recompute streams indexed members by exact source sequence through the public API and checks transition/bundle hashes, invalidation boundary and local generation. |
 | Replay | Deterministic replay ID and frozen manifest/hash/binding/boundary/scope/versions; separate SQLite database, lock and namespace; never shares live cursors or work. |
 | Migration/lease | Versioned migration table; one namespace lease/owner generation. Never run two active owners. |
 
@@ -64,7 +64,7 @@ Mandatory measurements: actual source observations/s and bytes/s; simulation-tim
 
 On startup: acquire the single-owner lease; verify runtime schema and binding; recover/abandon partial local stages only if a measured, bounded staging design is actually required; resume independent invalidation from its committed cursor; consume invalidations through the fixed Pi before change ack; read change page from durable exclusive cursor; verify receipt and exact sequence; atomically record obligations and CAS. On crash before either feed transaction, replay from its old cursor. After commit, cursor and all obligations resume together. Duplicate delivery is idempotent. Receipt verification failure leaves cursor unchanged. Changed binding, retention gap, immutable hash mutation or unsupported version fails closed without reset.
 
-Replay freezes approved binding, source boundary, run/generation/topology/manifest identity, contract/schema/processor versions and scope. Use isolated SQLite/lock/namespace. No live cursor, work mutation or V2 mart writes. A changed boundary aborts that replay ID; outage remains retryable. Replay is current-effective-state only, not arbitrary historical as-of.
+Replay freezes an applied source boundary, binding, run/generation/topology/manifest identity, contract/schema/processor versions and scope. Gold replay reads Silver namespace `live` and writes to its own processing namespace, SQLite DB and lock. An active replay ID aborts on a changed boundary. Transient outages remain retryable. Replay supports current effective state at the verified boundary.
 
 ## In-place module disposition
 

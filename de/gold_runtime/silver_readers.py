@@ -9,6 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional, Sequence
+from de.silver.incremental_contract import (
+    CONTRACT_VERSION, MAX_SEQUENCE, CanonicalBatchReceipt, CanonicalChangePage,
+    CanonicalChangePageRequest, CanonicalInvalidationPage, CanonicalInvalidationPageRequest,
+    CanonicalInvalidationReceipt, SourceDiscovery, SourceDiscoveryRequest,
+    batch_digest, canonical_bytes, canonical_hash,
+)
 
 from de.gold_runtime.config import (
     ALLOWED_SOURCE_TABLES,
@@ -479,3 +485,209 @@ class SilverReader:
         text = str(value).replace("Z", "+00:00")
         parsed = datetime.fromisoformat(text)
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+class CoreReceiptFault(RuntimeError):
+    """Gold rejected a Silver response or its durable evidence linkage."""
+
+
+def _require(condition, message):
+    if not condition:
+        raise CoreReceiptFault(message)
+
+
+def _sequence(value):
+    return type(value) is int and 0 <= value <= MAX_SEQUENCE
+
+
+def _hex_digest(value):
+    return isinstance(value, str) and len(value) == 64 and not (set(value) - set("0123456789abcdef"))
+
+
+def discovery_boundary(discovery):
+    return (discovery.bronze_change_high_water, discovery.bronze_invalidation_high_water,
+            discovery.silver_change_applied_sequence, discovery.silver_invalidation_applied_sequence)
+
+
+def receipt_boundary(receipt):
+    return (receipt.captured_bronze_change_high_water, receipt.captured_bronze_invalidation_high_water,
+            receipt.captured_silver_change_applied_sequence, receipt.captured_silver_invalidation_applied_sequence)
+
+
+def _bounds(values):
+    hc, hi, sc, si = values
+    _require(all(map(_sequence, values)) and sc <= hc and si <= hi, "Invalid captured boundaries")
+    return hc, hi, sc, si
+
+
+def verify_discovery(request, discovery):
+    _require(type(discovery) is SourceDiscovery, "Unexpected source discovery type")
+    _require(discovery.namespace == request.namespace and discovery.contract_version == request.contract_version,
+             "Unexpected discovery namespace/version")
+    binding = dict(discovery.source_binding)
+    _require(set(binding) == {"namespace", "source_path", "file_identity", "schema_fingerprint", "bronze_version"}
+             and binding["namespace"] == request.namespace, "Unexpected source binding projection")
+    binding["canonical_source_path"] = binding.pop("source_path")
+    _require(discovery.source_binding_id == "sha256:" + canonical_hash(binding)
+             and request.expected_source_binding_id in (None, discovery.source_binding_id),
+             "Discovery source binding mismatch")
+    _, _, sc, si = _bounds(discovery_boundary(discovery))
+    _require(discovery.bootstrap_required is (request.expected_source_binding_id is None)
+             and discovery.run_discovery_scope == "journaled-runs-only"
+             and discovery.verified_change_prefix == sc and discovery.verified_invalidation_prefix == si
+             and discovery.next_change_sequence == discovery.next_invalidation_sequence == 0,
+             "Unexpected discovery prefix/bootstrap state")
+    return discovery
+
+
+def _verify_entry(entry, change, pi, hc):
+    _require(isinstance(entry.event_id, str) and bool(entry.event_id)
+             and _sequence(entry.semantic_revision) and entry.semantic_revision > 0
+             and _hex_digest(entry.source_transition_hash) and _sequence(entry.run_generation)
+             and all(isinstance(value, str) and value for value in
+                     (entry.run_id, entry.topology_digest, entry.manifest_identity)),
+             "Malformed canonical identity")
+    if not change:
+        _require(entry.mirror_status in ("PENDING", "RECONCILED") and bool(entry.invalidation_id)
+                 and _hex_digest(entry.previous_immutable_envelope_hash)
+                 and _hex_digest(entry.conflicting_immutable_envelope_hash),
+                 "Malformed canonical invalidation")
+        return
+    disposition = entry.effective_disposition
+    _require(entry.evidence_status == "VERIFIED", "Unverified entry")
+    if disposition == "BUNDLE_VALID":
+        _require(entry.change_type == "ACCEPTED" and entry.new_state == "ACCEPTED"
+                 and entry.invalidation_sequence is None and entry.source_invalidation_id is None
+                 and entry.superseding_change_sequence is None and entry.canonical_bundle is not None
+                 and entry.canonical_bundle.event_id == entry.event_id
+                 and entry.bundle_hash == canonical_hash(entry.canonical_bundle), "Invalid canonical bundle")
+        return
+    _require(_sequence(entry.invalidation_sequence) and 0 < entry.invalidation_sequence <= pi
+             and entry.bundle_hash is None and entry.canonical_bundle is None,
+             "Invalid conflict linkage")
+    if disposition == "SUPERSEDED_BY_CONFLICT":
+        _require(entry.change_type == "ACCEPTED" and entry.new_state == "ACCEPTED"
+                 and entry.source_invalidation_id is None and _sequence(entry.superseding_change_sequence)
+                 and entry.change_sequence < entry.superseding_change_sequence <= hc, "Invalid supersession")
+    else:
+        _require(disposition == "CONFLICTED" and entry.change_type == "CONFLICTED"
+                 and entry.previous_state == "ACCEPTED" and entry.new_state == "CONFLICTED"
+                 and bool(entry.source_invalidation_id) and entry.superseding_change_sequence is None,
+                 "Unknown or malformed disposition")
+
+
+def _verify_core_page(request, page):
+    change = type(request) is CanonicalChangePageRequest
+    _require(type(page) is (CanonicalChangePage if change else CanonicalInvalidationPage),
+             "Unexpected page type")
+    _require(page.contract_version == request.contract_version == CONTRACT_VERSION
+             and page.namespace == request.namespace == "live"
+             and page.source_binding_id == request.expected_source_binding_id, "Page scope mismatch")
+    after = request.after_change_sequence if change else request.after_invalidation_sequence
+    returned_after = page.after_change_sequence if change else page.after_invalidation_sequence
+    through = page.through_change_sequence if change else page.through_invalidation_sequence
+    _require(_sequence(returned_after) and _sequence(through) and after == returned_after <= through,
+             "Returned range differs from request")
+    _require(type(page.entries) is tuple, "Expected a frozen tuple of entries")
+    count = len(page.entries)
+    _require(type(page.entry_count) is int and page.entry_count == count == through - after
+             and count <= request.max_entries, "Page length or range mismatch")
+    _require(type(page.encoded_bytes) is int and 0 < page.encoded_bytes <= request.max_encoded_bytes
+             and len(canonical_bytes(page)) == page.encoded_bytes, "Canonical envelope byte count differs")
+    receipt = page.receipt
+    if not count:
+        _require(page.status == "EMPTY" and receipt is None and page.has_more is False,
+                 "Malformed EMPTY response")
+        if change:
+            hc, hi, sc, si = _bounds(receipt_boundary(page))
+            _require(after == hc == sc == page.verified_change_prefix
+                     and page.safe_invalidation_through_sequence == si, "Invalid empty change bounds")
+            _verify_boundary_id(page, hc, hi, sc, si)
+        else:
+            _require(page.requested_through_invalidation_sequence == request.through_invalidation_sequence
+                     == after == page.verified_invalidation_prefix
+                     and after <= page.captured_silver_invalidation_applied_sequence
+                     <= page.captured_bronze_invalidation_high_water, "Invalid empty invalidation bounds")
+            # The EMPTY invalidation DTO omits Hc/Sc. It carries no ack authority.
+        return page
+    _require(page.status == "OK"
+             and type(receipt) is (CanonicalBatchReceipt if change else CanonicalInvalidationReceipt),
+             "Nonempty page has no matching receipt")
+    hc, hi, sc, si = _bounds(receipt_boundary(receipt))
+    ceiling = sc if change else min(request.through_invalidation_sequence, hi, si)
+    _require(through <= ceiling and page.has_more is (through < ceiling), "Invalid captured prefix")
+    if change:
+        _require(receipt_boundary(page) == (hc, hi, sc, si) and page.verified_change_prefix == sc
+                 and page.safe_invalidation_through_sequence == si
+                 and receipt.safe_invalidation_through_sequence == si, "Change boundary or safe Pi differs")
+    else:
+        _require(page.captured_bronze_invalidation_high_water == hi
+                 and page.captured_silver_invalidation_applied_sequence == si
+                 and page.verified_invalidation_prefix == ceiling
+                 and page.requested_through_invalidation_sequence == receipt.requested_through_invalidation_sequence
+                 == request.through_invalidation_sequence and receipt.safe_invalidation_through_sequence is None,
+                 "Invalidation boundary mismatch")
+    _verify_boundary_id(page, hc, hi, sc, si)
+    _require(receipt.contract_version == page.contract_version and receipt.namespace == page.namespace
+             and receipt.source_binding_id == page.source_binding_id
+             and receipt.receipt_kind == ("CHANGE" if change else "INVALIDATION")
+             and receipt.requested_after_sequence == receipt.returned_after_sequence == after
+             and receipt.returned_through_sequence == through
+             and receipt.entry_count == count and receipt.encoded_bytes == page.encoded_bytes,
+             "Receipt and response differ")
+    for expected, entry in enumerate(page.entries, after + 1):
+        sequence = entry.change_sequence if change else entry.invalidation_sequence
+        _require(_sequence(sequence) and sequence == expected, "Receipt coverage is not exact and contiguous")
+        _verify_entry(entry, change, si, hc)
+    digest = batch_digest(receipt, page.entries)
+    _require(receipt.batch_digest == digest and receipt.receipt_id == "sha256:" + digest,
+             "Receipt digest or ID differs")
+    return page
+
+
+def _verify_boundary_id(page, hc, hi, sc, si):
+    expected = canonical_hash(dict(contract_version=page.contract_version, source_binding_id=page.source_binding_id,
+        captured_bronze_change_high_water=hc, captured_bronze_invalidation_high_water=hi,
+        captured_silver_change_applied_sequence=sc, captured_silver_invalidation_applied_sequence=si))
+    _require(page.boundary_id == "sha256:" + expected, "Boundary ID differs")
+
+
+def verify_core_page(request, page):
+    try:
+        return _verify_core_page(request, page)
+    except (AttributeError, TypeError, ValueError, OverflowError) as exc:
+        raise CoreReceiptFault("Malformed canonical page or JCS projection") from exc
+
+
+class CanonicalGoldSource:
+    """Only the public in-process Silver API is used by the Core path."""
+
+    def __init__(self, session, *, max_entries=50, max_encoded_bytes=4 * 1024 * 1024,
+                 max_processing_ms=30_000, max_entry_processing_ms=10_000):
+        self.session = session
+        self.limits = dict(max_entries=max_entries, max_encoded_bytes=max_encoded_bytes,
+                           max_processing_ms=max_processing_ms, max_entry_processing_ms=max_entry_processing_ms)
+        self.effective_limits = self.limits.copy()
+
+    def discover(self, expected):
+        request = SourceDiscoveryRequest("live", expected)
+        result = verify_discovery(request, self.session.discover_canonical_source(request))
+        self.effective_limits = {key: min(value, getattr(result, key + "_cap"))
+                                 for key, value in self.limits.items()}
+        return result
+
+    def changes(self, binding, after, *, entries=None):
+        options = self.effective_limits.copy()
+        if entries is not None:
+            options["max_entries"] = min(options["max_entries"], entries)
+        request = CanonicalChangePageRequest(namespace="live", expected_source_binding_id=binding,
+                                             after_change_sequence=after, **options)
+        return verify_core_page(request, self.session.read_canonical_changes_page(request))
+
+    def invalidations(self, binding, after, ceiling):
+        request = CanonicalInvalidationPageRequest(namespace="live", expected_source_binding_id=binding,
+            after_invalidation_sequence=after, through_invalidation_sequence=ceiling, **self.effective_limits)
+        return verify_core_page(request, self.session.read_canonical_invalidations_page(request))
+
+    def close(self):
+        self.session.close()

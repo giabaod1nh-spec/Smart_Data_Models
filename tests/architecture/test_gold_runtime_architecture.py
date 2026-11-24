@@ -73,3 +73,25 @@ def test_processor_only_references_public_engine_api():
     assert ".transform(" in text
     assert "from de.gold.calculators" not in text
     assert "from de.gold.aggregators" not in text
+
+
+def test_core_entrypoint_cannot_reach_legacy_business_or_source_paths():
+    def names(nodes):
+        return {node.id for tree in nodes for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+    main = ast.parse((RUNTIME_DIR / "main.py").read_text(encoding="utf-8"))
+    assert "GoldCoreProcessor" in names([main])
+    assert not names([main]) & {"GoldProcessor", "GoldClickHouseRepository", "SilverReader"}
+    source = ast.parse((RUNTIME_DIR / "processor.py").read_text(encoding="utf-8"))
+    core = [node for node in source.body if isinstance(node, ast.ClassDef)
+            and node.name in {"GoldCoreProcessor", "CoreInputStream"}]
+    assert len(core) == 2
+    assert not names(core) & {"GoldTransformationEngine", "GoldClickHouseRepository", "SilverReader", "FactCursor"}
+    reader = ast.parse((RUNTIME_DIR / "silver_readers.py").read_text(encoding="utf-8"))
+    adapter = next(node for node in reader.body if isinstance(node, ast.ClassDef)
+                   and node.name == "CanonicalGoldSource")
+    public_reads = {node.func.attr for node in ast.walk(adapter)
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Attribute) and node.func.value.attr == "session"}
+    assert public_reads == {"discover_canonical_source", "read_canonical_changes_page",
+                            "read_canonical_invalidations_page", "close"}

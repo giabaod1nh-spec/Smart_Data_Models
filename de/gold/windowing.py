@@ -42,3 +42,16 @@ def expand_windows(records: tuple[SilverGoldInput, ...]) -> tuple[WindowedRecord
     expanded = [WindowedRecord(assign_window(record, size), record) for record in records for size in WINDOW_SIZES_SEC]
     return tuple(sorted(expanded, key=lambda item: (item.window.window_start_sim_sec, item.window.window_size_sec, item.record.intersection_id, item.record.source_partition, item.record.source_offset)))
 
+
+TUMBLING_SPEC = "tumbling-epoch-zero-v1"
+
+
+def tumbling_bounds(simulation_time: float | int, duration: int) -> tuple[int, int]:
+    """Assign verified simulation time without rounding across boundaries."""
+    if duration not in (60, 300):
+        raise ValueError("Unsupported tumbling duration")
+    if (type(simulation_time) not in (int, float) or simulation_time < 0
+            or simulation_time >= (1 << 63) - 300 or not math.isfinite(simulation_time)):
+        raise ValueError("Invalid V1 simulation time")
+    start = int(simulation_time) // duration * duration
+    return start, start + duration

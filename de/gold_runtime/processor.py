@@ -978,3 +978,479 @@ class GoldProcessor:
         self.state = ProcessorState.FAULTED
         self.metrics.set_fault(code, message)
         self._publish()
+
+
+# The active V1 entrypoint uses this coordinator. GoldProcessor above is the legacy path.
+
+import hashlib
+import logging
+import shutil
+import sqlite3
+
+from de.gold_runtime.checkpoint_store import CheckpointError, CoreStateFault
+from de.gold_runtime.processing_ledger import CoreWorkLedger, core_bundle_coordinates, core_run_identity
+from de.gold_runtime.replay import CoreReplayBoundaryChanged
+from de.gold_runtime.silver_readers import CanonicalGoldSource, CoreReceiptFault, discovery_boundary, receipt_boundary
+from de.silver.canonical_reader import CanonicalReadError, CanonicalReadSession
+from de.silver.incremental_contract import CanonicalFeedError, canonical_bytes, canonical_hash
+from de.gold_runtime.metrics import core_process_resources
+
+CORE_PROCESSOR_VERSION = "gold-core-v1"
+
+
+class CoreWorkChanged(RuntimeError):
+    """The caller must discard the partial materialization and retry."""
+
+
+class CoreCursorFault(CoreStateFault):
+    """Gold's saved cursor is outside the discovered source boundary."""
+
+
+class CoreInputStream:
+    """Verify one indexed member per step. Callers discard partial output on failure."""
+
+    def __init__(self, runtime, work):
+        self.runtime, self.work = runtime, work
+        self.window_id = work["window_id"]
+        self.generation = work["generation"]
+        self.hi = runtime.discover().bronze_invalidation_high_water
+        self.after_event = ""
+        self.count = 0
+        self.bytes = 0
+        self.digest = hashlib.sha256(b"gold-core-input-set-v1\0")
+        self.done = False
+        self.started = time.monotonic()
+
+    def _check_generation(self):
+        if self.runtime.ledger.current_generation(self.window_id) != self.generation:
+            raise CoreWorkChanged("Materialization generation changed")
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.done:
+            raise StopIteration
+        self._check_generation()
+        rows = self.runtime.ledger.members(self.window_id, self.after_event)
+        if not rows:
+            final = self.runtime.discover()
+            if (final.bronze_invalidation_high_water != self.hi or
+                    self.runtime.store.cursors()["INVALIDATION"] < final.verified_invalidation_prefix):
+                raise CoreWorkChanged("Invalidation boundary changed or is not durably covered")
+            self._check_generation()
+            self.done = True
+            raise StopIteration
+        member = rows[0]
+        sequence = member["change_sequence"]
+        page = self.runtime.source.changes(self.runtime.binding_id, sequence - 1, entries=1)
+        self.runtime.check_replay_page(page)
+        if page.receipt is None:
+            raise CoreReceiptFault("Previously committed member sequence is missing")
+        if page.receipt.captured_bronze_invalidation_high_water != self.hi:
+            raise CoreWorkChanged("Invalidation high-water changed during materialization")
+        entry = page.entries[0]
+        if (entry.event_id, entry.semantic_revision, entry.source_transition_hash,
+                canonical_hash(core_run_identity(entry))) != (
+                member["id"], member["revision"], member["transition_hash"], member["run_key"]):
+            raise CoreReceiptFault("Committed member immutable identity changed")
+        if entry.effective_disposition != "BUNDLE_VALID":
+            raise CoreWorkChanged("Member conflict awaits durable invalidation coordination")
+        coordinates = core_bundle_coordinates(entry)
+        if (entry.bundle_hash, *coordinates) != (
+                member["bundle_hash"], member["simulation_time"], member["scenario"],
+                member["intersection_id"], member["cycle"]):
+            raise CoreReceiptFault("Materialized bundle differs from acknowledged member")
+        self._check_generation()
+        projection = canonical_bytes(dict(event_id=entry.event_id, change_sequence=sequence,
+            semantic_revision=entry.semantic_revision, transition_hash=entry.source_transition_hash,
+            bundle_hash=entry.bundle_hash, scenario_id=member["scenario"]))
+        self.digest.update(len(projection).to_bytes(8, "big"))
+        self.digest.update(projection)
+        self.after_event = entry.event_id
+        self.count += 1
+        self.bytes += page.encoded_bytes
+        self.runtime.add_count("materialization_page_reads", 1)
+        self.runtime.add_count("materialization_encoded_bytes", page.encoded_bytes)
+        return entry.canonical_bundle
+
+    @property
+    def input_hash(self):
+        if not self.done:
+            raise CoreReceiptFault("Materialization was not verified through exhaustion")
+        return self.digest.hexdigest()
+
+
+class GoldCoreProcessor:
+    """One-thread coordinator for independent feed and window work lanes."""
+
+    def __init__(self, settings, silver_settings, store, lock, *, replay=None,
+                 session_factory=CanonicalReadSession, barrier=None):
+        self.settings, self.silver_settings = settings, silver_settings
+        self.store, self.lock, self.replay = store, lock, replay
+        self.namespace = replay.namespace if replay else "live"
+        self.session_factory = session_factory
+        self.barrier = barrier
+        self.source = None
+        self.binding_id = None
+        self.latest = None
+        self.ledger = CoreWorkLedger(store, self.namespace, lock.lease_token, replay)
+        self.pending_change = None
+        self.pending_change_started = None
+        self.input_stream = None
+        self.stop_event = threading.Event()
+        self.state = "STARTING"
+        self._initialized = False
+        self._replay_terminal = False
+        self._retry = {}
+        self._faults = {}
+        self._started = time.monotonic()
+        self._last_sample = 0.0
+        self._snapshot = {"state": "STARTING", "ready": False}
+        self._counts = {}
+        self._timings = {}
+        self._resource_metrics = {}
+        self._backlog_sample = None
+        self._rates = {}
+
+    def request_shutdown(self):
+        self.stop_event.set()
+
+    def health_snapshot(self):
+        return self._snapshot
+
+    def add_count(self, name, count):
+        self._counts[name] = self._counts.get(name, 0) + count
+
+    def timing(self, name, elapsed):
+        from collections import deque
+        self._timings.setdefault(name, deque(maxlen=2048)).append(elapsed)
+
+    def _timed(self, name, call, *args):
+        started = time.monotonic()
+        try:
+            return call(*args)
+        finally:
+            self.timing(name, time.monotonic() - started)
+
+    def discover(self):
+        current = self.source.discover(self.binding_id)
+        if self.replay:
+            self.replay.check(current.source_binding_id, discovery_boundary(current))
+        self.latest = current
+        if self._initialized:
+            self._check_cursor_ranges(current)
+        return current
+
+    def _check_cursor_ranges(self, current):
+        actual = self.store.cursors()
+        hc, hi, sc, si = discovery_boundary(current)
+        for kind, high, applied in (("CHANGE", hc, sc), ("INVALIDATION", hi, si)):
+            if actual[kind] > high:
+                raise CoreCursorFault("Saved Gold cursor exceeds Bronze allocator")
+            if actual[kind] > applied:
+                raise CoreCursorFault("Saved Gold cursor exceeds Silver applied prefix")
+
+    def check_replay_page(self, page):
+        if self.replay:
+            if page.receipt:
+                self.replay.check(page.source_binding_id, receipt_boundary(page.receipt))
+            else:
+                self.discover()
+
+    def _record_replay(self):
+        if self.replay is None:
+            return
+        from dataclasses import asdict
+        manifest = canonical_bytes(asdict(self.replay))
+        with self.store.transaction(self.namespace, self.lock.lease_token) as db:
+            db.execute("INSERT OR IGNORE INTO core_replay VALUES (?,?,'RUNNING')",
+                       (self.replay.replay_id, manifest))
+            saved, status = db.execute("SELECT manifest,status FROM core_replay WHERE id=?",
+                                       (self.replay.replay_id,)).fetchone()
+            if saved != manifest or status == "ABORTED":
+                raise CoreStateFault("Replay identity is changed or permanently aborted")
+            self._replay_terminal = status == "COMPLETE"
+
+    def _set_replay_status(self, status):
+        with self.store.transaction(self.namespace, self.lock.lease_token) as db:
+            db.execute("UPDATE core_replay SET status=? WHERE id=? AND status='RUNNING'",
+                       (status, self.replay.replay_id))
+        self._replay_terminal = True
+
+    def _bootstrap(self):
+        self._record_replay()
+        row = self.store.binding()
+        saved_binding = row["binding_id"] if row else None
+        if self.source is None:
+            session = self.session_factory(self.silver_settings)
+            self.source = CanonicalGoldSource(session, **{
+                key: getattr(self.settings, key) for key in (
+                    "max_entries", "max_encoded_bytes", "max_processing_ms", "max_entry_processing_ms")})
+        self.binding_id = saved_binding or (self.replay.binding_id if self.replay else None)
+        current = self.discover()
+        if self.replay and saved_binding is None:
+            # Replay is also a new Gold binding. Perform the same public cold proof.
+            cold = self.source.discover(None)
+            self.replay.check(cold.source_binding_id, discovery_boundary(cold))
+        self.binding_id = current.source_binding_id
+        self.store.initialize_binding(self.namespace, self.lock.lease_token, (
+            self.binding_id, canonical_bytes(current.source_binding), current.contract_version,
+            "v1", CORE_PROCESSOR_VERSION))
+        self._check_cursor_ranges(current)
+        self._initialized = True
+        self.timing("startup_recovery_sec", time.monotonic() - self._started)
+        return True
+
+    def _ack(self, page, started):
+        result = self._timed("ack_transaction_sec", self.ledger.acknowledge, page, self.barrier)
+        if not result:
+            return False
+        kind = page.receipt.receipt_kind.lower()
+        self.add_count(kind + "_acknowledged", page.entry_count)
+        self.add_count(kind + "_encoded_bytes", page.encoded_bytes)
+        self.timing(kind + "_page_to_durable_sec", time.monotonic() - started)
+        if kind == "change":
+            now = time.time()
+            for entry in page.entries:
+                if entry.effective_disposition == "BUNDLE_VALID":
+                    captured = entry.canonical_bundle.intersection["captured_at"]
+                    try:
+                        stamp = datetime.fromisoformat(str(captured).replace("Z", "+00:00"))
+                    except ValueError:
+                        self.add_count("latency_timestamp_unusable", 1)
+                        continue
+                    if stamp.tzinfo is not None:
+                        delta = now - stamp.timestamp()
+                        if delta >= 0:
+                            self.timing("source_to_gold_durable_sec", delta)
+        return True
+
+    def _invalidations(self):
+        after = self.store.cursors()["INVALIDATION"]
+        ceiling = self.latest.verified_invalidation_prefix
+        if self.pending_change is not None:
+            required = self.pending_change.receipt.safe_invalidation_through_sequence
+            if required > after:
+                ceiling = required
+        if after >= ceiling:
+            return False
+        started = time.monotonic()
+        page = self._timed("invalidation_page_read_verify_sec", self.source.invalidations,
+                           self.binding_id, after, ceiling)
+        self.check_replay_page(page)
+        result = self._ack(page, started)
+        self.timing("invalidation_page_total_sec", time.monotonic() - started)
+        return result
+
+    def _changes(self):
+        started = time.monotonic()
+        if self.pending_change is None:
+            after = self.store.cursors()["CHANGE"]
+            page = self._timed("change_page_read_verify_sec", self.source.changes, self.binding_id, after)
+            self.check_replay_page(page)
+            if page.receipt is None:
+                return False
+            self.pending_change = page
+            self.pending_change_started = started
+        if self.store.cursors()["INVALIDATION"] < self.pending_change.receipt.safe_invalidation_through_sequence:
+            return False
+        page = self.pending_change
+        advanced = self._ack(page, self.pending_change_started)
+        self.pending_change = None
+        self.pending_change_started = None
+        self.timing("change_iteration_commit_sec", time.monotonic() - started)
+        return advanced
+
+    def materialize(self, work):
+        """Stream canonical bundles. Use input_hash only after successful exhaustion."""
+        return CoreInputStream(self, work)
+
+    def _work(self):
+        promoted = self.ledger.promote(self.settings.promotion_limit)
+        stream = self.input_stream
+        if stream and self.ledger.current_generation(stream.window_id) != stream.generation:
+            self.input_stream = stream = None
+        if stream is None:
+            work = self.ledger.claim()
+            if work is None:
+                return bool(promoted)
+            stream = self.input_stream = self.materialize(work)
+        try:
+            self._timed("materialization_read_sec", next, stream)
+        except StopIteration:
+            self.timing("materialization_total_sec", time.monotonic() - stream.started)
+            if self.ledger.finish(stream.work, stream.input_hash, stream.count):
+                self.add_count("work_completed", 1)
+                self.timing("candidate_schedule_delay_sec",
+                            max(0, time.time() - stream.work["eligible_at"]
+                                - (time.monotonic() - stream.started)))
+            self.input_stream = None
+        except BaseException:
+            self.input_stream = None
+            raise
+        return True
+
+    def _lane(self, lane, call):
+        now = time.monotonic()
+        attempts, due = self._retry.get(lane, (0, 0.0))
+        if now < due:
+            return False
+        try:
+            result = call()
+        except (CanonicalFeedError, CanonicalReadError, CoreWorkChanged, sqlite3.OperationalError) as exc:
+            if isinstance(exc, CanonicalFeedError):
+                origin, code, retryable = "silver_feed", exc.code, exc.retryable
+                if self.replay and code in ("SOURCE_BINDING_CHANGED", "SOURCE_REWOUND",
+                                            "SILVER_CURSOR_REGRESSION", "RETENTION_GAP"):
+                    raise CoreReplayBoundaryChanged(code) from exc
+            elif isinstance(exc, CanonicalReadError):
+                origin, code, retryable = "silver_session", exc.code, exc.retryable
+            elif isinstance(exc, CoreWorkChanged):
+                origin, code, retryable = "gold_work", "WORK_INPUT_CHANGED", True
+            else:
+                origin, code = "gold_sqlite", getattr(exc, "sqlite_errorname", "SQLITE_ERROR")
+                retryable = code.startswith(("SQLITE_BUSY", "SQLITE_LOCKED"))
+            self._faults[lane] = dict(code=code, origin=origin, retryable=retryable)
+            if isinstance(exc, CanonicalFeedError) and code in ("RECORD_TOO_LARGE", "ENTRY_TIMEOUT"):
+                self._faults[lane]["operator_action"] = (
+                    "Inspect the blocked evidence and its configured page or entry budget before retry")
+                self._faults[lane]["details"] = {key: exc.details[key] for key in (
+                    "sequence", "event_id", "observed_bytes", "elapsed_ms", "minimum_encoded_bytes")
+                    if key in exc.details}
+            try:
+                self.store.fault(self.namespace, self.lock.lease_token, lane, origin, code, retryable)
+            except sqlite3.Error:
+                # Storage outages must still be visible from the cached health API.
+                pass
+            if not retryable:
+                raise
+            self.add_count("retry_" + code, 1)
+            delay = min(self.settings.retry_initial_sec * 2 ** min(attempts, 20), self.settings.retry_max_sec)
+            self._retry[lane] = (attempts + 1, time.monotonic() + delay)
+            return False
+        self._retry.pop(lane, None)
+        if lane in self._faults:
+            with self.store.transaction(self.namespace, self.lock.lease_token) as db:
+                db.execute("UPDATE core_fault SET active=0 WHERE lane=?", (lane,))
+            self._faults.pop(lane, None)
+        return result
+
+    def run_cycle(self):
+        if self.stop_event.is_set() or self._replay_terminal:
+            return False
+        if not self.lock.verify():
+            raise CoreStateFault("Gold runtime lease lost")
+        if shutil.disk_usage(self.store.db_path.parent).free < self.settings.min_free_bytes:
+            raise CoreStateFault("Gold SQLite free disk budget exhausted")
+        if not self._initialized:
+            return self._lane("startup", self._bootstrap)
+        # Discovery errors are independent of already processable local work.
+        self._lane("discovery", self.discover)
+        if self.stop_event.is_set():
+            return False
+        invalidated = self._lane("invalidation", self._invalidations)
+        if self.stop_event.is_set():
+            return bool(invalidated)
+        changed = self._lane("change", self._changes)
+        if self.stop_event.is_set():
+            return bool(changed or invalidated)
+        worked = self._lane("work", self._work)
+        if self.replay and not any((changed, invalidated, worked, self._faults)):
+            hc, hi, _, _ = self.replay.boundary
+            if self.store.cursors() == {"CHANGE": hc, "INVALIDATION": hi}:
+                self.discover()
+                self._set_replay_status("COMPLETE")
+        return bool(changed or invalidated or worked)
+
+
+
+    def _publish_core(self):
+        now = time.monotonic()
+        if now - self._last_sample >= 1 or not self._resource_metrics:
+            self._last_sample = now
+            path = self.store.db_path
+            wal = path.with_name(path.name + "-wal")
+            self._resource_metrics = {
+                "cpu_sec": time.process_time(), "sqlite_bytes": path.stat().st_size,
+                "sqlite_wal_bytes": wal.stat().st_size if wal.exists() else 0,
+                "disk_free_bytes": shutil.disk_usage(path.parent).free,
+            }
+            self._resource_metrics.update(core_process_resources())
+            db = self.store.conn
+            for state, count, oldest in db.execute("""SELECT state,count(*),min(eligible_at) FROM core_work
+                WHERE state IN ('OPEN','PENDING','RUNNING') GROUP BY state"""):
+                self._resource_metrics[state.lower() + "_work"] = count
+                if oldest is not None:
+                    self._resource_metrics[state.lower() + "_work_oldest_sec"] = max(0, time.time() - oldest)
+            self._resource_metrics["dirty_work"] = db.execute("""SELECT count(*) FROM core_work w
+                WHERE w.state IN ('PENDING','RUNNING') AND EXISTS (
+                    SELECT 1 FROM core_work past WHERE past.window_id=w.window_id
+                    AND past.generation<w.generation AND past.state='COMPLETE')""").fetchone()[0]
+        cursors = self.store.cursors() if self._initialized else {}
+        snapshot = dict(state=self.state, status=self.state, snapshot_at=datetime.now(timezone.utc).isoformat(),
+            ready=self.state == "READY", foundation_ready=self.state == "READY",
+            analytics_ready=False, namespace=self.namespace, source_namespace="live",
+            source_binding_id=self.binding_id, cursors=cursors, fault_status=self._faults.copy(),
+            metrics=dict(self._resource_metrics, **self._counts))
+        if self.latest and cursors:
+            hc, hi, sc, si = discovery_boundary(self.latest)
+            snapshot["progress"] = dict(bronze_change=hc, bronze_invalidation=hi, silver_change=sc,
+                silver_invalidation=si, gold_change=cursors["CHANGE"], gold_invalidation=cursors["INVALIDATION"],
+                change_backlog=sc-cursors["CHANGE"], invalidation_backlog=si-cursors["INVALIDATION"])
+            now = time.monotonic()
+            previous = self._backlog_sample
+            if previous is None or now - previous[0] >= 1:
+                self._backlog_sample = (now, sc-cursors["CHANGE"], si-cursors["INVALIDATION"],
+                                        cursors["CHANGE"], cursors["INVALIDATION"])
+                if previous:
+                    elapsed = now - previous[0]
+                    for key, current, prior in zip(("change_backlog", "invalidation_backlog",
+                                                   "change_ack", "invalidation_ack"),
+                                                  self._backlog_sample[1:], previous[1:]):
+                        self._rates[key + "_rate_per_sec"] = (current - prior) / elapsed
+        snapshot["metrics"].update(self._rates)
+        for name, samples in self._timings.items():
+            values = sorted(samples)
+            snapshot["metrics"][name] = dict(samples=len(values), max=values[-1],
+                **{f"p{p}": values[(len(values) * p + 99) // 100 - 1] for p in (50, 95, 99)})
+        self._snapshot = snapshot
+
+    def run(self):
+        """Run until a stop, permanent fault, or isolated replay completion."""
+        try:
+            while not self.stop_event.is_set() and not self._replay_terminal:
+                progress = self.run_cycle()
+                self.state = "DEGRADED" if self._faults else ("READY" if self._initialized else "STARTING")
+                self._publish_core()
+                if not progress:
+                    delays = [due - time.monotonic() for _, due in self._retry.values()]
+                    self.stop_event.wait(min([self.settings.idle_poll_sec, *(d for d in delays if d > 0)]))
+            self.state = "STOPPED"
+            return 0
+        except Exception as exc:
+            self.state = "FAULTED"
+            if isinstance(exc, CoreReplayBoundaryChanged):
+                self._set_replay_status("ABORTED")
+            code = getattr(exc, "code", type(exc).__name__)
+            self._faults["runtime"] = dict(code=code, origin="gold_runtime", retryable=False)
+            try:
+                self.store.fault(self.namespace, self.lock.lease_token, "runtime", "gold_runtime", code, False)
+            except (CheckpointError, sqlite3.Error):
+                pass
+            logging.getLogger(__name__).error("Gold Core stopped: %s", code)
+            return 2
+        finally:
+            try:
+                self._publish_core()
+            except (OSError, sqlite3.Error):
+                self._snapshot = dict(self._snapshot, state=self.state, status=self.state, ready=False,
+                                      foundation_ready=False, fault_status=self._faults.copy())
+            self.close()
+
+    def close(self):
+        if self.source:
+            self.source.close()
+            self.source = None
+        self.pending_change = None
+        self.input_stream = None

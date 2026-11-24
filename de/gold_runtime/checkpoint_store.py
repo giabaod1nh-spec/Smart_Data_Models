@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -584,3 +586,199 @@ class GoldRuntimeStore:
         if "locked" in text or "busy" in text:
             return CheckpointBusyError(str(exc))
         return CheckpointError(str(exc))
+
+
+CORE_APPLICATION_ID = 0x474F4C44
+CORE_SCHEMA_VERSION = 1
+CORE_SCHEMA = """
+CREATE TABLE core_binding (
+    namespace TEXT PRIMARY KEY, binding_id TEXT NOT NULL, identity BLOB NOT NULL,
+    contract_version TEXT NOT NULL, schema_version TEXT NOT NULL, processor_version TEXT NOT NULL
+);
+CREATE TABLE core_cursor (
+    kind TEXT PRIMARY KEY CHECK(kind IN ('CHANGE','INVALIDATION')),
+    sequence INTEGER NOT NULL CHECK(sequence >= 0),
+    generation INTEGER NOT NULL CHECK(generation >= 0)
+);
+CREATE TABLE core_receipt (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL REFERENCES core_cursor(kind),
+    after_sequence INTEGER NOT NULL, through_sequence INTEGER NOT NULL,
+    header BLOB NOT NULL, acknowledged_at REAL NOT NULL,
+    UNIQUE(kind, after_sequence), CHECK(through_sequence > after_sequence)
+);
+CREATE TABLE core_transition (
+    kind TEXT NOT NULL, sequence INTEGER NOT NULL, event_id TEXT NOT NULL,
+    transition_hash TEXT NOT NULL, disposition TEXT NOT NULL, bundle_hash TEXT,
+    receipt_id TEXT NOT NULL REFERENCES core_receipt(id), provenance BLOB NOT NULL,
+    PRIMARY KEY(kind, sequence)
+);
+CREATE INDEX core_transition_event ON core_transition(event_id, kind, sequence);
+CREATE TABLE core_run (
+    id TEXT PRIMARY KEY, identity BLOB NOT NULL, observed_time INTEGER NOT NULL DEFAULT -1,
+    lifecycle TEXT NOT NULL DEFAULT 'UNKNOWN' CHECK(lifecycle='UNKNOWN')
+);
+CREATE TABLE core_event (
+    id TEXT PRIMARY KEY, run_key TEXT NOT NULL REFERENCES core_run(id),
+    change_sequence INTEGER NOT NULL UNIQUE, revision INTEGER NOT NULL,
+    transition_hash TEXT NOT NULL, bundle_hash TEXT NOT NULL, scenario TEXT NOT NULL,
+    intersection_id TEXT NOT NULL, cycle INTEGER NOT NULL,
+    simulation_time NOT NULL CHECK(typeof(simulation_time) IN ('integer','real'))
+);
+CREATE TABLE core_suppression (
+    event_id TEXT PRIMARY KEY, sequence INTEGER NOT NULL UNIQUE, invalidation_id TEXT NOT NULL UNIQUE,
+    run_key TEXT NOT NULL REFERENCES core_run(id),
+    simulation_time NOT NULL CHECK(typeof(simulation_time) IN ('integer','real')),
+    intersection_id TEXT NOT NULL, cycle INTEGER NOT NULL, revision INTEGER NOT NULL,
+    transition_hash TEXT NOT NULL
+);
+CREATE TABLE core_window (
+    id TEXT PRIMARY KEY, run_key TEXT NOT NULL REFERENCES core_run(id), spec TEXT NOT NULL,
+    duration INTEGER NOT NULL CHECK(duration IN (60,300)),
+    start INTEGER NOT NULL, end INTEGER NOT NULL CHECK(end=start+duration),
+    eligible INTEGER NOT NULL DEFAULT 0, generation INTEGER NOT NULL DEFAULT 0,
+    completeness TEXT NOT NULL DEFAULT 'UNKNOWN' CHECK(completeness='UNKNOWN'),
+    finality TEXT NOT NULL DEFAULT 'DISABLED' CHECK(finality='DISABLED'),
+    UNIQUE(run_key, spec, duration, start, end)
+);
+CREATE INDEX core_window_clock ON core_window(run_key, eligible, end);
+CREATE TABLE core_promotion (
+    run_key TEXT PRIMARY KEY REFERENCES core_run(id), queued_at REAL NOT NULL
+);
+CREATE INDEX core_promotion_queue ON core_promotion(queued_at, run_key);
+CREATE TABLE core_membership (
+    window_id TEXT NOT NULL REFERENCES core_window(id), event_id TEXT NOT NULL REFERENCES core_event(id),
+    PRIMARY KEY(window_id, event_id)
+);
+CREATE INDEX core_membership_impact ON core_membership(event_id, window_id);
+CREATE TABLE core_work (
+    window_id TEXT NOT NULL REFERENCES core_window(id), generation INTEGER NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('OPEN','PENDING','RUNNING','COMPLETE','SUPERSEDED')),
+    source_receipt TEXT NOT NULL REFERENCES core_receipt(id), created_at REAL NOT NULL,
+    eligible_at REAL, completed_at REAL, input_hash TEXT, work_id TEXT UNIQUE, input_count INTEGER,
+    PRIMARY KEY(window_id,generation)
+);
+CREATE INDEX core_work_queue ON core_work(state, eligible_at, window_id, generation);
+CREATE TABLE core_fault (
+    lane TEXT PRIMARY KEY, origin TEXT NOT NULL, code TEXT NOT NULL, retryable INTEGER NOT NULL,
+    occurrences INTEGER NOT NULL, first_at REAL NOT NULL, last_at REAL NOT NULL, active INTEGER NOT NULL
+);
+CREATE TABLE core_replay (
+    id TEXT PRIMARY KEY, manifest BLOB NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('RUNNING','ABORTED','COMPLETE'))
+);
+CREATE TABLE gold_runtime_lease (
+    namespace TEXT PRIMARY KEY, owner_id TEXT NOT NULL, lease_token TEXT NOT NULL,
+    acquired_at TEXT NOT NULL, expires_at TEXT NOT NULL, generation INTEGER NOT NULL
+);
+"""
+
+
+class CoreStateFault(CheckpointError):
+    """Gold-local persistent invariant or ownership failure."""
+
+
+class GoldCoreStore(GoldRuntimeStore):
+    """Gold V1 metadata only. The legacy store remains available for history/tests."""
+
+    def open(self) -> None:
+        if self._conn is not None:
+            return
+        db = sqlite3.connect(self.db_path, isolation_level=None, timeout=2)
+        try:
+            db.row_factory = sqlite3.Row
+            application = db.execute("PRAGMA application_id").fetchone()[0]
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            populated = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' LIMIT 1").fetchone()
+            if application != CORE_APPLICATION_ID and (populated or application or version):
+                raise CoreStateFault("Refusing to adopt a non-Core SQLite database")
+            if version not in (0, CORE_SCHEMA_VERSION) or (application and not version):
+                raise CoreStateFault("Unsupported Gold Core SQLite migration version")
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute("PRAGMA synchronous=FULL")
+            db.execute("PRAGMA foreign_keys=ON")
+            if not version:
+                db.executescript(f"BEGIN IMMEDIATE; {CORE_SCHEMA}"
+                                 f"PRAGMA application_id={CORE_APPLICATION_ID};"
+                                 f"PRAGMA user_version={CORE_SCHEMA_VERSION}; COMMIT;")
+            self._conn = db
+        except BaseException:
+            db.close()
+            raise
+
+    @contextmanager
+    def transaction(self, namespace, token):
+        db = self.conn
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            lease = self.get_lease(namespace)
+            if lease is None or lease.lease_token != token:
+                raise CoreStateFault("Gold lease fence rejected transaction")
+            yield db
+            db.execute("COMMIT")
+        except BaseException:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
+            raise
+
+    def release_lease(self, namespace, lease_token):
+        return bool(self.conn.execute(
+            "UPDATE gold_runtime_lease SET lease_token='' WHERE namespace=? AND lease_token=?",
+            (namespace, lease_token)).rowcount)
+
+    def binding(self):
+        return self.conn.execute("SELECT * FROM core_binding").fetchone()
+
+    def initialize_binding(self, namespace, token, values):
+        with self.transaction(namespace, token) as db:
+            existing = self.binding()
+            if existing is not None:
+                if tuple(existing) != (namespace, *values):
+                    raise CoreStateFault("Stored Gold source binding or processing version differs")
+                if set(self.cursors()) != {"CHANGE", "INVALIDATION"}:
+                    raise CoreStateFault("Incomplete persisted Gold cursor state")
+                return
+            db.execute("INSERT INTO core_binding VALUES (?,?,?,?,?,?)", (namespace, *values))
+            db.executemany("INSERT INTO core_cursor VALUES (?,0,0)", [("CHANGE",), ("INVALIDATION",)])
+
+    def cursors(self):
+        return dict(self.conn.execute("SELECT kind,sequence FROM core_cursor").fetchall())
+
+    def acknowledge(self, namespace, token, receipt, header, apply_entries, barrier=None):
+        """Commit verified receipt + obligations + cursor as one transaction."""
+        kind = receipt.receipt_kind
+        with self.transaction(namespace, token) as db:
+            binding = self.binding()
+            if binding is None or binding["binding_id"] != receipt.source_binding_id:
+                raise CoreStateFault("Receipt does not match persisted Gold source binding")
+            after, generation = db.execute(
+                "SELECT sequence,generation FROM core_cursor WHERE kind=?", (kind,)).fetchone()
+            same = db.execute("SELECT header FROM core_receipt WHERE id=?", (receipt.receipt_id,)).fetchone()
+            if same is not None:
+                if same[0] != header or after < receipt.returned_through_sequence:
+                    raise CoreStateFault("Stored receipt header or cursor is inconsistent")
+                return False
+            if receipt.returned_after_sequence != after:
+                raise CheckpointCasConflictError("Receipt starts at a different durable cursor")
+            if kind == "CHANGE" and self.cursors()["INVALIDATION"] < receipt.safe_invalidation_through_sequence:
+                raise CoreStateFault("Change acknowledgment precedes required invalidations")
+            db.execute("INSERT INTO core_receipt VALUES (?,?,?,?,?,?)", (
+                receipt.receipt_id, kind, after, receipt.returned_through_sequence, header, time.time()))
+            apply_entries(db)
+            advanced = db.execute(
+                "UPDATE core_cursor SET sequence=?,generation=generation+1 WHERE kind=? AND sequence=? AND generation=?",
+                (receipt.returned_through_sequence, kind, after, generation))
+            if advanced.rowcount != 1:
+                raise CheckpointCasConflictError("Gold feed cursor CAS lost")
+            if barrier:
+                barrier(kind, "before_commit")
+        if barrier:
+            barrier(kind, "after_commit")
+        return True
+
+    def fault(self, namespace, token, lane, origin, code, retryable):
+        now = time.time()
+        with self.transaction(namespace, token) as db:
+            db.execute("""INSERT INTO core_fault VALUES (?,?,?,?,1,?,?,1)
+                ON CONFLICT(lane) DO UPDATE SET origin=excluded.origin,code=excluded.code,
+                retryable=excluded.retryable,occurrences=occurrences+1,
+                last_at=excluded.last_at,active=1""", (lane, origin, code, int(retryable), now, now))

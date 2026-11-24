@@ -39,6 +39,8 @@ def health() -> dict[str, Any]:
     snapshot = _snapshot()
     if snapshot is None:
         return {"status": "starting", "ready": False}
+    if isinstance(snapshot, dict):
+        return snapshot
     return {
         "status": snapshot.state,
         "ready": snapshot.ready,
@@ -70,6 +72,12 @@ def ready(response: Response) -> dict[str, Any]:
     if snapshot is None:
         response.status_code = 503
         return {"ready": False, "reason": "PROCESSOR_UNBOUND"}
+    if isinstance(snapshot, dict):
+        taken_at = _parse(snapshot.get("snapshot_at", ""))
+        fresh = taken_at is not None and (datetime.now(timezone.utc) - taken_at).total_seconds() <= _max_age_sec
+        available = bool(fresh and snapshot.get("foundation_ready"))
+        response.status_code = 200 if available else 503
+        return {"ready": available, "state": snapshot["state"], "analytics_ready": False}
     taken_at = _parse(snapshot.snapshot_at)
     if taken_at is None:
         response.status_code = 503
@@ -87,3 +95,11 @@ def ready(response: Response) -> dict[str, Any]:
         }
     response.status_code = 200
     return {"ready": True, "state": snapshot.state}
+
+
+@app.get("/metrics")
+def metrics() -> dict[str, Any]:
+    snapshot = _snapshot()
+    if snapshot is None:
+        return {}
+    return snapshot.get("metrics", {}) if isinstance(snapshot, dict) else snapshot.metrics

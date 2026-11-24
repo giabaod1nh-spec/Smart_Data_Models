@@ -169,3 +169,31 @@ class HealthSnapshot:
     watermark: Optional[float] = None
     non_terminal_work_units: int = 0
     reason: str = ""
+
+
+def core_process_resources():
+    """Sample native process counters without requiring an extra runtime dependency."""
+    import sys
+
+    if sys.platform.startswith("linux"):
+        from pathlib import Path
+        import resource
+
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        result = {"peak_rss_bytes": usage.ru_maxrss * 1024}
+        try:
+            counters = dict(line.split(": ", 1) for line in Path("/proc/self/io").read_text().splitlines())
+            for field in ("read_bytes", "write_bytes"):
+                result["process_disk_" + field] = int(counters[field])
+        except (OSError, ValueError, KeyError):
+            pass
+        return result
+    try:
+        import psutil  # Optional on host acceptance runs.
+        sample = psutil.Process()
+        memory = sample.memory_info()
+        io = sample.io_counters()
+        return {"peak_rss_bytes": getattr(memory, "peak_wset", memory.rss),
+                "process_disk_read_bytes": io.read_bytes, "process_disk_write_bytes": io.write_bytes}
+    except (ImportError, OSError, AttributeError):
+        return {}

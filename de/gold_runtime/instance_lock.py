@@ -46,13 +46,14 @@ class InstanceLock:
         *,
         processor_version: str = PROCESSOR_VERSION,
         lease_ttl_sec: float = DEFAULT_LEASE_TTL_SEC,
+        exact_path: bool = False,
     ) -> None:
         self.namespace = namespace
         self.processor_version = processor_version
         self.lease_ttl_sec = float(lease_ttl_sec)
         base = Path(lock_path)
         base.parent.mkdir(parents=True, exist_ok=True)
-        self.lock_path = base.with_name(f"{base.name}.{_safe_suffix(namespace)}")
+        self.lock_path = base if exact_path else base.with_name(f"{base.name}.{_safe_suffix(namespace)}")
         self.owner_id = f"{socket.gethostname()}:{os.getpid()}"
         self.lease_token = uuid.uuid4().hex
         self._store = store
@@ -63,9 +64,15 @@ class InstanceLock:
     def held(self) -> bool:
         return self._held
 
-    def acquire(self) -> Optional[LeaseRow]:
+    def acquire(self, *, open_store: bool = False) -> Optional[LeaseRow]:
         self._acquire_file_lock()
-        lease = self._write_lease()
+        try:
+            if open_store and self._store is not None:
+                self._store.open()
+            lease = self._write_lease()
+        except BaseException:
+            self.release()
+            raise
         self._held = True
         atexit.register(self.release)
         return lease

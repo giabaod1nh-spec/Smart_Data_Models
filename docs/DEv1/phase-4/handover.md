@@ -1,6 +1,6 @@
 # Phase 4A-Core to Phase 4B handover
 
-This is the future handover contract, not evidence that Core or Phase 4B is implemented. Phase 4A-Pre Stage A passed; actual Gold integration, whole-pipeline capacity and production operations remain pending.
+This handover describes the processing foundation available from the accepted Core implementation. [Stage B evidence](acceptance-result.md) records actual integration, the measured capacity shortfall and remaining activation gates. Phase 4B requires its own business decisions and approval.
 
 ## Core outputs Phase 4B may rely on after Stage B acceptance
 
@@ -10,6 +10,7 @@ This is the future handover contract, not evidence that Core or Phase 4B is impl
 - Independent, durable change and invalidation cursors. Invalidation through the receipt's fixed safe `Pi=min(Hi,Si)` is acknowledged locally before the associated change receipt. A pending ClickHouse mirror does not cancel an authoritative Silver-local invalidation.
 - Immutable source transition hashes and acknowledged receipt history preserved separately from boundary-dependent effective disposition and bundle hash. A legitimate later disposition change is handled as correction/suppression; a changed immutable hash under the same committed source identity fails closed.
 - Durable event identity, suppression, membership, work intent, dirty generation, recompute obligations, retry/fault state and current-effective replay manifest. Indexed event-to-window mapping enables corrections without a history scan.
+- The business-neutral input stream reads each indexed member from its exact public Silver sequence. It verifies the durable bundle and transition hashes, fixed invalidation high-water and current window generation. A caller completes the stream before using its input identity and discards partial work when the fence changes. This supports effective-state recomputation and depends on the retained Silver evidence. Gold retains receipt headers and hashes, with full canonical page bytes reserved for selected acceptance fixtures.
 - Pure simulation-time Tumbling Windows at 60s and 300s; half-open `[start,end)`, deterministic versioned identity and approved precision/run-boundary behavior. Scenario is event-level provenance and is excluded from generic window identity. Both durations can receive the same observation.
 - Independent window candidate eligibility, source-boundary state, completeness, processing state, dirty/recompute state, finality and run lifecycle. Completeness stays `UNKNOWN` absent a Phase 4B expected-coverage contract; publication finality stays `DISABLED` through Core.
 - Current-effective-state replay with frozen source binding/boundary and isolated namespace, SQLite DB and lock. No arbitrary historical as-of claim or live cursor/work mutation.

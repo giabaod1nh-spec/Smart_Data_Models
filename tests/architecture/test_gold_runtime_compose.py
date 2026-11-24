@@ -15,16 +15,21 @@ def test_compose_defines_de_gold_runtime_contract():
     assert "de-gold-runtime:" in text
     assert "python -m de.gold_runtime.main" in text or '"de.gold_runtime.main"' in text
     assert "8096:8096" in text
-    assert "GOLD_NAMESPACE: live" in text
-    assert "GOLD_CHECKPOINT_PATH: /app/de/artifacts/gold/checkpoint.sqlite3" in text
-    assert "GOLD_INSTANCE_LOCK_PATH: /app/de/artifacts/gold/instance.lock" in text
-    assert "GOLD_TRAFFIC_EXPECTED_CADENCE_SEC" in text
-    assert "GOLD_INTERSECTION_EXPECTED_CADENCE_SEC" in text
-    assert "GOLD_SIGNAL_EXPECTED_CADENCE_SEC" in text
+    gold = text.split("  de-gold-runtime:", 1)[1].split("  kafka:", 1)[0]
+    assert 'profiles: ["v1-gold"]' in gold
+    assert 'restart: "no"' in gold
+    assert "GOLD_CHECKPOINT_PATH: /app/de/artifacts/gold_v1/checkpoint.sqlite3" in gold
+    assert "GOLD_INSTANCE_LOCK_PATH: /app/de/artifacts/gold_v1/instance.lock" in gold
+    assert "GOLD_SOURCE_CLICKHOUSE_USER" in gold
+    assert "/app/de/artifacts/silver_v1:ro" in gold
+    assert "/app/de/artifacts/bronze_v1:ro" in gold
+    assert "GOLD_TRAFFIC_EXPECTED_CADENCE_SEC" not in gold
+    assert "GOLD_ALLOW" not in gold
     assert "localhost:8096/ready" in text
     assert "de-silver-processor:" in text
-    # Migration owner is --gold-m1; Gold never migrates at startup.
+    # Preserve the existing selector. Core depends only on Silver for source DDL.
     assert '"--gold-m1"' in text
+    assert "de-migrate:" not in gold
     assert "migrate_clickhouse" in text
 
 

@@ -1,6 +1,6 @@
 # Phase 4A-Core blockers and gates
 
-Status is reviewed at `9adc6fc7d4dd6ecada8b01b6d53b6ffe2d3b6a1b`. A resolved Pre dependency does not mean Gold Stage B, whole-pipeline capacity, or production readiness has passed.
+The planning baseline used completed Pre commit `9adc6fc7d4dd6ecada8b01b6d53b6ffe2d3b6a1b`. The local Core implementation and measured gates are recorded in [acceptance-result.md](acceptance-result.md).
 
 ## Resolved Phase 4A-Pre blockers
 
@@ -18,9 +18,9 @@ Status is reviewed at `9adc6fc7d4dd6ecada8b01b6d53b6ffe2d3b6a1b`. A resolved Pre
 | B4A-05 | OPEN — business finality deferred | Any `FINALIZED` transition or business publication | Core fixes `publication_finality=DISABLED`. Phase 4B owns lateness, terminal-run and correction/revision policy. |
 | B4A-06 | Architectural limit accepted; Stage B proof pending | Claim of distributed atomicity/snapshot or serving-safe output | Implement Gold-local atomicity, independent invalidation consumption, suppression and dirty-generation fencing; test real cross-store races and crashes. No distributed transaction/snapshot claim. |
 | B4A-07 | OPEN — production deployment | Live cutover / operational-readiness PASS | Approve concrete one-owner maintenance/cutover/rollback procedure, readiness thresholds and resource/disk headroom after Stage B evidence. |
-| B4A-08 | OPEN — Phase 4A-Core implementation | Actual durable Gold acknowledgment | Implement V1 state at approved separate paths, receipt validation, work obligations and transactional independent cursors. Pre's test SQLite harness is not Gold evidence. |
-| B4A-09 | OPEN — capacity certification | Sustainable whole-pipeline capacity claim | `NOT MEASURED`; instrument and benchmark the actual end-to-end path at approved workload and resource limits after Core Stage B correctness. |
-| B4A-10 | OPEN — window identity freeze | Durable production window keys | Decide numeric precision/normalization and run-boundary handling while retaining epoch-zero preferred alignment and pure 60s/300s tumbling. This does not block feed/state development. |
+| B4A-08 | RESOLVED — Stage B foundation | Actual durable Gold acknowledgment | Gold receipt validation, isolated SQLite state, work obligations and both cursors passed against real Silver. |
+| B4A-09 | OPEN — capacity insufficient | Sustainable whole-pipeline capacity claim | At 4.95 observations/s the Bronze-to-Silver backlog grew by 4.11 sequences/s. Profile the stage separately and retest before activation. |
+| B4A-10 | RESOLVED — implemented and tested | Durable work-window keys | Epoch-zero 60s/300s membership uses integer endpoint division of the verified simulation time while retaining fractional input provenance. The final run window keeps full duration. |
 
 ## Package gates
 
