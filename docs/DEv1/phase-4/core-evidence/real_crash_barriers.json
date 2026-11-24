@@ -1,0 +1,54 @@
+[
+  {
+    "barrier": "before_commit",
+    "durable": {
+      "CHANGE": 0,
+      "INVALIDATION": 0
+    },
+    "exit": 73,
+    "kind": "INVALIDATION",
+    "recovered": {
+      "CHANGE": 2,
+      "INVALIDATION": 1
+    }
+  },
+  {
+    "barrier": "after_commit",
+    "durable": {
+      "CHANGE": 0,
+      "INVALIDATION": 1
+    },
+    "exit": 74,
+    "kind": "INVALIDATION",
+    "recovered": {
+      "CHANGE": 2,
+      "INVALIDATION": 1
+    }
+  },
+  {
+    "barrier": "before_commit",
+    "durable": {
+      "CHANGE": 0,
+      "INVALIDATION": 1
+    },
+    "exit": 73,
+    "kind": "CHANGE",
+    "recovered": {
+      "CHANGE": 2,
+      "INVALIDATION": 1
+    }
+  },
+  {
+    "barrier": "after_commit",
+    "durable": {
+      "CHANGE": 2,
+      "INVALIDATION": 1
+    },
+    "exit": 74,
+    "kind": "CHANGE",
+    "recovered": {
+      "CHANGE": 2,
+      "INVALIDATION": 1
+    }
+  }
+]

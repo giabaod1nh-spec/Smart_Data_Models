@@ -1,0 +1,120 @@
+{
+  "health": {
+    "analytics_ready": false,
+    "cursors": {
+      "CHANGE": 2,
+      "INVALIDATION": 0
+    },
+    "fault_status": {},
+    "foundation_ready": true,
+    "metrics": {
+      "ack_transaction_sec": {
+        "max": 0.9167059999999765,
+        "p50": 0.9167059999999765,
+        "p95": 0.9167059999999765,
+        "p99": 0.9167059999999765,
+        "samples": 1
+      },
+      "candidate_schedule_delay_sec": {
+        "max": 1.9861134778138876,
+        "p50": 1.0056148113526433,
+        "p95": 1.9861134778138876,
+        "p99": 1.9861134778138876,
+        "samples": 2
+      },
+      "change_ack_rate_per_sec": 0.0,
+      "change_acknowledged": 2,
+      "change_backlog_rate_per_sec": 0.0,
+      "change_encoded_bytes": 27083,
+      "change_iteration_commit_sec": {
+        "max": 1.2693089000003965,
+        "p50": 1.2693089000003965,
+        "p95": 1.2693089000003965,
+        "p99": 1.2693089000003965,
+        "samples": 1
+      },
+      "change_page_read_verify_sec": {
+        "max": 0.35246079999978974,
+        "p50": 0.0029688999993595644,
+        "p95": 0.35246079999978974,
+        "p99": 0.35246079999978974,
+        "samples": 7
+      },
+      "change_page_to_durable_sec": {
+        "max": 1.2692774000006466,
+        "p50": 1.2692774000006466,
+        "p95": 1.2692774000006466,
+        "p99": 1.2692774000006466,
+        "samples": 1
+      },
+      "cpu_sec": 1.734375,
+      "dirty_work": 0,
+      "disk_free_bytes": 33251577856,
+      "invalidation_ack_rate_per_sec": 0.0,
+      "invalidation_backlog_rate_per_sec": 0.0,
+      "materialization_encoded_bytes": 28420,
+      "materialization_page_reads": 2,
+      "materialization_read_sec": {
+        "max": 3.0649704999996175,
+        "p50": 0.001455800000258023,
+        "p95": 3.0649704999996175,
+        "p99": 3.0649704999996175,
+        "samples": 4
+      },
+      "materialization_total_sec": {
+        "max": 3.071494900000289,
+        "p50": 0.11952349999955914,
+        "p95": 3.071494900000289,
+        "p99": 3.071494900000289,
+        "samples": 2
+      },
+      "open_work": 2,
+      "peak_rss_bytes": 82157568,
+      "process_disk_read_bytes": 15828517,
+      "process_disk_write_bytes": 367212,
+      "running_work": 1,
+      "running_work_oldest_sec": 5.051370859146118,
+      "source_to_gold_durable_sec": {
+        "max": 28291276.21355629,
+        "p50": 28291276.21355629,
+        "p95": 28291276.21355629,
+        "p99": 28291276.21355629,
+        "samples": 2
+      },
+      "sqlite_bytes": 4096,
+      "sqlite_wal_bytes": 362592,
+      "startup_recovery_sec": {
+        "max": 2.1342985000001136,
+        "p50": 2.1342985000001136,
+        "p95": 2.1342985000001136,
+        "p99": 2.1342985000001136,
+        "samples": 1
+      },
+      "work_completed": 2
+    },
+    "namespace": "live",
+    "progress": {
+      "bronze_change": 2,
+      "bronze_invalidation": 0,
+      "change_backlog": 0,
+      "gold_change": 2,
+      "gold_invalidation": 0,
+      "invalidation_backlog": 0,
+      "silver_change": 2,
+      "silver_invalidation": 0
+    },
+    "ready": true,
+    "snapshot_at": "2026-11-24T10:41:34.135779+00:00",
+    "source_binding_id": "sha256:55e69fc78209cd4522b021507318a3acd0c6088999343d847417f2a4f1163bad",
+    "source_namespace": "live",
+    "state": "READY",
+    "status": "READY"
+  },
+  "legacy_table_count": 12,
+  "ready": {
+    "analytics_ready": false,
+    "ready": true,
+    "state": "READY"
+  },
+  "v2_inventory_preserved": true
+}

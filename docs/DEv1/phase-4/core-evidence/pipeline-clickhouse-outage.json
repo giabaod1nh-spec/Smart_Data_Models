@@ -1,0 +1,20 @@
+{
+  "failure_observed": true,
+  "change_cursor_before": 837,
+  "change_cursor_during": 837,
+  "faults_during": {
+    "change": {
+      "code": "SOURCE_LAG",
+      "origin": "silver_feed",
+      "retryable": true
+    },
+    "work": {
+      "code": "CLICKHOUSE_UNAVAILABLE",
+      "origin": "silver_feed",
+      "retryable": true
+    }
+  },
+  "change_cursor_after": 862,
+  "binding_unchanged": true,
+  "seconds_stop_to_recovered_progress": 37.3306787
+}

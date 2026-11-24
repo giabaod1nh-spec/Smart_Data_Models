@@ -1,0 +1,13 @@
+{
+  "engine": "24.3.18.7",
+  "window_utc_seconds": [1795515875, 1795516420],
+  "completed_queries_only": true,
+  "shared_upstream_principal": {
+    "completed_queries": 49761, "query_ms_p50_p95_p99": [4,13,28], "query_ms_max": 1547,
+    "peak_query_memory_bytes": 26444186, "physical_rows_read": 27273768
+  },
+  "gold_reader_principal": {
+    "completed_queries": 13332, "query_ms_p50_p95_p99": [6,18,40], "query_ms_max": 1885,
+    "peak_query_memory_bytes": 26442470, "physical_rows_read": 13328821
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "mode": "unpaced",
+  "run_id": "phase4a-core-capacity-b",
+  "captured": 300,
+  "acknowledged": 295,
+  "source_bytes": 1173879,
+  "simulation_seconds": 60.0,
+  "producer_exit": 0,
+  "full_process_elapsed_seconds": 12.4582242,
+  "active_capture_elapsed_seconds": 9.473814,
+  "observed_active_rate": 31.138462291955488,
+  "limitation": "The normal workload's downstream backlog was still draining. This finite offer trial establishes source rate, not sustained capacity or full catch-up."
+}

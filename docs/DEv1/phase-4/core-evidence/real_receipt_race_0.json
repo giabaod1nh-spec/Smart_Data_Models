@@ -1,0 +1,10 @@
+{
+  "active_memberships": 0,
+  "event_id": "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+  "final": {
+    "CHANGE": 2,
+    "INVALIDATION": 1
+  },
+  "invalidation_first": false,
+  "original_receipt": "sha256:99c4c9cbbd16704e9f6811887ce935a74e33b4971e722ecbcd8b466719aeca59"
+}

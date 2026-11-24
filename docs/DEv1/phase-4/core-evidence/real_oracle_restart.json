@@ -1,0 +1,173 @@
+{
+  "changes": [
+    [
+      1,
+      "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+      "BUNDLE_VALID"
+    ],
+    [
+      2,
+      "a1a4b1bc5feb64fdd8fdf373a19098e0d0ce7815371a23c534979010d66cb3ad",
+      "SUPERSEDED_BY_CONFLICT"
+    ],
+    [
+      3,
+      "a541ddcc1a3c2aaa4ccb7dcb4980a107fd4a55fcc7d39735a98cd8f0dabece41",
+      "BUNDLE_VALID"
+    ],
+    [
+      4,
+      "f176ff76c672368c7fdcbf4635241527fcedf8042bdec5491b54aedb56d5b5bf",
+      "BUNDLE_VALID"
+    ],
+    [
+      5,
+      "a1a4b1bc5feb64fdd8fdf373a19098e0d0ce7815371a23c534979010d66cb3ad",
+      "CONFLICTED"
+    ]
+  ],
+  "cursors": {
+    "CHANGE": 6,
+    "INVALIDATION": 1
+  },
+  "input_hash_after": "6b25bd7e309b3daf052da5e32d95d6da90e29a78e733cc9d7c2c08a1365ed66e",
+  "input_hash_before": "3e7bd2860995bbcc87907e11e443187f58a5a205ccefa54bcb36c4ff0f44c19b",
+  "measured_sec": 5.528785299999981,
+  "membership": [
+    [
+      "220448c0f96782f4cbf3f7fead37e12b2f34c6e5ef198802a22c0b57d8de6700",
+      "phase1-raw-20261119-smoke01",
+      60,
+      120,
+      180
+    ],
+    [
+      "220448c0f96782f4cbf3f7fead37e12b2f34c6e5ef198802a22c0b57d8de6700",
+      "phase1-raw-20261119-smoke01",
+      300,
+      0,
+      300
+    ],
+    [
+      "a541ddcc1a3c2aaa4ccb7dcb4980a107fd4a55fcc7d39735a98cd8f0dabece41",
+      "stage-a-late-run",
+      60,
+      120,
+      180
+    ],
+    [
+      "a541ddcc1a3c2aaa4ccb7dcb4980a107fd4a55fcc7d39735a98cd8f0dabece41",
+      "stage-a-late-run",
+      300,
+      0,
+      300
+    ],
+    [
+      "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+      "phase1-raw-20261119-smoke01",
+      60,
+      120,
+      180
+    ],
+    [
+      "cb3d23c00fc9546c7b03a024814e41dd0536844b7b893639bf130ac10382c275",
+      "phase1-raw-20261119-smoke01",
+      300,
+      0,
+      300
+    ],
+    [
+      "f176ff76c672368c7fdcbf4635241527fcedf8042bdec5491b54aedb56d5b5bf",
+      "phase1-raw-20261119-smoke01",
+      60,
+      360,
+      420
+    ],
+    [
+      "f176ff76c672368c7fdcbf4635241527fcedf8042bdec5491b54aedb56d5b5bf",
+      "phase1-raw-20261119-smoke01",
+      300,
+      300,
+      600
+    ]
+  ],
+  "resources": {
+    "ack_transaction_sec": {
+      "max": 0.008698800000274787,
+      "p50": 0.008698800000274787,
+      "p95": 0.008698800000274787,
+      "p99": 0.008698800000274787,
+      "samples": 1
+    },
+    "candidate_schedule_delay_sec": {
+      "max": 0.6650381954077602,
+      "p50": 0.01560734525173757,
+      "p95": 0.6650381954077602,
+      "p99": 0.6650381954077602,
+      "samples": 2
+    },
+    "change_acknowledged": 1,
+    "change_encoded_bytes": 14203,
+    "change_iteration_commit_sec": {
+      "max": 0.4727939000003971,
+      "p50": 0.4727939000003971,
+      "p95": 0.4727939000003971,
+      "p99": 0.4727939000003971,
+      "samples": 1
+    },
+    "change_page_read_verify_sec": {
+      "max": 0.4639084999998886,
+      "p50": 0.0068566999998438405,
+      "p95": 0.4639084999998886,
+      "p99": 0.4639084999998886,
+      "samples": 7
+    },
+    "change_page_to_durable_sec": {
+      "max": 0.47275940000054106,
+      "p50": 0.47275940000054106,
+      "p95": 0.47275940000054106,
+      "p99": 0.47275940000054106,
+      "samples": 1
+    },
+    "cpu_sec": 5.375,
+    "dirty_work": 0,
+    "disk_free_bytes": 33252380672,
+    "materialization_encoded_bytes": 71036,
+    "materialization_page_reads": 5,
+    "materialization_read_sec": {
+      "max": 0.40555140000014944,
+      "p50": 0.2620972000004258,
+      "p95": 0.40555140000014944,
+      "p99": 0.40555140000014944,
+      "samples": 6
+    },
+    "materialization_total_sec": {
+      "max": 0.6887068999994881,
+      "p50": 0.6292555999998513,
+      "p95": 0.6887068999994881,
+      "p99": 0.6887068999994881,
+      "samples": 2
+    },
+    "open_work": 4,
+    "peak_rss_bytes": 137617408,
+    "process_disk_read_bytes": 42512597,
+    "process_disk_write_bytes": 2884382,
+    "source_to_gold_durable_sec": {
+      "max": 28291244.5311594,
+      "p50": 28291244.5311594,
+      "p95": 28291244.5311594,
+      "p99": 28291244.5311594,
+      "samples": 1
+    },
+    "sqlite_bytes": 180224,
+    "sqlite_wal_bytes": 152472,
+    "startup_recovery_sec": {
+      "max": 0.06319119999989198,
+      "p50": 0.06319119999989198,
+      "p95": 0.06319119999989198,
+      "p99": 0.06319119999989198,
+      "samples": 1
+    },
+    "work_completed": 2
+  }
+}

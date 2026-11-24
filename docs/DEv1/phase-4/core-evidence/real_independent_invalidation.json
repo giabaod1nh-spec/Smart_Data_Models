@@ -1,0 +1,9 @@
+{
+  "block": "PREFIX_BLOCKED",
+  "blocked_change_cursor": 0,
+  "independent_invalidation_cursor": 1,
+  "recovered": {
+    "CHANGE": 2,
+    "INVALIDATION": 1
+  }
+}
