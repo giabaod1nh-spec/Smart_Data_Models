@@ -3,6 +3,7 @@ import time
 import threading
 import pytest
 from pathlib import Path
+from types import SimpleNamespace
 
 import de.silver.processor as processor_module
 from de.bronze.checkpoint_store import V1SemanticStore
@@ -27,6 +28,38 @@ class FakeClickHouse:
         if getattr(self, 'offline', False):
             raise ConnectionError('ClickHouse temporarily offline')
         pass
+
+
+@pytest.mark.parametrize(("verified_backlog", "wait_on_first_pass"), [(11, False), (10, True)])
+def test_worker_waits_only_after_the_verified_prefix_is_consumed(monkeypatch,
+                                                                 verified_backlog, wait_on_first_pass):
+    settings = SilverSettings(poll_interval_sec=0.02)
+    worker = SilverProcessor(settings, repo=FakeClickHouse(),
+                             checkpoint=SimpleNamespace(is_readable=lambda: True))
+    worker._schema_ok = True
+    worker.bronze_repo = FakeClickHouse()
+    monkeypatch.setattr(processor_module, "V1SemanticReader",
+                        lambda path: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(worker, "_publish_snapshot", lambda: None)
+    seen = []
+
+    def journal_pass(*args, max_entries, **kwargs):
+        seen.append("pass")
+        if len(seen) == 1:
+            worker.metrics.source_lag = {"changes": verified_backlog, "invalidations": 0}
+            return max_entries
+        worker.metrics.source_lag = {"changes": 0, "invalidations": 0}
+        return 0
+
+    def wait(delay):
+        assert delay == settings.poll_interval_sec
+        seen.append("wait")
+        worker._stop.set()
+
+    monkeypatch.setattr(worker, "run_v1_journal_pass", journal_pass)
+    monkeypatch.setattr(worker._stop, "wait", wait)
+    worker._run_v1()
+    assert seen == (["pass", "wait"] if wait_on_first_pass else ["pass", "pass", "wait"])
 
 
 @pytest.mark.parametrize('fault,expected_code', [

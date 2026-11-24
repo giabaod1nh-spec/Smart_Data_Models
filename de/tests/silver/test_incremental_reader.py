@@ -32,6 +32,7 @@ from de.silver.incremental_contract import (
     CanonicalChangePageRequest, CanonicalFeedError, CanonicalInvalidationPageRequest,
     FeedLimits, SourceDiscoveryRequest, canonical_bytes,
 )
+from de.silver.metrics import Metrics
 from de.silver.processor import SilverProcessor
 from de.silver.repositories import SilverClickHouseRepository
 from de.silver.source_binding import verify_bronze_source
@@ -56,6 +57,7 @@ class AuthorityFixture:
         self.worker.settings = settings
         self.worker.checkpoint = silver
         self.worker.repo = silver_repo
+        self.worker.metrics = Metrics()
         self.lifecycle = SimpleNamespace(register=lambda *args: None)
         self.binding = self.reader.discover_canonical_source(SourceDiscoveryRequest(NS)).source_binding_id
         self.offset = 0
@@ -438,6 +440,21 @@ def test_missing_clickhouse_fact_illegal_transition_and_archive_fault(authority,
     database = f.worker.settings.clickhouse_database
     f.reader.silver_repo.client.command(f"TRUNCATE TABLE {database}.silver_signal_state_fact_v1")
     expect("CANONICAL_EVIDENCE_MISSING", f.changes)
+
+
+def test_feed_rejects_changed_fact_content_with_complete_key_inventory(authority):
+    f, first, _ = authority
+    f.event(1, first)
+    f.apply()
+    table = "silver_signal_state_fact_v1"
+    rows = [json.loads(row[0]) for row in f.silver.conn.execute(
+        "SELECT expected_json FROM silver_v1_obligation WHERE target_table=? AND source_sequence=1", (table,))]
+    assert rows and f.changes().entry_count == 1
+    rows[0]["cycle_sequence"] += 1
+    repo = f.reader.silver_repo
+    repo.client.command(f"TRUNCATE TABLE {f.worker.settings.clickhouse_database}.{table}")
+    repo.insert_v1_rows(table, rows)
+    expect("SOURCE_INTEGRITY_ERROR", f.changes)
 
 
 def test_conflict_before_materialization_and_invalidation_lag(authority):

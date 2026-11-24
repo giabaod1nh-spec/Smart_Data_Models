@@ -9,6 +9,7 @@ from de.silver.canonical_reader import (CanonicalSilverReader, InvalidationLagEr
     SourceBindingChangedError, ValidityUnknownError)
 from de.silver.checkpoint_store import SilverCheckpointStore
 from de.silver.config import SilverSettings
+from de.silver.metrics import Metrics
 from de.silver.processor import SilverProcessor
 from de.silver.source_binding import verify_bronze_source
 
@@ -35,7 +36,7 @@ def test_incremental_feed_exposes_durable_suppression_before_ch_mirror(tmp_path)
     def offline(*args, **kwargs):
         raise ConnectionError('CH mirror offline')
     worker = SimpleNamespace(settings=SilverSettings(v1_bronze_path=str(bronze_path)),
-        checkpoint=silver, repo=SimpleNamespace(reconcile_v1_row=offline))
+        checkpoint=silver, repo=SimpleNamespace(reconcile_v1_row=offline), metrics=Metrics())
     worker.recover_v1_obligations = lambda limit: SilverProcessor.recover_v1_obligations(worker, limit)
     archive = SimpleNamespace(resolve=lambda *args: SimpleNamespace(generation=1))
     def suppress(entry):

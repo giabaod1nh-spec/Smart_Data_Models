@@ -88,6 +88,11 @@ V1_KEY_COLUMNS = {
     "silver_invalidation_v1": ("namespace", "invalidation_sequence", "event_id", "invalidation_id"),
     "silver_quarantine_v1": ("namespace", "failure_stage", "error_code", "created_at", "quarantine_id"),
 }
+V1_DIRECTION_TABLES = frozenset({
+    "silver_traffic_observation_fact_v1",
+    "silver_signal_state_fact_v1",
+})
+V1_DIRECTION_BATCH_LIMIT = 16
 QUARANTINE_REPLAY_TABLE = "silver_quarantine_replay"
 LEDGER_TABLE = "silver_processing_ledger"
 
@@ -178,6 +183,34 @@ class WriteReceipt:
 
 
 # ── Small pure helpers ───────────────────────────────────────────────────────
+
+
+def _normalize_v1_cell(name: str, value: Any) -> Any:
+    from datetime import datetime, timezone
+
+    if isinstance(value, bytes):
+        value = value.decode("utf-8").rstrip("\x00")
+    if name in {"created_at", "observed_at", "captured_at", "registry_updated_at"} and value is not None:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            if name == "captured_at":
+                value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
+            return value.astimezone(timezone.utc).isoformat(timespec="microseconds")
+    return value
+
+
+def verify_v1_content(table: str, actual: dict, expected: dict) -> None:
+    differing = sorted(set(actual) ^ set(expected))
+    differing.extend(name for name in expected if name in actual and
+        not (table in {"silver_run_dimension_v1", "silver_topology_dimension_v1",
+                       "silver_run_topology_binding_v1"} and name == "created_at") and
+        not (table == "silver_topology_dimension_v1" and name == "catalog_path") and
+        _normalize_v1_cell(name, actual[name]) != _normalize_v1_cell(name, expected[name]))
+    if differing:
+        raise FactBusinessKeyConflictError("V1 same-key content differs in: " + ", ".join(differing))
 
 
 def _cell(value: Any) -> Any:
@@ -681,7 +714,7 @@ class SilverClickHouseRepository:
     def reconcile_v1_row(self, table: str, expected: Dict[str, Any],
                          *, replay_run_id: Optional[str] = None) -> bool:
         """Return false for missing; raise on any conflicting same-key content."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         if table not in V1_TABLES:
             raise InvalidTargetTableError(table)
@@ -711,32 +744,50 @@ class SilverClickHouseRepository:
         if len(result.result_rows) > 1000:
             raise FactBusinessKeyConflictError("excess physical V1 duplicates")
 
-        def normalized(name: str, value: Any) -> Any:
-            if isinstance(value, bytes):
-                value = value.decode("utf-8").rstrip("\x00")
-            if name in {"created_at", "observed_at", "captured_at", "registry_updated_at"} and value is not None:
-                if isinstance(value, str):
-                    value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-                if isinstance(value, datetime):
-                    if value.tzinfo is None:
-                        value = value.replace(tzinfo=timezone.utc)
-                    if name == "captured_at":
-                        value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
-                    return value.astimezone(timezone.utc).isoformat(timespec="microseconds")
-            return value
+        for values in result.result_rows:
+            verify_v1_content(table, dict(zip(result.column_names, values)), expected_row)
+        return bool(result.result_rows)
 
+    def reconcile_v1_directions(self, table: str, rows: Sequence[Dict[str, Any]],
+                                *, replay_run_id: Optional[str] = None) -> list[bool]:
+        """Reconcile a bounded set of direction keys with one exact event identity."""
+        if table not in V1_DIRECTION_TABLES or not 1 <= len(rows) <= V1_DIRECTION_BATCH_LIMIT:
+            raise ValueError("invalid V1 directional reconciliation batch")
+        replay = replay_run_id is not None
+        self._guard_mode(replay=replay)
+        keys = tuple(key for key in V1_KEY_COLUMNS[table] if key != "source_direction")
+        shared = {key: rows[0][key] for key in keys}
+        if any(row[key] != value for row in rows for key, value in shared.items()):
+            raise ValueError("directional batch spans different event identities")
+        expected = {row["source_direction"]: row for row in rows}
+        if len(expected) != len(rows):
+            raise ValueError("duplicate direction key in frozen batch")
+        predicates = [
+            key + "={" + key + (":UInt64}" if key == "bronze_semantic_revision" else ":String}")
+            for key in keys
+        ]
+        params = dict(shared, directions=list(expected))
+        predicates.append("source_direction IN {directions:Array(String)}")
+        physical = table
+        if replay:
+            physical = table.replace("_v1", "_replay_v1")
+            predicates.append("replay_run_id={replay_run_id:String}")
+            params["replay_run_id"] = replay_run_id
+        from de.feed_read_budget import evidence_query
+        result = evidence_query(self.client, f"SELECT * FROM {self.database}.{physical} WHERE "
+                                + " AND ".join(predicates) + " LIMIT 1001", parameters=params)
+        if len(result.result_rows) > 1000:
+            raise FactBusinessKeyConflictError("excess physical V1 duplicates in directional batch")
+        found = set()
         for values in result.result_rows:
             actual = dict(zip(result.column_names, values))
-            differing = sorted(set(actual) ^ set(expected_row))
-            differing.extend(name for name in expected_row if name in actual and
-                not (table in {"silver_run_dimension_v1", "silver_topology_dimension_v1",
-                               "silver_run_topology_binding_v1"} and name == "created_at") and
-                not (table == "silver_topology_dimension_v1" and name == "catalog_path") and
-                normalized(name, actual[name]) != normalized(name, expected_row[name]))
-            if differing:
-                raise FactBusinessKeyConflictError(
-                    "V1 same-key content differs in: " + ", ".join(differing))
-        return bool(result.result_rows)
+            direction = _normalize_v1_cell("source_direction", actual.get("source_direction"))
+            if direction not in expected:
+                raise FactBusinessKeyConflictError("unexpected V1 direction in reconciliation evidence")
+            row = expected[direction]
+            verify_v1_content(table, actual, {"replay_run_id": replay_run_id, **row} if replay else row)
+            found.add(direction)
+        return [row["source_direction"] in found for row in rows]
 
     def fetch_v1_event_rows(self, table: str, run_id: str, digest: str,
                             event_id: str) -> List[Dict[str, Any]]:

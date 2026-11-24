@@ -426,6 +426,56 @@ def test_active_replay_aborts_on_boundary_change_without_touching_live(local, tm
         release(replay, replay_owner)
 
 
+@pytest.mark.parametrize("error_code", ["AUTHORITY_UNAVAILABLE", "SOURCE_BINDING_CHANGED"])
+def test_replay_final_discovery_fault(local, tmp_path, monkeypatch, error_code):
+    import json
+    import time
+    from de.gold_runtime.replay import CoreReplayManifest
+
+    settings, source = local
+    source.event("scope", 135)
+    live, owner = open_core(local)
+    drain(live)
+    release(live, owner)
+    before = settings.checkpoint_path.read_bytes()
+    manifest = CoreReplayManifest(source.binding_id, (1, 0, 1, 0), "r1", 1, "t-r1", "m-r1", 0, 360)
+    path = tmp_path / "replay.json"
+    path.write_text(json.dumps(asdict(manifest)), encoding="utf-8")
+    replay, owner = open_core((settings.model_copy(update=dict(replay_manifest=path)), source))
+    try:
+        assert replay.run_cycle()
+        assert replay.run_cycle()
+        discover = replay.discover
+        calls = 0
+
+        def transient_at_finish():
+            nonlocal calls
+            calls += 1
+            # Cycle discovery, empty change page validation, then completion.
+            if calls == 3:
+                raise CanonicalFeedError(error_code, "final validation")
+            return discover()
+
+        monkeypatch.setattr(replay, "discover", transient_at_finish)
+        if error_code == "AUTHORITY_UNAVAILABLE":
+            replay.run_cycle()
+            assert calls == 3
+            assert replay.store.conn.execute("SELECT status FROM core_replay").fetchone()[0] == "RUNNING"
+            assert replay._faults["replay_completion"]["retryable"]
+            time.sleep(settings.retry_max_sec)
+            replay.run_cycle()
+            assert replay.store.conn.execute("SELECT status FROM core_replay").fetchone()[0] == "COMPLETE"
+            assert "replay_completion" not in replay._faults
+        else:
+            assert replay.run() == 2
+            assert calls == 3
+            assert replay.store.conn.execute("SELECT status FROM core_replay").fetchone()[0] == "ABORTED"
+        assert replay.store.cursors() == {"CHANGE": 1, "INVALIDATION": 0}
+        assert settings.checkpoint_path.read_bytes() == before
+    finally:
+        release(replay, owner)
+
+
 def test_lease_loss_keeps_durable_cursors(local):
     _, source = local
     source.event("before-lease-loss", 135)

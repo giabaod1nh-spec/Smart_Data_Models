@@ -3,6 +3,8 @@ from types import SimpleNamespace
 import pytest
 
 from de.silver.checkpoint_store import SilverCheckpointStore
+from de.silver.config import SilverSettings
+from de.silver.metrics import Metrics
 from de.silver.processor import SilverProcessor
 from de.silver.checkpoint_store import CheckpointError
 from de.silver.repositories import FactBusinessKeyConflictError
@@ -34,7 +36,7 @@ def test_recovery_acknowledges_only_verified_prefix_on_later_failure(tmp_path):
         if table == 'silver_topology_dimension_v1':
             raise ConnectionError('second output unavailable')
         return True
-    worker = SimpleNamespace(checkpoint=store, settings=SimpleNamespace(
+    worker = SimpleNamespace(checkpoint=store, metrics=Metrics(), settings=SimpleNamespace(
         namespace='live', destination_mode='main', replay_run_id=''),
         repo=SimpleNamespace(reconcile_v1_row=reconcile))
     try:
@@ -57,7 +59,7 @@ def test_permanent_content_fault_is_durable_and_not_retried_after_restart(tmp_pa
     def conflict(*args, **kwargs):
         calls.append(True)
         raise FactBusinessKeyConflictError('immutable content differs')
-    worker = SimpleNamespace(checkpoint=store, settings=SimpleNamespace(
+    worker = SimpleNamespace(checkpoint=store, metrics=Metrics(), settings=SimpleNamespace(
         namespace='live', destination_mode='main', replay_run_id=''),
         repo=SimpleNamespace(reconcile_v1_row=conflict))
     try:
@@ -99,10 +101,55 @@ def test_recovery_reconciles_lost_response_without_second_insert(tmp_path):
                 self.visible = True
 
         repo = Repo()
-        worker = SimpleNamespace(checkpoint=store, settings=SimpleNamespace(
+        worker = SimpleNamespace(checkpoint=store, metrics=Metrics(), settings=SimpleNamespace(
             namespace="live", destination_mode="main", replay_run_id=""), repo=repo)
         assert SilverProcessor.recover_v1_obligations(worker) == 1
         assert repo.inserts == 0
         assert SilverProcessor.recover_v1_obligations(worker) == 0
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("lost_response", [False, True])
+def test_direction_group_recovery_keeps_exact_obligation_outcomes(tmp_path, lost_response):
+    table = "silver_traffic_observation_fact_v1"
+    settings = SilverSettings()
+    store = SilverCheckpointStore(tmp_path / "group.sqlite3")
+    store.open()
+
+    class Repo:
+        def __init__(self):
+            self.visible = {"east"}
+            self.inserts = []
+
+        def reconcile_v1_directions(self, target, rows, **kwargs):
+            assert target == table
+            return [row["source_direction"] in self.visible for row in rows]
+
+        def insert_v1_rows(self, target, rows, **kwargs):
+            assert target == table
+            self.inserts.append({row["source_direction"] for row in rows})
+            self.visible.add("north")
+            if lost_response and len(self.inserts) == 1:
+                raise ConnectionError("response lost after a partial write")
+            if len(self.inserts) == 2:
+                self.visible.add("south")
+
+        def reconcile_v1_row(self, target, row, **kwargs):
+            return row["source_direction"] in self.visible
+
+    worker = SilverProcessor(settings, repo=Repo(), checkpoint=store)
+    try:
+        for direction in ("east", "north", "south"):
+            store.freeze_v1_obligation("live", "changes", 1, "event", table, dict(
+                simulation_run_id="run", topology_digest="digest", event_id="event",
+                intersection_id="A", source_direction=direction, bronze_semantic_revision=1))
+        with pytest.raises(ConnectionError if lost_response else RuntimeError):
+            worker.recover_v1_obligations()
+        pending = store.pending_v1_obligations("live")
+        assert len(pending) == (3 if lost_response else 1)
+        assert worker.recover_v1_obligations() == len(pending)
+        assert worker.repo.inserts == [{"north", "south"}, {"south"}]
+        assert store.pending_v1_obligations("live") == []
     finally:
         store.close()

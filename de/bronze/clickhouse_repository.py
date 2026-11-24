@@ -82,9 +82,25 @@ class BronzeClickHouseRepository:
         except Exception:
             return False
 
+    @staticmethod
+    def _verify_v1_output_content(table, expected, result):
+        from datetime import datetime, timezone
+
+        for values in result.result_rows:
+            actual = dict(zip(result.column_names, values))
+            for key, value in expected.items():
+                cell = actual.get(key)
+                if isinstance(cell, bytes):
+                    cell = cell.decode('ascii')
+                if isinstance(cell, datetime):
+                    if cell.tzinfo is None:
+                        cell = cell.replace(tzinfo=timezone.utc)
+                    value = datetime.fromisoformat(value.replace('Z','+00:00')) if isinstance(value,str) else value
+                if cell != value:
+                    raise IntegrityFault('Bronze immutable output mismatch: '+table+'.'+key)
+
     def reconcile_v1_outputs(self, obligations: list[dict]) -> list[dict]:
         """Verify complete immutable output content, returning only missing rows."""
-        from datetime import datetime, timezone
         allowed = {
             'bronze_observations_v1': ('namespace','event_id','semantic_revision'),
             'bronze_delivery_dispositions_v1': ('namespace','raw_ingestion_id'),
@@ -111,18 +127,7 @@ class BronzeClickHouseRepository:
             if not result.result_rows:
                 missing.append(obligation)
                 continue
-            for values in result.result_rows:
-                actual = dict(zip(result.column_names, values))
-                for key, value in expected.items():
-                    cell = actual.get(key)
-                    if isinstance(cell, bytes):
-                        cell = cell.decode('ascii')
-                    if isinstance(cell, datetime):
-                        if cell.tzinfo is None:
-                            cell = cell.replace(tzinfo=timezone.utc)
-                        value = datetime.fromisoformat(value.replace('Z','+00:00')) if isinstance(value,str) else value
-                    if cell != value:
-                        raise IntegrityFault('Bronze immutable output mismatch: '+table+'.'+key)
+            self._verify_v1_output_content(table, expected, result)
         return missing
 
     def persist_v1_outputs(self, obligations: list[dict]):
@@ -238,7 +243,18 @@ class BronzeClickHouseRepository:
                 'SELECT * FROM ' + self.database + '.bronze_observations_v1 '
                 'WHERE namespace={ns:String} AND event_id={eid:String} AND semantic_revision={rev:UInt64}',
                 parameters=dict(ns=namespace, eid=event_id, rev=expected_revision))
-            if not query.result_rows or self.reconcile_v1_outputs(obligations):
+            if not query.result_rows:
+                raise RuntimeError('accepted observation mirror or lineage missing')
+            remaining = []
+            for obligation in obligations:
+                table, row = obligation["table"], obligation["row"]
+                if (table == "bronze_observations_v1"
+                        and (row.get("namespace"), row.get("event_id"), row.get("semantic_revision"))
+                        == (namespace, event_id, expected_revision)):
+                    self._verify_v1_output_content(table, row, query)
+                else:
+                    remaining.append(obligation)
+            if remaining and self.reconcile_v1_outputs(remaining):
                 raise RuntimeError('accepted observation mirror or lineage missing')
             event = None
             for values in query.result_rows:

@@ -1,0 +1,1 @@
+{"volumes":{"retained_replay":{}},"services":{"gold":{"volumes":["retained_replay:/app/perf-replay"]}}}

@@ -1,0 +1,20 @@
+{
+  "services": {
+    "gold": {
+      "volumes": [
+        {
+          "target": "/code/de/silver/canonical_reader.py",
+          "type": "bind",
+          "read_only": true,
+          "source": "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-base-01\\control-canonical_reader.py"
+        },
+        {
+          "target": "/code/de/silver/incremental_reader.py",
+          "type": "bind",
+          "read_only": true,
+          "source": "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-base-01\\control-incremental_reader.py"
+        }
+      ]
+    }
+  }
+}

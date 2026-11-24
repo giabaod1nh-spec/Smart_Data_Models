@@ -1,0 +1,54 @@
+2026-11-24 23:38:29,842 [WARNING] runtime.run_manifest: Detector expected_network_hash mismatch: {'expected_network_hash': '5F351B5BC56FE24BF50195C1DBD6944EF9EB5270B97C1A924921DDE4E1489935', 'actual_network_hash': '62638b276817a58de2a27601fe0f6f2aae4a9c129a455aa1e1726e5c88a3d9f1'}
+%3|1795538312.698|FAIL|visualize-kafka-producer-v1-outbox#producer-1| [thrd:localhost:39092/bootstrap]: localhost:39092/bootstrap: Connect to ipv6#[::1]:39092 failed: Unknown error (after 2026ms in state CONNECT)
+%3|1795538315.289|FAIL|visualize-kafka-producer-v1-outbox#producer-1| [thrd:localhost:39092/1]: localhost:39092/1: Connect to ipv6#[::1]:39092 failed: Unknown error (after 2032ms in state CONNECT)
+%3|1795538317.753|FAIL|visualize-kafka-producer-v1-outbox#producer-1| [thrd:localhost:39092/bootstrap]: localhost:39092/bootstrap: Connect to ipv6#[::1]:39092 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1795538317.832|FAIL|visualize-kafka-producer-v1-outbox#producer-1| [thrd:localhost:39092/1]: localhost:39092/1: Connect to ipv6#[::1]:39092 failed: Unknown error (after 2043ms in state CONNECT, 1 identical error(s) suppressed)
+%4|1795538318.349|GETPID|visualize-kafka-producer-v1-outbox#producer-1| [thrd:main]: Failed to acquire idempotence PID from broker localhost:39092/1: Broker: Coordinator load in progress: retrying
+%3|1795538319.842|FAIL|visualize-kafka-producer-v1-outbox#producer-1| [thrd:localhost:39092/bootstrap]: localhost:39092/bootstrap: Connect to ipv6#[::1]:39092 failed: Unknown error (after 2057ms in state CONNECT, 1 identical error(s) suppressed)
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=45.85.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=45.87.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=45.92.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=45.95.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.05.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.17.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.24.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.30.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.32.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.35.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.37.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.39.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.43.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.46.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.51.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.53.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.67.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.69.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#3_0' with decel=10.00, wished=5.00, severity=1.00, time=46.76.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#3_0' with decel=10.00, wished=5.00, severity=1.00, time=46.79.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane '-1179966753#3_0' with decel=10.00, wished=5.00, severity=1.00, time=46.90.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.94.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=46.98.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.02.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.04.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.07.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.09.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.11.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.14.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.16.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.20.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.23.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.29.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.32.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.32.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.34.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.34.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.37.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.39.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.39.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.42.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.45.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.49.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.54.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.56.
+Warning: Vehicle 'd_b_south_west_41' performs emergency braking on lane ':5778300422_4_0' with decel=10.00, wished=5.00, severity=1.00, time=47.60.
+Warning: Vehicle 'd_b_main_20' performs emergency braking on lane '327048054#7_1' with decel=9.00, wished=4.50, severity=1.00, time=47.63.

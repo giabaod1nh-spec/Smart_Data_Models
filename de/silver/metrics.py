@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -29,6 +30,31 @@ class Metrics:
     source_lag: dict[str, int] = field(default_factory=dict)
     suppressed_dimension_candidates: int = 0
     lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+    _operation_stack: list[int] = field(default_factory=list, init=False, repr=False)
+    _operations: dict[str, dict[str, int]] = field(default_factory=dict, init=False, repr=False)
+
+    def timed(self, operation, call, *args, **kwargs):
+        """Measure a journal worker call. Snapshots may read totals from other threads."""
+        self._operation_stack.append(0)
+        started = time.monotonic_ns()
+        failed = True
+        try:
+            result = call(*args, **kwargs)
+            failed = False
+            return result
+        finally:
+            elapsed = time.monotonic_ns() - started
+            children = self._operation_stack.pop()
+            if self._operation_stack:
+                self._operation_stack[-1] += elapsed
+            with self.lock:
+                totals = self._operations.setdefault(operation, dict(
+                    calls=0, failures=0, wall_ns=0, exclusive_ns=0, max_wall_ns=0))
+                totals["calls"] += 1
+                totals["failures"] += failed
+                totals["wall_ns"] += elapsed
+                totals["exclusive_ns"] += elapsed - children
+                totals["max_wall_ns"] = max(totals["max_wall_ns"], elapsed)
 
     def mark_batch(self, n: int) -> None:
         with self.lock:
@@ -59,6 +85,7 @@ class Metrics:
                 "last_progress_at": self.last_progress_at,
                 "source_lag": dict(self.source_lag),
                 "suppressed_dimension_candidates": self.suppressed_dimension_candidates,
+                "journal_operations": self._operations,
             }
             return deepcopy(data)
 

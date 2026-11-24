@@ -7,6 +7,7 @@ import sqlite3
 import time
 from dataclasses import replace
 from datetime import datetime, timezone
+from itertools import groupby
 from pathlib import Path
 from typing import Any, Optional
 
@@ -26,7 +27,10 @@ from de.bronze.checkpoint_store import V1SemanticReader
 from de.bronze.clickhouse_repository import BronzeClickHouseRepository
 from de.bronze.config import ObservationSettings
 from de.silver.metrics import HealthSnapshot, Metrics
-from de.silver.repositories import FactBusinessKeyConflictError, InvalidTargetTableError, SilverClickHouseRepository, SchemaMismatchError
+from de.silver.repositories import (
+    FactBusinessKeyConflictError, InvalidTargetTableError, SchemaMismatchError, SilverClickHouseRepository,
+    V1_DIRECTION_BATCH_LIMIT, V1_DIRECTION_TABLES,
+)
 
 
 def _utc_dt() -> datetime:
@@ -289,22 +293,26 @@ class SilverProcessor:
 
     def _run_v1(self) -> None:
         source_reader = None
+        pass_limit = 10
         try:
             while not self._stop.is_set():
+                continue_backlog = False
                 try:
                     if not self._schema_ok:
                         self._initialize_v1()
                     if source_reader is None:
                         source_reader = V1SemanticReader(self.settings.v1_bronze_path)
-                    self._clickhouse_ok = self.repo.ping() and self.bronze_repo.ping()
-                    self._sqlite_ok = self.checkpoint.is_readable()
+                    self._clickhouse_ok = self.metrics.timed("silver_ping", self.repo.ping) and (
+                        self.metrics.timed("bronze_ping", self.bronze_repo.ping))
+                    self._sqlite_ok = self.metrics.timed("sqlite_probe", self.checkpoint.is_readable)
                     if not self._clickhouse_ok or not self._sqlite_ok:
                         raise ConnectionError("V1 Silver dependency unavailable")
                     if self._lifecycle_fault is not None:
                         raise self._lifecycle_fault
-                    processed = self.run_v1_journal_pass(source_reader, self.bronze_repo,
+                    processed = self.metrics.timed("journal_pass", self.run_v1_journal_pass,
+                        source_reader, self.bronze_repo,
                         self.archive_resolver, self.lifecycle,
-                        batch_size=min(self.settings.batch_size, 10), max_entries=10)
+                        batch_size=min(self.settings.batch_size, pass_limit), max_entries=pass_limit)
                     if self._lifecycle_fault is not None:
                         raise self._lifecycle_fault
                     self.state = ProcessorState.READY
@@ -314,6 +322,10 @@ class SilverProcessor:
                     if processed:
                         self.metrics.mark_batch(processed)
                         self.metrics.mark_checkpoint()
+                    # Only remove idle delay after a full successful pass with
+                    # remaining work inside the boundary verified by that pass.
+                    continue_backlog = (
+                        processed == pass_limit and sum(self.metrics.source_lag.values()) > processed)
                 except ArchiveIntegrityError as exc:
                     self.metrics.fault_code = "ARCHIVE_INTEGRITY"
                     self.metrics.fault_message = str(exc)
@@ -347,9 +359,11 @@ class SilverProcessor:
                     self.state = ProcessorState.RETRYING
                     self._retry_idx = min(self._retry_idx + 1, len(BACKOFF_SCHEDULE_SEC) - 1)
                 self._publish_snapshot()
+                if continue_backlog:
+                    continue
                 delay = (BACKOFF_SCHEDULE_SEC[self._retry_idx] if self._retry_idx
                          else self.settings.poll_interval_sec)
-                self._stop.wait(delay)
+                self.metrics.timed("retry_wait" if self._retry_idx else "poll_wait", self._stop.wait, delay)
         finally:
             if source_reader is not None:
                 source_reader.close()
@@ -364,29 +378,69 @@ class SilverProcessor:
 
     def recover_v1_obligations(self, limit: int = 100) -> int:
         """Reconcile frozen V1 rows before attempting new journal progress."""
-        pending = self.checkpoint.pending_v1_obligations(self.settings.namespace, limit)
+        timed = self.metrics.timed
+        pending = timed("pending_lookup", self.checkpoint.pending_v1_obligations,
+                        self.settings.namespace, limit)
         replay_run_id = (self.settings.replay_run_id
                          if self.settings.destination_mode == DestinationMode.REPLAY.value else None)
         verified = []
         try:
-            for obligation in pending:
-                if obligation['status'] == 'FAULT':
-                    raise CheckpointError('frozen V1 obligation has a permanent fault')
-                row = json.loads(obligation["expected_json"])
-                target = obligation["target_table"]
-                try:
-                    if not self.repo.reconcile_v1_row(target, row, replay_run_id=replay_run_id):
-                        self.repo.insert_v1_rows(target, [row], replay_run_id=replay_run_id)
-                        if not self.repo.reconcile_v1_row(target, row, replay_run_id=replay_run_id):
-                            raise RuntimeError("V1 inserted obligation is not visible")
-                except Exception as exc:
-                    self.checkpoint.record_v1_obligation_failure(obligation, exc,
-                        permanent=isinstance(exc, (FactBusinessKeyConflictError, InvalidTargetTableError)))
-                    raise
-                verified.append(obligation)
+            for key, group in groupby(pending, key=lambda row: (
+                    row["source_kind"], row["source_sequence"], row["event_id"], row["target_table"])):
+                obligations = list(group)
+                if (key[-1] in V1_DIRECTION_TABLES
+                        and 1 < len(obligations) <= V1_DIRECTION_BATCH_LIMIT
+                        and all(item["status"] != "FAULT" for item in obligations)
+                        and hasattr(self.repo, "reconcile_v1_directions")
+                        and self._recover_v1_directions(key[-1], obligations, replay_run_id, verified)):
+                    continue
+                for obligation in obligations:
+                    if obligation["status"] == "FAULT":
+                        raise CheckpointError("frozen V1 obligation has a permanent fault")
+                    row = json.loads(obligation["expected_json"])
+                    target = obligation["target_table"]
+                    try:
+                        if not timed("reconcile_existing", self.repo.reconcile_v1_row,
+                                     target, row, replay_run_id=replay_run_id):
+                            timed("insert_obligation", self.repo.insert_v1_rows,
+                                  target, [row], replay_run_id=replay_run_id)
+                            if not timed("reconcile_visibility", self.repo.reconcile_v1_row,
+                                         target, row, replay_run_id=replay_run_id):
+                                raise RuntimeError("V1 inserted obligation is not visible")
+                    except Exception as exc:
+                        self.checkpoint.record_v1_obligation_failure(obligation, exc,
+                            permanent=isinstance(exc, (FactBusinessKeyConflictError, InvalidTargetTableError)))
+                        raise
+                    verified.append(obligation)
         finally:
-            self.checkpoint.reconcile_v1_obligations(verified)
+            timed("ack_obligations", self.checkpoint.reconcile_v1_obligations, verified)
         return len(pending)
+
+    def _recover_v1_directions(self, target, obligations, replay_run_id, verified):
+        rows = [json.loads(item["expected_json"]) for item in obligations]
+        timed = self.metrics.timed
+        reconcile = self.repo.reconcile_v1_directions
+        try:
+            found = timed("reconcile_existing_group", reconcile, target, rows, replay_run_id=replay_run_id)
+            missing = [index for index, present in enumerate(found) if not present]
+            if missing:
+                inserts = [rows[index] for index in missing]
+                timed("insert_obligation_group", self.repo.insert_v1_rows, target, inserts,
+                      replay_run_id=replay_run_id)
+                visible = timed("reconcile_visibility_group", reconcile, target, inserts, replay_run_id=replay_run_id)
+                for index, present in zip(missing, visible, strict=True):
+                    found[index] = present
+        except (FactBusinessKeyConflictError, ValueError):
+            # Reconcile each key independently to attribute a conflict or excessive duplicates.
+            return False
+        verified.extend(obligation for obligation, present in zip(obligations, found, strict=True) if present)
+        if not all(found):
+            exc = RuntimeError("V1 inserted direction obligation is not visible")
+            for obligation, present in zip(obligations, found, strict=True):
+                if not present:
+                    self.checkpoint.record_v1_obligation_failure(obligation, exc, permanent=False)
+            raise exc
+        return True
 
     def process_v1_accepted_change(self, change: dict, bronze_repo: Any,
                                    archive_resolver: Any, lifecycle: Any,
@@ -394,13 +448,14 @@ class SilverProcessor:
         """Materialize one Bronze ACCEPTED journal entry with durable obligations."""
         if change["change_type"] != "ACCEPTED":
             raise ValueError("expected an ACCEPTED journal entry")
+        timed = self.metrics.timed
         namespace = self.settings.namespace
         source_namespace = self.settings.v1_source_namespace
         sequence = int(change["change_sequence"])
         cursors = self.checkpoint.v1_cursors(namespace)
         if sequence != cursors["change_cursor"] + 1:
             raise CheckpointCasConflictError("V1 change sequence gap")
-        current = bronze_repo.read_valid_observation(
+        current = timed("bronze_read", bronze_repo.read_valid_observation,
             source_namespace, change["event_id"], int(change["revision"]),
             state_path=self.settings.v1_bronze_path)
         if current is None:
@@ -432,9 +487,11 @@ class SilverProcessor:
                                               cursors["generation"])
             return
         event = current["event"]
-        context = archive_resolver.resolve(event["simulationRunId"], event["topologyDigest"])
-        context.validate_event(event)
-        lifecycle.register(context.run_id, context.topology_digest, context.generation)
+        context = timed("archive_resolve", archive_resolver.resolve,
+                        event["simulationRunId"], event["topologyDigest"])
+        timed("archive_validate_event", context.validate_event, event)
+        timed("lifecycle_register", lifecycle.register,
+              context.run_id, context.topology_digest, context.generation)
         existing = self.checkpoint.conn.execute(
             "SELECT 1 FROM silver_v1_obligation WHERE namespace=? AND source_kind='changes' "
             "AND source_sequence=? LIMIT 1", (namespace, sequence)).fetchone()
@@ -452,10 +509,11 @@ class SilverProcessor:
                 source_offset=primary["offset"],
                 source_physical_record_hash=primary["physical_record_hash"],
                 source_byte_hash=primary["source_byte_hash"])
-            facts = build_v1_fact_rows(event, context, provenance)
+            facts = timed("build_facts", build_v1_fact_rows, event, context, provenance)
             created_at = _utc_str()
             rows: list[tuple[str, dict]] = []
-            for table, row in build_v1_dimensions(context, self.settings.v1_archive_root).items():
+            dimensions = timed("build_dimensions", build_v1_dimensions, context, self.settings.v1_archive_root)
+            for table, row in dimensions.items():
                 rows.append((table, dict(row, created_at=created_at)))
             for family, table in (("traffic", "silver_traffic_observation_fact_v1"),
                                   ("signal", "silver_signal_state_fact_v1"),
@@ -468,15 +526,15 @@ class SilverProcessor:
                 semantic_revision=change["revision"], validity_state="VALID",
                 bronze_change_sequence=sequence, bronze_invalidation_sequence=None,
                 invalidation_id=None, reason="ACCEPTED", created_at=created_at)))
-            self.checkpoint.freeze_v1_bundle(namespace, "changes", sequence,
-                                             change["event_id"], change["revision"], rows)
+            timed("freeze_bundle", self.checkpoint.freeze_v1_bundle, namespace, "changes", sequence,
+                  change["event_id"], change["revision"], rows)
         while self.checkpoint.pending_v1_obligations(namespace, 100):
             self.recover_v1_obligations(100)
-        if bronze_repo.read_valid_observation(source_namespace, change["event_id"],
+        if timed("final_bronze_read", bronze_repo.read_valid_observation, source_namespace, change["event_id"],
                 int(change["revision"]), state_path=self.settings.v1_bronze_path) is None:
             raise RuntimeError("V1 source transitioned before validity publication")
-        self.checkpoint.finalize_v1_event(namespace, change['event_id'], change['revision'],
-                                           sequence, cursors['generation'])
+        timed("finalize_validity", self.checkpoint.finalize_v1_event, namespace, change['event_id'],
+              change['revision'], sequence, cursors['generation'])
 
     def process_v1_invalidation(self, entry: dict, source_reader: Any,
                                 archive_resolver: Any) -> None:
@@ -560,8 +618,9 @@ class SilverProcessor:
         """Process a fixed verified boundary, including invalidations first."""
         namespace = self.settings.namespace
         source_namespace = self.settings.v1_source_namespace
-        binding = verify_bronze_source(Path(self.settings.v1_bronze_path), source_namespace,
-                                       full_history=False)
+        timed = self.metrics.timed
+        binding = timed("source_binding", verify_bronze_source,
+                        Path(self.settings.v1_bronze_path), source_namespace, full_history=False)
         def check_frozen() -> None:
             if frozen_boundary is None:
                 return
@@ -580,17 +639,16 @@ class SilverProcessor:
         check_frozen()
         self.checkpoint.bind_v1_source(namespace, binding)
         cursors = self.checkpoint.v1_cursors(namespace)
-        if hasattr(self, "metrics"):
-            self.metrics.source_lag = {
-                "changes": max(0, binding["change_high_water"] - cursors["change_cursor"]),
-                "invalidations": max(0, binding["invalidation_high_water"] - cursors["invalidation_cursor"]),
-            }
+        self.metrics.source_lag = {
+            "changes": max(0, binding["change_high_water"] - cursors["change_cursor"]),
+            "invalidations": max(0, binding["invalidation_high_water"] - cursors["invalidation_cursor"]),
+        }
         if (binding["change_high_water"] < cursors["change_cursor"] or
                 binding["invalidation_high_water"] < cursors["invalidation_cursor"]):
             raise SourceBoundaryChangedError()
         processed = 0
         while self.checkpoint.pending_v1_obligations(namespace, batch_size):
-            self.recover_v1_obligations(batch_size)
+            timed("startup_recovery", self.recover_v1_obligations, batch_size)
         for kind, high, method in (
             ("invalidations", binding["invalidation_high_water"], self.process_v1_invalidation),
             ("changes", binding["change_high_water"], None),
@@ -601,8 +659,8 @@ class SilverProcessor:
                 if after >= high:
                     break
                 check_frozen()
-                page = source_reader.read_page(source_namespace, kind, after=after,
-                                               limit=batch_size, high_water=high)
+                page = timed("journal_page", source_reader.read_page, source_namespace, kind,
+                             after=after, limit=batch_size, high_water=high)
                 sequence_key = 'invalidation_sequence' if kind == 'invalidations' else 'change_sequence'
                 expected_sequences = list(range(after + 1, min(after + batch_size, high) + 1))
                 if [row[sequence_key] for row in page['rows']] != expected_sequences:
@@ -624,12 +682,12 @@ class SilverProcessor:
                             processed += 1
                             continue
                     if kind == "invalidations":
-                        method(entry, source_reader, archive_resolver)
+                        timed("apply_invalidation", method, entry, source_reader, archive_resolver)
                     elif entry["change_type"] == "ACCEPTED":
-                        self.process_v1_accepted_change(entry, bronze_repo, archive_resolver,
-                                                        lifecycle, source_reader)
+                        timed("apply_accepted", self.process_v1_accepted_change,
+                              entry, bronze_repo, archive_resolver, lifecycle, source_reader)
                     elif entry["change_type"] == "CONFLICTED":
-                        self.process_v1_conflicted_change(entry, source_reader)
+                        timed("apply_conflicted", self.process_v1_conflicted_change, entry, source_reader)
                     else:
                         raise RuntimeError("unsupported V1 Bronze change type")
                     processed += 1

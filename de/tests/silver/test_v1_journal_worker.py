@@ -8,6 +8,7 @@ from de.tests.silver.v1_fixtures import snapshot_v1 as _snapshot
 from contracts.traffic_observation import build_observation
 from de.silver.archive_resolver import ArchiveIntegrityError, VerifiedRunContext
 from de.silver.checkpoint_store import SilverCheckpointStore
+from de.silver.metrics import Metrics
 from de.silver.processor import SilverProcessor
 from de.silver.source_binding import SourceVerificationError
 import de.silver.processor as processor_module
@@ -21,7 +22,7 @@ def test_gapped_page_is_rejected_before_any_materialization(monkeypatch, sequenc
     checkpoint = SimpleNamespace(bind_v1_source=lambda *args: None,
         v1_cursors=lambda *args: dict(change_cursor=0, invalidation_cursor=0),
         pending_v1_obligations=lambda *args: [])
-    worker = SimpleNamespace(settings=SimpleNamespace(namespace='live', v1_source_namespace='live',
+    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace='live', v1_source_namespace='live',
         v1_bronze_path='bronze', v1_replay_run_filter=''), checkpoint=checkpoint,
         process_v1_invalidation=lambda *args: pytest.fail('invalid page was consumed'),
         process_v1_accepted_change=lambda *args: pytest.fail('invalid page was consumed'),
@@ -77,7 +78,7 @@ def test_accepted_journal_entry_materializes_complete_bundle(tmp_path, topology_
                 self.rows[table, json.dumps(row, sort_keys=True)] = row
 
     repo = Repo()
-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
+    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
         v1_source_namespace="live", v1_archive_root="archive", destination_mode="main", replay_run_id=""),
         checkpoint=checkpoint, repo=repo)
     worker.recover_v1_obligations = lambda limit: SilverProcessor.recover_v1_obligations(worker, limit)
@@ -160,7 +161,7 @@ def test_invalidation_suppresses_before_cursor_ack(tmp_path):
                 self.rows[table, json.dumps(row, sort_keys=True)] = row
 
     repo = Repo()
-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="live", destination_mode="main",
+    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="live", destination_mode="main",
         v1_source_namespace="live", replay_run_id=""), checkpoint=checkpoint, repo=repo)
     worker.recover_v1_obligations = lambda limit: SilverProcessor.recover_v1_obligations(worker, limit)
     try:
@@ -196,7 +197,7 @@ def test_journal_pass_handles_invalidation_before_changes(monkeypatch, max_entri
         cursors["invalidation_cursor" if kind == "invalidations" else "change_cursor"] = (
             entry["invalidation_sequence"] if kind == "invalidations" else entry["change_sequence"])
 
-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
+    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
         v1_source_namespace="live", v1_replay_run_filter=""),
         checkpoint=checkpoint, recover_v1_obligations=lambda limit: 0,
         process_v1_invalidation=lambda entry, *args: mark("invalidations", entry),
@@ -215,7 +216,7 @@ def test_replay_filters_other_run_with_durable_skip(tmp_path, monkeypatch):
              change_high_water=1, invalidation_high_water=0))
     checkpoint = SilverCheckpointStore(Path(tmp_path) / "replay.sqlite3")
     checkpoint.open()
-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="replay:job",
+    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="replay:job",
         v1_source_namespace="live", v1_bronze_path="bronze",
         v1_replay_run_filter="target"), checkpoint=checkpoint,
         recover_v1_obligations=lambda limit: 0,

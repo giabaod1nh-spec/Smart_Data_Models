@@ -22,7 +22,7 @@ def prepare(root, deps):
     """Create a fresh project spec. All writable stores belong to this trial."""
     root.mkdir(parents=True, exist_ok=False)
     producer_path = root / "producer"
-    producer_path.mkdir()
+    (producer_path / "runs").mkdir(parents=True)
     mounts = [f"{REPO / 'de'}:/code/de:ro", f"{REPO / 'contracts'}:/code/contracts:ro",
               f"{deps}:/app/acceptance-deps:ro"]
     archives = f"{producer_path}:/app/Visualize/artifacts:ro"
@@ -100,9 +100,9 @@ def prepare(root, deps):
     (root / "compose.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
 
 
-def produce(root, run_id, duration, realtime):
+def produce(root, run_id, duration, realtime, *, sumo_step=1.0):
     artifacts = root / "producer"
-    os.environ.update(SUMO_STEP_LENGTH="1.0", KAFKA_BOOTSTRAP_SERVERS="localhost:39092",
+    os.environ.update(SUMO_STEP_LENGTH=str(sumo_step), KAFKA_BOOTSTRAP_SERVERS="localhost:39092",
                       KAFKA_PUBLISH_ENABLED="false", KAFKA_OUTBOX_ENABLED="false")
     sys.path.insert(0, str(REPO / "Visualize"))
     from configuration import config
@@ -114,6 +114,12 @@ def produce(root, run_id, duration, realtime):
             "--log-level", "WARNING"]
     if realtime:
         args.append("--realtime")
+    (root / "source-profile.json").write_text(json.dumps(dict(
+        run_id=run_id, sumo_step_seconds=config.SUMO_STEP_LENGTH, simulation_seconds=duration,
+        observation_cache_seconds=float(os.getenv("OBSERVATION_INTERVAL_SEC", "1.0")),
+        publish_interval_seconds=config.PUBLISH_INTERVAL, realtime=realtime, arguments=args,
+        v1_topic=config.V1_KAFKA_TOPIC, bootstrap_servers=config.KAFKA_BOOTSTRAP_SERVERS,
+        outbox=str(config.V1_OUTBOX_DB)), indent=2), encoding="utf-8")
     return run(build_parser().parse_args(args))
 
 
@@ -141,13 +147,20 @@ def outbox(path):
                     pending=pending, pending_bytes=pending_bytes, oldest_pending_seconds=oldest_age)
 
 
-def sample(root, seconds):
+def sample(root, seconds, *, source_only=False):
+    try:
+        import psutil
+    except ImportError:
+        psutil = None
     deadline = time.monotonic() + seconds
     with (root / "samples.jsonl").open("a", encoding="utf-8") as output:
         while time.monotonic() < deadline:
             start = time.monotonic()
             row = {"wall_utc": time.time(), "services": {}}
-            for name, (port, route) in ENDPOINTS.items():
+            if psutil:
+                memory = psutil.virtual_memory()
+                row["host"] = dict(available_memory_bytes=memory.available, cpu_pct=psutil.cpu_percent())
+            for name, (port, route) in (() if source_only else ENDPOINTS.items()):
                 try:
                     with urlopen(f"http://127.0.0.1:{port}/{route}", timeout=1) as response:
                         row["services"][name] = json.load(response)
@@ -179,6 +192,8 @@ def verify_pipeline(outbox_path, bronze_path, gold_path):
         outbox_db.execute("BEGIN")
         outbox_rows = dict(outbox_db.execute(
             "SELECT event_id,payload_json FROM kafka_outbox WHERE status='ACKED'"))
+        unacked_outbox = outbox_db.execute(
+            "SELECT count(*) FROM kafka_outbox WHERE status IS NOT 'ACKED'").fetchone()[0]
         changes = list(bronze_db.execute("""SELECT change_sequence,event_id,change_type
             FROM v1_changes WHERE namespace='live' ORDER BY change_sequence"""))
         accepted_prefix = changes[:gold_cursors["CHANGE"]]
@@ -208,39 +223,140 @@ def verify_pipeline(outbox_path, bronze_path, gold_path):
             receipts and receipts[0][0] == 0 and receipts[-1][1] == gold_cursors["CHANGE"]
             and all(prev[1] == row[0] for prev, row in zip(receipts, receipts[1:]))))
         membership_match = actual_membership == expected_membership
-        return dict(acked_outbox=len(outbox_rows), bronze_identities=len(canonical),
+        # Classify windows against producer progress, including those that are
+        # still OPEN or absent in Gold because its observed clock is behind.
+        source_clock = {}
+        source_windows = {}
+        for event_id, payload in outbox_rows.items():
+            event = json.loads(payload)
+            run = event["simulationRunId"]
+            tick = event["simulationTimeSeconds"]
+            source_clock[run] = max(tick, source_clock.get(run, tick))
+            if canonical.get(event_id) == "CONFLICTED":
+                continue
+            for width in (60, 300):
+                lo = int(tick) // width * width
+                source_windows.setdefault((run, width, lo, lo + width), set()).add(event_id)
+        gold_windows = {}
+        for identity, observed, width, lo, hi, eligible, state, count, eligible_at, completed_at in gold_db.execute("""
+                SELECT r.identity,r.observed_time,w.duration,w.start,w.end,w.eligible,g.state,
+                       g.input_count,g.eligible_at,g.completed_at
+                FROM core_window w JOIN core_run r ON r.id=w.run_key
+                LEFT JOIN core_work g ON g.window_id=w.id AND g.generation=w.generation"""):
+            key = (json.loads(identity)["simulation_run_id"], width, lo, hi)
+            gold_windows[key] = dict(observed_time=observed, eligible=bool(eligible), state=state,
+                                     count=count, eligible_at=eligible_at, completed_at=completed_at)
+        window_progress = []
+        for (run, width, lo, hi), members in sorted(source_windows.items()):
+            gold_window = gold_windows.get((run, width, lo, hi), {})
+            window_progress.append(dict(
+                run_id=run, duration=width, start=lo, end=hi, source_time=source_clock[run],
+                source_crossed=source_clock[run] >= hi, expected_members=len(members),
+                gold=gold_window))
+        eligible_work_drained = all(
+            entry["gold"].get("state") == "COMPLETE"
+            and entry["gold"].get("count") == entry["expected_members"]
+            for entry in window_progress if entry["source_crossed"])
+        return dict(acked_outbox=len(outbox_rows), unacked_outbox=unacked_outbox,
+                    bronze_identities=len(canonical),
                     gold_cursors=gold_cursors, membership_rows=len(actual_membership),
                     pending_source_events=len(outbox_rows.keys()-canonical.keys()),
                     bronze_unknown_events=len(canonical.keys()-outbox_rows.keys()),
                     exact_sequence_coverage=sequence_coverage, receipt_coverage=receipt_coverage,
                     membership_match=membership_match, receipts=len(receipts),
+                    eligible_work_drained=eligible_work_drained, window_progress=window_progress,
                     membership_identity_sha256=sha256(json.dumps(sorted(actual_membership),
                         ensure_ascii=False, separators=(",", ":")).encode()).hexdigest(),
-                    full_drain=set(outbox_rows) == set(canonical) and len(changes) == gold_cursors["CHANGE"])
+                    full_drain=(unacked_outbox == 0 and set(outbox_rows) == set(canonical)
+                                and len(changes) == gold_cursors["CHANGE"]))
+
+
+def probe_retained_reads():
+    """Short read-only profile on a frozen, already verified isolated run."""
+    from itertools import groupby
+
+    from de.gold_runtime.silver_readers import CanonicalGoldSource
+    from de.silver.canonical_reader import CanonicalReadSession
+    from de.silver.config import SilverSettings
+    from de.silver.repositories import V1_DIRECTION_TABLES
+
+    with CanonicalReadSession(SilverSettings()) as session:
+        gold = CanonicalGoldSource(session)
+        boundary = gold.discover(None)
+        if boundary.verified_change_prefix < 48:
+            raise RuntimeError("retained profile requires at least 48 verified sequences")
+        tables = sorted(V1_DIRECTION_TABLES)
+        evidence = session.silver.execute("""
+            SELECT source_sequence,target_table,expected_json FROM silver_v1_obligation
+            WHERE namespace='live' AND source_kind='changes' AND source_sequence BETWEEN 1 AND 16
+            AND status='RECONCILED' AND target_table IN (?,?)
+            ORDER BY source_sequence,target_table,row_key LIMIT 513""", tables).fetchall()
+        if not evidence or len(evidence) > 512:
+            raise RuntimeError("unexpected retained direction evidence size")
+        groups = [
+            (table, [json.loads(row["expected_json"]) for row in group])
+            for (_, table), group in groupby(evidence, key=lambda row: (row["source_sequence"], row["target_table"]))
+        ]
+        repo = session.silver_repo
+        timings = {"single": [], "group": []}
+        for order in (("single", "group"), ("group", "single")):
+            for mode in order:
+                started = time.monotonic()
+                for table, rows in groups:
+                    found = (repo.reconcile_v1_directions(table, rows) if mode == "group"
+                             else [repo.reconcile_v1_row(table, row) for row in rows])
+                    if not all(found):
+                        raise RuntimeError("retained directional evidence does not match")
+                timings[mode].append(time.monotonic() - started)
+        reads = []
+        started = time.monotonic()
+        for sequence in range(1, 49):
+            read_start = time.monotonic()
+            page = gold.changes(boundary.source_binding_id, sequence - 1, entries=1)
+            if (page.entry_count != 1 or page.entries[0].effective_disposition != "BUNDLE_VALID"
+                    or page.entries[0].change_sequence != sequence):
+                raise RuntimeError("retained Gold member failed verification")
+            reads.append(dict(sequence=sequence, seconds=time.monotonic() - read_start,
+                              bytes=page.encoded_bytes))
+            if time.monotonic() - started > 40:
+                break
+        return dict(direction_rows_per_pass=len(evidence), direction_groups_per_pass=len(groups),
+                    direction_wall_seconds=timings, canonical_member_reads=reads,
+                    frozen_change_prefix=boundary.verified_change_prefix,
+                    frozen_invalidation_prefix=boundary.verified_invalidation_prefix)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "produce", "sample", "oracle"))
+    parser.add_argument("action", choices=("prepare", "produce", "sample", "oracle", "probe"))
     parser.add_argument("root", type=Path)
     parser.add_argument("--deps", type=Path, default=Path(".pytest_cache/phase4a-deps"))
     parser.add_argument("--run-id", default="phase4a-core-capacity-a")
     parser.add_argument("--seconds", type=int, default=120)
     parser.add_argument("--realtime", action="store_true")
+    parser.add_argument("--sumo-step", type=float, choices=(0.01, 1.0), default=1.0)
+    parser.add_argument("--source-only", action="store_true", help="Sample the producer and host without probing DE ports")
+    parser.add_argument("--require-window", type=int, choices=(60, 300), action="append", default=[],
+                        help="Require a source-crossed completed proof for this duration in the oracle")
     args = parser.parse_args()
     root = args.root.resolve()
     if args.action == "prepare":
         prepare(root, args.deps.resolve(strict=True))
     elif args.action == "produce":
-        return produce(root, args.run_id, args.seconds, args.realtime)
+        return produce(root, args.run_id, args.seconds, args.realtime, sumo_step=args.sumo_step)
     elif args.action == "sample":
-        sample(root, args.seconds)
+        sample(root, args.seconds, source_only=args.source_only)
+    elif args.action == "probe":
+        print(json.dumps(probe_retained_reads(), sort_keys=True))
     else:
         evidence = verify_pipeline(root / "kafka_outbox/v1-outbox.sqlite3",
             os.environ["SILVER_V1_BRONZE_PATH"], os.environ["GOLD_CHECKPOINT_PATH"])
+        crossed = {window["duration"] for window in evidence["window_progress"] if window["source_crossed"]}
+        evidence["missing_required_durations"] = sorted(set(args.require_window) - crossed)
         print(json.dumps(evidence, sort_keys=True))
-        return 0 if all(evidence[key] for key in (
-            "exact_sequence_coverage", "receipt_coverage", "membership_match", "full_drain")) else 2
+        return 0 if not evidence["missing_required_durations"] and all(evidence[key] for key in (
+            "exact_sequence_coverage", "receipt_coverage", "membership_match", "full_drain",
+            "eligible_work_drained")) else 2
     return 0
 
 

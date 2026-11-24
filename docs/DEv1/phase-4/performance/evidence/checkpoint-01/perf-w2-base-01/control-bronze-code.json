@@ -1,0 +1,14 @@
+{
+  "services": {
+    "gold": {
+      "volumes": [
+        {
+          "read_only": true,
+          "target": "/code/de/bronze/clickhouse_repository.py",
+          "source": "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-base-01\\control-clickhouse_repository.py",
+          "type": "bind"
+        }
+      ]
+    }
+  }
+}

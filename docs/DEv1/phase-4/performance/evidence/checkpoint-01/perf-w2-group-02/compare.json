@@ -1,0 +1,388 @@
+{
+  "perf-w2-base-01": {
+    "samples": 74,
+    "active_samples": 34,
+    "wall_seconds": 66.01646614074707,
+    "source_time": [
+      31.04,
+      87.04
+    ],
+    "simulation_pace": 0.8482732153612712,
+    "offered_rate": 4.241366076806355,
+    "offered_bytes_rate": 16706.619794652324,
+    "raw_persisted_rate": 4.241366076806355,
+    "rates": {
+      "bronze_change": 4.301957020760732,
+      "silver_change": 1.6359554867681656,
+      "gold_change": 1.666250958745354
+    },
+    "silver_backlog": [
+      119,
+      295
+    ],
+    "silver_backlog_growth": 2.6660015339925662,
+    "gold_change_backlog": [
+      2,
+      0
+    ],
+    "final_progress": {
+      "bronze_change": 450,
+      "bronze_invalidation": 0,
+      "silver_change": 200,
+      "silver_invalidation": 0,
+      "gold_change": 200,
+      "gold_invalidation": 0,
+      "change_backlog": 0,
+      "invalidation_backlog": 0
+    },
+    "final_outbox": {
+      "rows": 450,
+      "bytes": 1764277,
+      "simulation_seconds": 89.04,
+      "acked": 450,
+      "pending": 0,
+      "pending_bytes": 0,
+      "oldest_pending_seconds": null
+    },
+    "silver_accepted_apply": {
+      "calls": 200,
+      "failures": 0,
+      "wall_ns": 86504418214,
+      "exclusive_ns": 449552383,
+      "max_wall_ns": 3044928059
+    },
+    "silver_reconciliation_calls": 5886,
+    "silver_reconciliation_wall_sec": 54.600407499,
+    "silver_poll_wait_sec": 38.003228967,
+    "gold_metrics": {
+      "cpu_sec": 19.5555815,
+      "sqlite_bytes": 954368,
+      "sqlite_wal_bytes": 4268352,
+      "disk_free_bytes": 987588009984,
+      "peak_rss_bytes": 76103680,
+      "process_disk_read_bytes": 0,
+      "process_disk_write_bytes": 18186240,
+      "promotion_pending_runs": 0,
+      "promotion_queue_oldest_sec": 0,
+      "open_work": 2,
+      "dirty_work": 0,
+      "retry_SOURCE_LAG": 72,
+      "change_acknowledged": 200,
+      "change_encoded_bytes": 3990880,
+      "change_backlog_rate_per_sec": 0.0,
+      "invalidation_backlog_rate_per_sec": 0.0,
+      "change_ack_rate_per_sec": 2.9984305746617306,
+      "invalidation_ack_rate_per_sec": 0.0,
+      "startup_recovery_sec": {
+        "samples": 1,
+        "max": 0.12530019499999412,
+        "p50": 0.12530019499999412,
+        "p95": 0.12530019499999412,
+        "p99": 0.12530019499999412
+      },
+      "change_page_read_verify_sec": {
+        "samples": 192,
+        "max": 2.407974442000011,
+        "p50": 0.008333731999982774,
+        "p95": 1.1264135580000243,
+        "p99": 1.9919595559999834
+      },
+      "window_promotion_sec": {
+        "samples": 212,
+        "max": 0.4470515730000102,
+        "p50": 4.428400001188493e-05,
+        "p95": 0.0028056079999601025,
+        "p99": 0.0126374469999746
+      },
+      "ack_transaction_sec": {
+        "samples": 93,
+        "max": 1.1003676060000203,
+        "p50": 0.0037187269999776618,
+        "p95": 0.014805023999997502,
+        "p99": 1.1003676060000203
+      },
+      "change_page_to_durable_sec": {
+        "samples": 93,
+        "max": 2.413001902000019,
+        "p50": 0.3948859259999722,
+        "p95": 1.611122177000027,
+        "p99": 2.413001902000019
+      },
+      "source_to_gold_durable_sec": {
+        "samples": 200,
+        "max": 98.50684666633606,
+        "p50": 50.880746364593506,
+        "p95": 93.31920027732849,
+        "p99": 97.84888887405396
+      },
+      "change_iteration_commit_sec": {
+        "samples": 93,
+        "max": 2.4130594400000405,
+        "p50": 0.3949076260000197,
+        "p95": 1.6112195110000016,
+        "p99": 2.4130594400000405
+      }
+    }
+  },
+  "perf-w2-group-02": {
+    "samples": 76,
+    "active_samples": 33,
+    "wall_seconds": 64.01052522659302,
+    "source_time": [
+      30.04,
+      87.04
+    ],
+    "simulation_pace": 0.8904785548661535,
+    "offered_rate": 4.452392774330766,
+    "offered_bytes_rate": 17544.364712280825,
+    "raw_persisted_rate": 4.452392774330766,
+    "rates": {
+      "bronze_change": 4.655484374563398,
+      "silver_change": 2.0934057254748164,
+      "gold_change": 2.140273017836193
+    },
+    "silver_backlog": [
+      98,
+      262
+    ],
+    "silver_backlog_growth": 2.5620786490885816,
+    "gold_change_backlog": [
+      3,
+      0
+    ],
+    "final_progress": {
+      "bronze_change": 450,
+      "bronze_invalidation": 0,
+      "silver_change": 259,
+      "silver_invalidation": 0,
+      "gold_change": 256,
+      "gold_invalidation": 0,
+      "change_backlog": 3,
+      "invalidation_backlog": 0
+    },
+    "final_outbox": {
+      "rows": 450,
+      "bytes": 1765177,
+      "simulation_seconds": 89.04,
+      "acked": 450,
+      "pending": 0,
+      "pending_bytes": 0,
+      "oldest_pending_seconds": null
+    },
+    "silver_accepted_apply": {
+      "calls": 264,
+      "failures": 0,
+      "wall_ns": 78573016953,
+      "exclusive_ns": 496405679,
+      "max_wall_ns": 3086361668
+    },
+    "silver_reconciliation_calls": 3966,
+    "silver_reconciliation_wall_sec": 32.305211069,
+    "silver_poll_wait_sec": 64.005469607,
+    "gold_metrics": {
+      "cpu_sec": 18.9541078,
+      "sqlite_bytes": 1249280,
+      "sqlite_wal_bytes": 4210672,
+      "disk_free_bytes": 986961887232,
+      "peak_rss_bytes": 76697600,
+      "process_disk_read_bytes": 0,
+      "process_disk_write_bytes": 21790720,
+      "promotion_pending_runs": 0,
+      "promotion_queue_oldest_sec": 0,
+      "open_work": 2,
+      "dirty_work": 0,
+      "retry_SOURCE_LAG": 79,
+      "change_acknowledged": 256,
+      "change_encoded_bytes": 5089224,
+      "change_backlog_rate_per_sec": 2.9851354137273813,
+      "invalidation_backlog_rate_per_sec": 0.0,
+      "change_ack_rate_per_sec": 0.0,
+      "invalidation_ack_rate_per_sec": 0.0,
+      "startup_recovery_sec": {
+        "samples": 1,
+        "max": 0.08554520500001672,
+        "p50": 0.08554520500001672,
+        "p95": 0.08554520500001672,
+        "p99": 0.08554520500001672
+      },
+      "change_page_read_verify_sec": {
+        "samples": 197,
+        "max": 1.7791293709999536,
+        "p50": 0.12978787899987765,
+        "p95": 1.0859801290000632,
+        "p99": 1.7738701579999088
+      },
+      "window_promotion_sec": {
+        "samples": 214,
+        "max": 0.26508551899996746,
+        "p50": 7.681400006731565e-05,
+        "p95": 0.008589026000208833,
+        "p99": 0.034832023000035406
+      },
+      "ack_transaction_sec": {
+        "samples": 101,
+        "max": 1.0976573390000794,
+        "p50": 0.00473472499993477,
+        "p95": 0.032989656000154355,
+        "p99": 0.6526247660001445
+      },
+      "change_page_to_durable_sec": {
+        "samples": 101,
+        "max": 1.7864585909999278,
+        "p50": 0.3184360929999457,
+        "p95": 1.2508796800000255,
+        "p99": 1.7845978589998595
+      },
+      "source_to_gold_durable_sec": {
+        "samples": 256,
+        "max": 89.9553325176239,
+        "p50": 47.17638659477234,
+        "p95": 88.18703126907349,
+        "p99": 88.95713543891907
+      },
+      "change_iteration_commit_sec": {
+        "samples": 101,
+        "max": 1.786504265000076,
+        "p50": 0.3184640940000918,
+        "p95": 1.2509453239999857,
+        "p99": 1.784658909999962
+      }
+    }
+  },
+  "perf-w2-scheduler-01": {
+    "samples": 83,
+    "active_samples": 35,
+    "wall_seconds": 68.01033902168274,
+    "source_time": [
+      31.04,
+      88.04
+    ],
+    "simulation_pace": 0.838107864479657,
+    "offered_rate": 4.190539322398284,
+    "offered_bytes_rate": 16549.557261303464,
+    "raw_persisted_rate": 4.190539322398284,
+    "rates": {
+      "bronze_change": 4.190539322398284,
+      "silver_change": 3.6465043928237706,
+      "gold_change": 3.6465043928237706
+    },
+    "silver_backlog": [
+      34,
+      71
+    ],
+    "silver_backlog_growth": 0.5440349295745142,
+    "gold_change_backlog": [
+      0,
+      0
+    ],
+    "final_progress": {
+      "bronze_change": 580,
+      "bronze_invalidation": 0,
+      "silver_change": 508,
+      "silver_invalidation": 0,
+      "gold_change": 508,
+      "gold_invalidation": 0,
+      "change_backlog": 0,
+      "invalidation_backlog": 0
+    },
+    "final_outbox": {
+      "rows": 585,
+      "bytes": 2304496,
+      "simulation_seconds": 116.04,
+      "acked": 585,
+      "pending": 0,
+      "pending_bytes": 0,
+      "oldest_pending_seconds": null
+    },
+    "silver_accepted_apply": {
+      "calls": 511,
+      "failures": 0,
+      "wall_ns": 152987681670,
+      "exclusive_ns": 985846885,
+      "max_wall_ns": 10496216433
+    },
+    "silver_reconciliation_calls": 7671,
+    "silver_reconciliation_wall_sec": 69.285759493,
+    "silver_poll_wait_sec": 4.000296478,
+    "gold_metrics": {
+      "cpu_sec": 43.4442777,
+      "sqlite_bytes": 2420736,
+      "sqlite_wal_bytes": 4280712,
+      "disk_free_bytes": 986289733632,
+      "peak_rss_bytes": 78749696,
+      "process_disk_read_bytes": 24576,
+      "process_disk_write_bytes": 58421248,
+      "promotion_pending_runs": 0,
+      "promotion_queue_oldest_sec": 0,
+      "open_work": 2,
+      "running_work": 1,
+      "running_work_oldest_sec": 78.82000207901001,
+      "dirty_work": 0,
+      "retry_SOURCE_LAG": 34,
+      "change_acknowledged": 508,
+      "change_encoded_bytes": 10297991,
+      "materialization_page_reads": 91,
+      "materialization_encoded_bytes": 1902012,
+      "change_backlog_rate_per_sec": 0.0,
+      "invalidation_backlog_rate_per_sec": 0.0,
+      "change_ack_rate_per_sec": 2.866024508781894,
+      "invalidation_ack_rate_per_sec": 0.0,
+      "startup_recovery_sec": {
+        "samples": 1,
+        "max": 0.09449123999979747,
+        "p50": 0.09449123999979747,
+        "p95": 0.09449123999979747,
+        "p99": 0.09449123999979747
+      },
+      "change_page_read_verify_sec": {
+        "samples": 325,
+        "max": 6.047866003000081,
+        "p50": 0.2715158519999932,
+        "p95": 0.6351636740000686,
+        "p99": 1.1246370720000414
+      },
+      "window_promotion_sec": {
+        "samples": 326,
+        "max": 1.4450147840000227,
+        "p50": 0.001098812000009275,
+        "p95": 0.008391173000063645,
+        "p99": 0.02593979500011301
+      },
+      "ack_transaction_sec": {
+        "samples": 283,
+        "max": 2.0338833949999753,
+        "p50": 0.003172225000071194,
+        "p95": 0.019024122000018906,
+        "p99": 1.6987755170000582
+      },
+      "change_page_to_durable_sec": {
+        "samples": 283,
+        "max": 8.081879011999945,
+        "p50": 0.3133986240000013,
+        "p95": 0.7141699230000995,
+        "p99": 2.3373098750000736
+      },
+      "source_to_gold_durable_sec": {
+        "samples": 508,
+        "max": 42.13382911682129,
+        "p50": 12.86293649673462,
+        "p95": 39.88971138000488,
+        "p99": 40.77583932876587
+      },
+      "change_iteration_commit_sec": {
+        "samples": 283,
+        "max": 8.081909515999996,
+        "p50": 0.31343381800002135,
+        "p95": 0.7142103390001466,
+        "p99": 2.337345515999914
+      },
+      "materialization_read_sec": {
+        "samples": 91,
+        "max": 1.4697597639999458,
+        "p50": 0.17547713099997964,
+        "p95": 0.3111490609999237,
+        "p99": 1.4697597639999458
+      }
+    }
+  }
+}

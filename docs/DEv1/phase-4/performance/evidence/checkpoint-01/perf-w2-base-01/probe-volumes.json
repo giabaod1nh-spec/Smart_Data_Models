@@ -1,0 +1,4 @@
+{"services":{"gold":{"volumes":[
+  {"type":"volume","source":"bronze","target":"/app/de/artifacts/bronze_v1","read_only":false},
+  {"type":"volume","source":"silver","target":"/app/de/artifacts/silver_v1","read_only":false}
+]}}}

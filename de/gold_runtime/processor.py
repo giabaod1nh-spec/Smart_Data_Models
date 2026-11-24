@@ -1267,9 +1267,10 @@ class GoldCoreProcessor:
         return CoreInputStream(self, work)
 
     def _work(self):
-        promoted = self.ledger.promote(self.settings.promotion_limit)
+        promoted = self._timed("window_promotion_sec", self.ledger.promote, self.settings.promotion_limit)
         stream = self.input_stream
         if stream and self.ledger.current_generation(stream.window_id) != stream.generation:
+            self._record_discarded_work(stream)
             self.input_stream = stream = None
         if stream is None:
             work = self.ledger.claim()
@@ -1287,9 +1288,15 @@ class GoldCoreProcessor:
                                 - (time.monotonic() - stream.started)))
             self.input_stream = None
         except BaseException:
+            self._record_discarded_work(stream)
             self.input_stream = None
             raise
         return True
+
+    def _record_discarded_work(self, stream):
+        self.add_count("work_proofs_discarded", 1)
+        self.add_count("work_members_discarded", stream.count)
+        self.add_count("work_bytes_discarded", stream.bytes)
 
     def _lane(self, lane, call):
         now = time.monotonic()
@@ -1336,6 +1343,10 @@ class GoldCoreProcessor:
             self._faults.pop(lane, None)
         return result
 
+    def _complete_replay(self):
+        self.discover()
+        self._set_replay_status("COMPLETE")
+
     def run_cycle(self):
         if self.stop_event.is_set() or self._replay_terminal:
             return False
@@ -1356,11 +1367,11 @@ class GoldCoreProcessor:
         if self.stop_event.is_set():
             return bool(changed or invalidated)
         worked = self._lane("work", self._work)
-        if self.replay and not any((changed, invalidated, worked, self._faults)):
+        if (self.replay and not any((changed, invalidated, worked))
+                and not (self._faults.keys() - {"replay_completion"})):
             hc, hi, _, _ = self.replay.boundary
             if self.store.cursors() == {"CHANGE": hc, "INVALIDATION": hi}:
-                self.discover()
-                self._set_replay_status("COMPLETE")
+                self._lane("replay_completion", self._complete_replay)
         return bool(changed or invalidated or worked)
 
 
@@ -1378,6 +1389,9 @@ class GoldCoreProcessor:
             }
             self._resource_metrics.update(core_process_resources())
             db = self.store.conn
+            pending_runs, oldest = db.execute("SELECT count(*),min(queued_at) FROM core_promotion").fetchone()
+            self._resource_metrics["promotion_pending_runs"] = pending_runs
+            self._resource_metrics["promotion_queue_oldest_sec"] = max(0, time.time() - oldest) if oldest else 0
             for state, count, oldest in db.execute("""SELECT state,count(*),min(eligible_at) FROM core_work
                 WHERE state IN ('OPEN','PENDING','RUNNING') GROUP BY state"""):
                 self._resource_metrics[state.lower() + "_work"] = count

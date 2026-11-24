@@ -1,0 +1,1403 @@
+diff --git a/de/bronze/clickhouse_repository.py b/de/bronze/clickhouse_repository.py
+index 24197e7..7893544 100644
+--- a/de/bronze/clickhouse_repository.py
++++ b/de/bronze/clickhouse_repository.py
+@@ -82,9 +82,25 @@ class BronzeClickHouseRepository:
+         except Exception:
+             return False
+ 
++    @staticmethod
++    def _verify_v1_output_content(table, expected, result):
++        from datetime import datetime, timezone
++
++        for values in result.result_rows:
++            actual = dict(zip(result.column_names, values))
++            for key, value in expected.items():
++                cell = actual.get(key)
++                if isinstance(cell, bytes):
++                    cell = cell.decode('ascii')
++                if isinstance(cell, datetime):
++                    if cell.tzinfo is None:
++                        cell = cell.replace(tzinfo=timezone.utc)
++                    value = datetime.fromisoformat(value.replace('Z','+00:00')) if isinstance(value,str) else value
++                if cell != value:
++                    raise IntegrityFault('Bronze immutable output mismatch: '+table+'.'+key)
++
+     def reconcile_v1_outputs(self, obligations: list[dict]) -> list[dict]:
+         """Verify complete immutable output content, returning only missing rows."""
+-        from datetime import datetime, timezone
+         allowed = {
+             'bronze_observations_v1': ('namespace','event_id','semantic_revision'),
+             'bronze_delivery_dispositions_v1': ('namespace','raw_ingestion_id'),
+@@ -111,18 +127,7 @@ class BronzeClickHouseRepository:
+             if not result.result_rows:
+                 missing.append(obligation)
+                 continue
+-            for values in result.result_rows:
+-                actual = dict(zip(result.column_names, values))
+-                for key, value in expected.items():
+-                    cell = actual.get(key)
+-                    if isinstance(cell, bytes):
+-                        cell = cell.decode('ascii')
+-                    if isinstance(cell, datetime):
+-                        if cell.tzinfo is None:
+-                            cell = cell.replace(tzinfo=timezone.utc)
+-                        value = datetime.fromisoformat(value.replace('Z','+00:00')) if isinstance(value,str) else value
+-                    if cell != value:
+-                        raise IntegrityFault('Bronze immutable output mismatch: '+table+'.'+key)
++            self._verify_v1_output_content(table, expected, result)
+         return missing
+ 
+     def persist_v1_outputs(self, obligations: list[dict]):
+@@ -238,7 +243,18 @@ class BronzeClickHouseRepository:
+                 'SELECT * FROM ' + self.database + '.bronze_observations_v1 '
+                 'WHERE namespace={ns:String} AND event_id={eid:String} AND semantic_revision={rev:UInt64}',
+                 parameters=dict(ns=namespace, eid=event_id, rev=expected_revision))
+-            if not query.result_rows or self.reconcile_v1_outputs(obligations):
++            if not query.result_rows:
++                raise RuntimeError('accepted observation mirror or lineage missing')
++            remaining = []
++            for obligation in obligations:
++                table, row = obligation["table"], obligation["row"]
++                if (table == "bronze_observations_v1"
++                        and (row.get("namespace"), row.get("event_id"), row.get("semantic_revision"))
++                        == (namespace, event_id, expected_revision)):
++                    self._verify_v1_output_content(table, row, query)
++                else:
++                    remaining.append(obligation)
++            if remaining and self.reconcile_v1_outputs(remaining):
+                 raise RuntimeError('accepted observation mirror or lineage missing')
+             event = None
+             for values in query.result_rows:
+diff --git a/de/gold_runtime/processor.py b/de/gold_runtime/processor.py
+index a3f9ef5..15691ca 100644
+--- a/de/gold_runtime/processor.py
++++ b/de/gold_runtime/processor.py
+@@ -1267,9 +1267,10 @@ class GoldCoreProcessor:
+         return CoreInputStream(self, work)
+ 
+     def _work(self):
+-        promoted = self.ledger.promote(self.settings.promotion_limit)
++        promoted = self._timed("window_promotion_sec", self.ledger.promote, self.settings.promotion_limit)
+         stream = self.input_stream
+         if stream and self.ledger.current_generation(stream.window_id) != stream.generation:
++            self._record_discarded_work(stream)
+             self.input_stream = stream = None
+         if stream is None:
+             work = self.ledger.claim()
+@@ -1287,10 +1288,16 @@ class GoldCoreProcessor:
+                                 - (time.monotonic() - stream.started)))
+             self.input_stream = None
+         except BaseException:
++            self._record_discarded_work(stream)
+             self.input_stream = None
+             raise
+         return True
+ 
++    def _record_discarded_work(self, stream):
++        self.add_count("work_proofs_discarded", 1)
++        self.add_count("work_members_discarded", stream.count)
++        self.add_count("work_bytes_discarded", stream.bytes)
++
+     def _lane(self, lane, call):
+         now = time.monotonic()
+         attempts, due = self._retry.get(lane, (0, 0.0))
+@@ -1336,6 +1343,10 @@ class GoldCoreProcessor:
+             self._faults.pop(lane, None)
+         return result
+ 
++    def _complete_replay(self):
++        self.discover()
++        self._set_replay_status("COMPLETE")
++
+     def run_cycle(self):
+         if self.stop_event.is_set() or self._replay_terminal:
+             return False
+@@ -1356,11 +1367,11 @@ class GoldCoreProcessor:
+         if self.stop_event.is_set():
+             return bool(changed or invalidated)
+         worked = self._lane("work", self._work)
+-        if self.replay and not any((changed, invalidated, worked, self._faults)):
++        if (self.replay and not any((changed, invalidated, worked))
++                and not (self._faults.keys() - {"replay_completion"})):
+             hc, hi, _, _ = self.replay.boundary
+             if self.store.cursors() == {"CHANGE": hc, "INVALIDATION": hi}:
+-                self.discover()
+-                self._set_replay_status("COMPLETE")
++                self._lane("replay_completion", self._complete_replay)
+         return bool(changed or invalidated or worked)
+ 
+ 
+@@ -1378,6 +1389,9 @@ class GoldCoreProcessor:
+             }
+             self._resource_metrics.update(core_process_resources())
+             db = self.store.conn
++            pending_runs, oldest = db.execute("SELECT count(*),min(queued_at) FROM core_promotion").fetchone()
++            self._resource_metrics["promotion_pending_runs"] = pending_runs
++            self._resource_metrics["promotion_queue_oldest_sec"] = max(0, time.time() - oldest) if oldest else 0
+             for state, count, oldest in db.execute("""SELECT state,count(*),min(eligible_at) FROM core_work
+                 WHERE state IN ('OPEN','PENDING','RUNNING') GROUP BY state"""):
+                 self._resource_metrics[state.lower() + "_work"] = count
+diff --git a/de/silver/canonical_reader.py b/de/silver/canonical_reader.py
+index 89443b6..6fb1105 100644
+--- a/de/silver/canonical_reader.py
++++ b/de/silver/canonical_reader.py
+@@ -14,8 +14,10 @@ from clickhouse_connect.driver.exceptions import ClickHouseError
+ 
+ from de.bronze.checkpoint_store import V1SemanticReader
+ from de.silver.source_binding import SourceVerificationError, verify_bronze_source
+-from de.silver.archive_resolver import ArchiveUnavailable, ArchiveIntegrityError
+-from de.silver.repositories import FactBusinessKeyConflictError, RetryableRepositoryError
++from de.silver.archive_resolver import ArchiveUnavailable, ArchiveIntegrityError, VerifiedRunContext
++from de.silver.repositories import (
++    FactBusinessKeyConflictError, RetryableRepositoryError, verify_v1_content,
++)
+ from de.silver.incremental_contract import FeedLimits
+ from de.silver.incremental_reader import IncrementalSilverSource
+ 
+@@ -255,7 +257,8 @@ class CanonicalSilverReader(IncrementalSilverSource):
+             raise ValidityUnknownError('malformed frozen invalidation') from exc
+ 
+     def _bundle(self, event_id: str, revision: int, change_sequence: int,
+-                query: CanonicalReadQuery) -> ObservationBundle:
++                query: CanonicalReadQuery, *, context: VerifiedRunContext | None = None,
++                frozen_facts: dict[str, list[dict]] | None = None) -> ObservationBundle:
+         current = self.bronze.current(query.namespace, event_id)
+         if current is None or current["state"] != "ACCEPTED" or current["revision"] != revision:
+             raise SnapshotStaleError("Bronze event identity changed")
+@@ -266,7 +269,8 @@ class CanonicalSilverReader(IncrementalSilverSource):
+             raise ValidityUnknownError('Bronze accepted observation cannot be reconciled') from exc
+         if accepted is None:
+             raise SnapshotStaleError("Bronze event is no longer current")
+-        context = self.archive_resolver.resolve(query.run_id, query.topology_digest)
++        if context is None:
++            context = self.archive_resolver.resolve(query.run_id, query.topology_digest)
+         context.validate_event(accepted["event"])
+         directions = set(context.directions[accepted["event"]["intersectionId"]])
+         families = (
+@@ -278,10 +282,13 @@ class CanonicalSilverReader(IncrementalSilverSource):
+         for family, table, count in families:
+             physical = self.silver_repo.fetch_v1_event_rows(table, query.run_id,
+                                                               query.topology_digest, event_id)
+-            expected = [json.loads(row[0]) for row in self.silver.execute(
+-                "SELECT expected_json FROM silver_v1_obligation WHERE namespace=? "
+-                "AND source_kind='changes' AND source_sequence=? AND target_table=? "
+-                "AND status='RECONCILED'", (query.namespace, change_sequence, table))]
++            if frozen_facts is None:
++                expected = [json.loads(row[0]) for row in self.silver.execute(
++                    "SELECT expected_json FROM silver_v1_obligation WHERE namespace=? "
++                    "AND source_kind='changes' AND source_sequence=? AND target_table=? "
++                    "AND status='RECONCILED'", (query.namespace, change_sequence, table))]
++            else:
++                expected = frozen_facts.get(table, [])
+             if len(expected) != count:
+                 raise ValidityUnknownError("frozen event bundle is incomplete")
+             by_key = {}
+@@ -292,9 +299,16 @@ class CanonicalSilverReader(IncrementalSilverSource):
+                 by_key[key] = row
+             if len(by_key) != count or (family != "intersection" and set(by_key) != directions):
+                 raise ValidityUnknownError("ClickHouse event bundle is incomplete")
+-            for row in expected:
+-                if not self.silver_repo.reconcile_v1_row(table, row):
+-                    raise ValidityUnknownError("frozen fact is missing from ClickHouse")
++            expected_by_key = {
++                row.get("source_direction") if family != "intersection" else "intersection": row
++                for row in expected
++            }
++            if expected_by_key.keys() != by_key.keys():
++                raise ValidityUnknownError("physical and frozen fact keys differ")
++            # The bounded SELECT above already returned all revisions and duplicates
++            # for this event. Compare the full rows to prove content at that read.
++            for key, row in by_key.items():
++                verify_v1_content(table, row, expected_by_key[key])
+             found[family] = by_key
+         return ObservationBundle(event_id, found["intersection"]["intersection"],
+             tuple(found["traffic"][key] for key in sorted(directions)),
+diff --git a/de/silver/incremental_reader.py b/de/silver/incremental_reader.py
+index 0131b7b..4a5d758 100644
+--- a/de/silver/incremental_reader.py
++++ b/de/silver/incremental_reader.py
+@@ -26,6 +26,8 @@ _LOG = logging.getLogger(__name__)
+ _BINDING_KEYS = ("namespace", "source_path", "file_identity", "schema_fingerprint", "bronze_version")
+ _TRANSITION_KEYS = ("namespace", "change_sequence", "event_id", "revision", "change_type",
+                     "previous_state", "new_state", "content_hash", "invalidation_id")
++_BUNDLE_FACT_TABLES = ("silver_intersection_state_fact_v1", "silver_traffic_observation_fact_v1",
++                       "silver_signal_state_fact_v1")
+ 
+ 
+ class _PrefixBlocked(Exception):
+@@ -216,7 +218,7 @@ class IncrementalSilverSource:
+                 "SOURCE_INTEGRITY_ERROR", "Frozen obligation event or hash differs", sequence=sequence)
+             yield row["target_table"], row["status"], json.loads(row["body"]), row["expected_hash"]
+ 
+-    def _validity_obligation(self, change):
++    def _validity_obligation(self, change, fact_rows=None):
+         ns, seq, eid = change["namespace"], change["change_sequence"], change["event_id"]
+         marker = None
+         signature = hashlib.sha256()
+@@ -224,6 +226,8 @@ class IncrementalSilverSource:
+             _check(status == "RECONCILED", "CANONICAL_EVIDENCE_MISSING",
+                    "Applied change obligation is not reconciled", sequence=seq)
+             signature.update(digest.encode("ascii"))
++            if fact_rows is not None and table in _BUNDLE_FACT_TABLES:
++                fact_rows.setdefault(table, []).append(row)
+             if table == "silver_event_validity_v1":
+                 _check(marker is None, "SOURCE_INTEGRITY_ERROR", "Multiple validity obligations")
+                 marker = row
+@@ -309,33 +313,24 @@ class IncrementalSilverSource:
+             identity["simulation_run_id"], identity["topology_digest"], generation)
+         _check(context.registry_status is not None and identity["intersection_id"] in context.directions,
+                "CANONICAL_EVIDENCE_MISSING", "Missing published archive identity")
+-        return dict(run_id=context.run_id, run_generation=context.generation,
+-                    topology_digest=context.topology_digest, manifest_identity=context.manifest_identity)
++        return context, dict(run_id=context.run_id, run_generation=context.generation,
++                             topology_digest=context.topology_digest, manifest_identity=context.manifest_identity)
+ 
+-    def _verified_bundle(self, ns, event_id, sequence, revision, run):
++    def _verified_bundle(self, ns, event_id, sequence, revision, context, frozen_facts):
+         from de.silver.canonical_reader import CanonicalReadQuery, ObservationBundle
+ 
+-        query = CanonicalReadQuery(ns, run["run_id"], run["topology_digest"], -1e300, 1e300)
+-        physical = self._bundle(event_id, revision, sequence, query)
++        query = CanonicalReadQuery(ns, context.run_id, context.topology_digest, -1e300, 1e300)
++        physical = self._bundle(event_id, revision, sequence, query, context=context, frozen_facts=frozen_facts)
+         # Read the stable JSON form from the same verified obligations. Driver
+         # objects such as DateTime64 cannot be hashed as JSON.
+-        tables = {
+-            "silver_intersection_state_fact_v1": (physical.intersection,),
+-            "silver_traffic_observation_fact_v1": physical.traffic,
+-            "silver_signal_state_fact_v1": physical.signal,
+-        }
+         facts = []
+-        for table, actual in tables.items():
+-            frozen = list(self._obligations(ns, "changes", sequence, event_id, table=table))
+-            expected = {row.get("source_direction"): row for _, status, row, _ in frozen
+-                        if status == "RECONCILED"}
+-            _check(len(expected) == len(actual) == len(frozen), "CANONICAL_EVIDENCE_MISSING",
+-                   "Missing or duplicate frozen fact")
++        for table, actual in zip(_BUNDLE_FACT_TABLES, ((physical.intersection,), physical.traffic, physical.signal)):
++            expected = {row.get("source_direction"): row for row in frozen_facts[table]}
+             ordered = []
+             for physical_row in actual:
+                 row = expected[physical_row.get("source_direction")]
+                 _check((row["run_generation"], row["manifest_identity"]) ==
+-                       (run["run_generation"], run["manifest_identity"]),
++                       (context.generation, context.manifest_identity),
+                        "SOURCE_INTEGRITY_ERROR", "Canonical bundle archive identity differs")
+                 ordered.append(freeze(row))
+             facts.append(tuple(ordered))
+@@ -385,15 +380,16 @@ class IncrementalSilverSource:
+                     ) from exc
+                 raise
+             disposition = "BUNDLE_VALID"
+-        marker, signature = self._validity_obligation(change)
++        frozen_facts = {} if disposition == "BUNDLE_VALID" and materialize else None
++        marker, signature = self._validity_obligation(change, frozen_facts)
+         _check(marker["simulation_run_id"] == identity["simulation_run_id"] and
+                marker["topology_digest"] == identity["topology_digest"],
+                "SOURCE_INTEGRITY_ERROR", "Validity obligation archive identity differs")
+-        run = self._run_identity(identity, generation)
++        context, run = self._run_identity(identity, generation)
+         if disposition == "BUNDLE_VALID":
+             _check(marker["validity_state"] == "VALID", "SOURCE_INTEGRITY_ERROR", "Valid marker expected")
+             if materialize:
+-                bundle = self._verified_bundle(ns, eid, sequence, change["revision"], run)
++                bundle = self._verified_bundle(ns, eid, sequence, change["revision"], context, frozen_facts)
+                 bundle_hash = canonical_hash(bundle)
+         transition_hash = self._transition_hash(change)
+         entry = CanonicalChangeEntry(
+@@ -411,7 +407,7 @@ class IncrementalSilverSource:
+         identity, conflict, row, status, digest = self._invalidation_proof(ns, invalidation)
+         hc, _, _, _ = self._feed_cursors(boundary)
+         _check(conflict["change_sequence"] <= hc, "BOUNDARY_STALE", "Conflict exceeds captured Hc")
+-        run = self._run_identity(identity, row["run_generation"])
++        _, run = self._run_identity(identity, row["run_generation"])
+         entry = CanonicalInvalidationEntry(
+             **run, invalidation_sequence=sequence, invalidation_id=row["invalidation_id"],
+             event_id=row["event_id"], semantic_revision=row["semantic_revision"],
+diff --git a/de/silver/metrics.py b/de/silver/metrics.py
+index 492fb14..8e99174 100644
+--- a/de/silver/metrics.py
++++ b/de/silver/metrics.py
+@@ -2,6 +2,7 @@
+ from __future__ import annotations
+ 
+ import threading
++import time
+ from copy import deepcopy
+ from dataclasses import asdict, dataclass, field
+ from datetime import datetime, timezone
+@@ -29,6 +30,31 @@ class Metrics:
+     source_lag: dict[str, int] = field(default_factory=dict)
+     suppressed_dimension_candidates: int = 0
+     lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
++    _operation_stack: list[int] = field(default_factory=list, init=False, repr=False)
++    _operations: dict[str, dict[str, int]] = field(default_factory=dict, init=False, repr=False)
++
++    def timed(self, operation, call, *args, **kwargs):
++        """Measure a journal worker call. Snapshots may read totals from other threads."""
++        self._operation_stack.append(0)
++        started = time.monotonic_ns()
++        failed = True
++        try:
++            result = call(*args, **kwargs)
++            failed = False
++            return result
++        finally:
++            elapsed = time.monotonic_ns() - started
++            children = self._operation_stack.pop()
++            if self._operation_stack:
++                self._operation_stack[-1] += elapsed
++            with self.lock:
++                totals = self._operations.setdefault(operation, dict(
++                    calls=0, failures=0, wall_ns=0, exclusive_ns=0, max_wall_ns=0))
++                totals["calls"] += 1
++                totals["failures"] += failed
++                totals["wall_ns"] += elapsed
++                totals["exclusive_ns"] += elapsed - children
++                totals["max_wall_ns"] = max(totals["max_wall_ns"], elapsed)
+ 
+     def mark_batch(self, n: int) -> None:
+         with self.lock:
+@@ -59,6 +85,7 @@ class Metrics:
+                 "last_progress_at": self.last_progress_at,
+                 "source_lag": dict(self.source_lag),
+                 "suppressed_dimension_candidates": self.suppressed_dimension_candidates,
++                "journal_operations": self._operations,
+             }
+             return deepcopy(data)
+ 
+diff --git a/de/silver/processor.py b/de/silver/processor.py
+index dfc732a..b525de2 100644
+--- a/de/silver/processor.py
++++ b/de/silver/processor.py
+@@ -7,6 +7,7 @@ import sqlite3
+ import time
+ from dataclasses import replace
+ from datetime import datetime, timezone
++from itertools import groupby
+ from pathlib import Path
+ from typing import Any, Optional
+ 
+@@ -26,7 +27,10 @@ from de.bronze.checkpoint_store import V1SemanticReader
+ from de.bronze.clickhouse_repository import BronzeClickHouseRepository
+ from de.bronze.config import ObservationSettings
+ from de.silver.metrics import HealthSnapshot, Metrics
+-from de.silver.repositories import FactBusinessKeyConflictError, InvalidTargetTableError, SilverClickHouseRepository, SchemaMismatchError
++from de.silver.repositories import (
++    FactBusinessKeyConflictError, InvalidTargetTableError, SchemaMismatchError, SilverClickHouseRepository,
++    V1_DIRECTION_BATCH_LIMIT, V1_DIRECTION_TABLES,
++)
+ 
+ 
+ def _utc_dt() -> datetime:
+@@ -289,22 +293,26 @@ class SilverProcessor:
+ 
+     def _run_v1(self) -> None:
+         source_reader = None
++        pass_limit = 10
+         try:
+             while not self._stop.is_set():
++                continue_backlog = False
+                 try:
+                     if not self._schema_ok:
+                         self._initialize_v1()
+                     if source_reader is None:
+                         source_reader = V1SemanticReader(self.settings.v1_bronze_path)
+-                    self._clickhouse_ok = self.repo.ping() and self.bronze_repo.ping()
+-                    self._sqlite_ok = self.checkpoint.is_readable()
++                    self._clickhouse_ok = self.metrics.timed("silver_ping", self.repo.ping) and (
++                        self.metrics.timed("bronze_ping", self.bronze_repo.ping))
++                    self._sqlite_ok = self.metrics.timed("sqlite_probe", self.checkpoint.is_readable)
+                     if not self._clickhouse_ok or not self._sqlite_ok:
+                         raise ConnectionError("V1 Silver dependency unavailable")
+                     if self._lifecycle_fault is not None:
+                         raise self._lifecycle_fault
+-                    processed = self.run_v1_journal_pass(source_reader, self.bronze_repo,
++                    processed = self.metrics.timed("journal_pass", self.run_v1_journal_pass,
++                        source_reader, self.bronze_repo,
+                         self.archive_resolver, self.lifecycle,
+-                        batch_size=min(self.settings.batch_size, 10), max_entries=10)
++                        batch_size=min(self.settings.batch_size, pass_limit), max_entries=pass_limit)
+                     if self._lifecycle_fault is not None:
+                         raise self._lifecycle_fault
+                     self.state = ProcessorState.READY
+@@ -314,6 +322,10 @@ class SilverProcessor:
+                     if processed:
+                         self.metrics.mark_batch(processed)
+                         self.metrics.mark_checkpoint()
++                    # Only remove idle delay after a full successful pass with
++                    # remaining work inside the boundary verified by that pass.
++                    continue_backlog = (
++                        processed == pass_limit and sum(self.metrics.source_lag.values()) > processed)
+                 except ArchiveIntegrityError as exc:
+                     self.metrics.fault_code = "ARCHIVE_INTEGRITY"
+                     self.metrics.fault_message = str(exc)
+@@ -347,9 +359,11 @@ class SilverProcessor:
+                     self.state = ProcessorState.RETRYING
+                     self._retry_idx = min(self._retry_idx + 1, len(BACKOFF_SCHEDULE_SEC) - 1)
+                 self._publish_snapshot()
++                if continue_backlog:
++                    continue
+                 delay = (BACKOFF_SCHEDULE_SEC[self._retry_idx] if self._retry_idx
+                          else self.settings.poll_interval_sec)
+-                self._stop.wait(delay)
++                self.metrics.timed("retry_wait" if self._retry_idx else "poll_wait", self._stop.wait, delay)
+         finally:
+             if source_reader is not None:
+                 source_reader.close()
+@@ -364,43 +378,84 @@ class SilverProcessor:
+ 
+     def recover_v1_obligations(self, limit: int = 100) -> int:
+         """Reconcile frozen V1 rows before attempting new journal progress."""
+-        pending = self.checkpoint.pending_v1_obligations(self.settings.namespace, limit)
++        timed = self.metrics.timed
++        pending = timed("pending_lookup", self.checkpoint.pending_v1_obligations,
++                        self.settings.namespace, limit)
+         replay_run_id = (self.settings.replay_run_id
+                          if self.settings.destination_mode == DestinationMode.REPLAY.value else None)
+         verified = []
+         try:
+-            for obligation in pending:
+-                if obligation['status'] == 'FAULT':
+-                    raise CheckpointError('frozen V1 obligation has a permanent fault')
+-                row = json.loads(obligation["expected_json"])
+-                target = obligation["target_table"]
+-                try:
+-                    if not self.repo.reconcile_v1_row(target, row, replay_run_id=replay_run_id):
+-                        self.repo.insert_v1_rows(target, [row], replay_run_id=replay_run_id)
+-                        if not self.repo.reconcile_v1_row(target, row, replay_run_id=replay_run_id):
+-                            raise RuntimeError("V1 inserted obligation is not visible")
+-                except Exception as exc:
+-                    self.checkpoint.record_v1_obligation_failure(obligation, exc,
+-                        permanent=isinstance(exc, (FactBusinessKeyConflictError, InvalidTargetTableError)))
+-                    raise
+-                verified.append(obligation)
++            for key, group in groupby(pending, key=lambda row: (
++                    row["source_kind"], row["source_sequence"], row["event_id"], row["target_table"])):
++                obligations = list(group)
++                if (key[-1] in V1_DIRECTION_TABLES
++                        and 1 < len(obligations) <= V1_DIRECTION_BATCH_LIMIT
++                        and all(item["status"] != "FAULT" for item in obligations)
++                        and hasattr(self.repo, "reconcile_v1_directions")
++                        and self._recover_v1_directions(key[-1], obligations, replay_run_id, verified)):
++                    continue
++                for obligation in obligations:
++                    if obligation["status"] == "FAULT":
++                        raise CheckpointError("frozen V1 obligation has a permanent fault")
++                    row = json.loads(obligation["expected_json"])
++                    target = obligation["target_table"]
++                    try:
++                        if not timed("reconcile_existing", self.repo.reconcile_v1_row,
++                                     target, row, replay_run_id=replay_run_id):
++                            timed("insert_obligation", self.repo.insert_v1_rows,
++                                  target, [row], replay_run_id=replay_run_id)
++                            if not timed("reconcile_visibility", self.repo.reconcile_v1_row,
++                                         target, row, replay_run_id=replay_run_id):
++                                raise RuntimeError("V1 inserted obligation is not visible")
++                    except Exception as exc:
++                        self.checkpoint.record_v1_obligation_failure(obligation, exc,
++                            permanent=isinstance(exc, (FactBusinessKeyConflictError, InvalidTargetTableError)))
++                        raise
++                    verified.append(obligation)
+         finally:
+-            self.checkpoint.reconcile_v1_obligations(verified)
++            timed("ack_obligations", self.checkpoint.reconcile_v1_obligations, verified)
+         return len(pending)
+ 
++    def _recover_v1_directions(self, target, obligations, replay_run_id, verified):
++        rows = [json.loads(item["expected_json"]) for item in obligations]
++        timed = self.metrics.timed
++        reconcile = self.repo.reconcile_v1_directions
++        try:
++            found = timed("reconcile_existing_group", reconcile, target, rows, replay_run_id=replay_run_id)
++            missing = [index for index, present in enumerate(found) if not present]
++            if missing:
++                inserts = [rows[index] for index in missing]
++                timed("insert_obligation_group", self.repo.insert_v1_rows, target, inserts,
++                      replay_run_id=replay_run_id)
++                visible = timed("reconcile_visibility_group", reconcile, target, inserts, replay_run_id=replay_run_id)
++                for index, present in zip(missing, visible, strict=True):
++                    found[index] = present
++        except (FactBusinessKeyConflictError, ValueError):
++            # Reconcile each key independently to attribute a conflict or excessive duplicates.
++            return False
++        verified.extend(obligation for obligation, present in zip(obligations, found, strict=True) if present)
++        if not all(found):
++            exc = RuntimeError("V1 inserted direction obligation is not visible")
++            for obligation, present in zip(obligations, found, strict=True):
++                if not present:
++                    self.checkpoint.record_v1_obligation_failure(obligation, exc, permanent=False)
++            raise exc
++        return True
++
+     def process_v1_accepted_change(self, change: dict, bronze_repo: Any,
+                                    archive_resolver: Any, lifecycle: Any,
+                                    source_reader: Any = None) -> None:
+         """Materialize one Bronze ACCEPTED journal entry with durable obligations."""
+         if change["change_type"] != "ACCEPTED":
+             raise ValueError("expected an ACCEPTED journal entry")
++        timed = self.metrics.timed
+         namespace = self.settings.namespace
+         source_namespace = self.settings.v1_source_namespace
+         sequence = int(change["change_sequence"])
+         cursors = self.checkpoint.v1_cursors(namespace)
+         if sequence != cursors["change_cursor"] + 1:
+             raise CheckpointCasConflictError("V1 change sequence gap")
+-        current = bronze_repo.read_valid_observation(
++        current = timed("bronze_read", bronze_repo.read_valid_observation,
+             source_namespace, change["event_id"], int(change["revision"]),
+             state_path=self.settings.v1_bronze_path)
+         if current is None:
+@@ -432,9 +487,11 @@ class SilverProcessor:
+                                               cursors["generation"])
+             return
+         event = current["event"]
+-        context = archive_resolver.resolve(event["simulationRunId"], event["topologyDigest"])
+-        context.validate_event(event)
+-        lifecycle.register(context.run_id, context.topology_digest, context.generation)
++        context = timed("archive_resolve", archive_resolver.resolve,
++                        event["simulationRunId"], event["topologyDigest"])
++        timed("archive_validate_event", context.validate_event, event)
++        timed("lifecycle_register", lifecycle.register,
++              context.run_id, context.topology_digest, context.generation)
+         existing = self.checkpoint.conn.execute(
+             "SELECT 1 FROM silver_v1_obligation WHERE namespace=? AND source_kind='changes' "
+             "AND source_sequence=? LIMIT 1", (namespace, sequence)).fetchone()
+@@ -452,10 +509,11 @@ class SilverProcessor:
+                 source_offset=primary["offset"],
+                 source_physical_record_hash=primary["physical_record_hash"],
+                 source_byte_hash=primary["source_byte_hash"])
+-            facts = build_v1_fact_rows(event, context, provenance)
++            facts = timed("build_facts", build_v1_fact_rows, event, context, provenance)
+             created_at = _utc_str()
+             rows: list[tuple[str, dict]] = []
+-            for table, row in build_v1_dimensions(context, self.settings.v1_archive_root).items():
++            dimensions = timed("build_dimensions", build_v1_dimensions, context, self.settings.v1_archive_root)
++            for table, row in dimensions.items():
+                 rows.append((table, dict(row, created_at=created_at)))
+             for family, table in (("traffic", "silver_traffic_observation_fact_v1"),
+                                   ("signal", "silver_signal_state_fact_v1"),
+@@ -468,15 +526,15 @@ class SilverProcessor:
+                 semantic_revision=change["revision"], validity_state="VALID",
+                 bronze_change_sequence=sequence, bronze_invalidation_sequence=None,
+                 invalidation_id=None, reason="ACCEPTED", created_at=created_at)))
+-            self.checkpoint.freeze_v1_bundle(namespace, "changes", sequence,
+-                                             change["event_id"], change["revision"], rows)
++            timed("freeze_bundle", self.checkpoint.freeze_v1_bundle, namespace, "changes", sequence,
++                  change["event_id"], change["revision"], rows)
+         while self.checkpoint.pending_v1_obligations(namespace, 100):
+             self.recover_v1_obligations(100)
+-        if bronze_repo.read_valid_observation(source_namespace, change["event_id"],
++        if timed("final_bronze_read", bronze_repo.read_valid_observation, source_namespace, change["event_id"],
+                 int(change["revision"]), state_path=self.settings.v1_bronze_path) is None:
+             raise RuntimeError("V1 source transitioned before validity publication")
+-        self.checkpoint.finalize_v1_event(namespace, change['event_id'], change['revision'],
+-                                           sequence, cursors['generation'])
++        timed("finalize_validity", self.checkpoint.finalize_v1_event, namespace, change['event_id'],
++              change['revision'], sequence, cursors['generation'])
+ 
+     def process_v1_invalidation(self, entry: dict, source_reader: Any,
+                                 archive_resolver: Any) -> None:
+@@ -560,8 +618,9 @@ class SilverProcessor:
+         """Process a fixed verified boundary, including invalidations first."""
+         namespace = self.settings.namespace
+         source_namespace = self.settings.v1_source_namespace
+-        binding = verify_bronze_source(Path(self.settings.v1_bronze_path), source_namespace,
+-                                       full_history=False)
++        timed = self.metrics.timed
++        binding = timed("source_binding", verify_bronze_source,
++                        Path(self.settings.v1_bronze_path), source_namespace, full_history=False)
+         def check_frozen() -> None:
+             if frozen_boundary is None:
+                 return
+@@ -580,17 +639,16 @@ class SilverProcessor:
+         check_frozen()
+         self.checkpoint.bind_v1_source(namespace, binding)
+         cursors = self.checkpoint.v1_cursors(namespace)
+-        if hasattr(self, "metrics"):
+-            self.metrics.source_lag = {
+-                "changes": max(0, binding["change_high_water"] - cursors["change_cursor"]),
+-                "invalidations": max(0, binding["invalidation_high_water"] - cursors["invalidation_cursor"]),
+-            }
++        self.metrics.source_lag = {
++            "changes": max(0, binding["change_high_water"] - cursors["change_cursor"]),
++            "invalidations": max(0, binding["invalidation_high_water"] - cursors["invalidation_cursor"]),
++        }
+         if (binding["change_high_water"] < cursors["change_cursor"] or
+                 binding["invalidation_high_water"] < cursors["invalidation_cursor"]):
+             raise SourceBoundaryChangedError()
+         processed = 0
+         while self.checkpoint.pending_v1_obligations(namespace, batch_size):
+-            self.recover_v1_obligations(batch_size)
++            timed("startup_recovery", self.recover_v1_obligations, batch_size)
+         for kind, high, method in (
+             ("invalidations", binding["invalidation_high_water"], self.process_v1_invalidation),
+             ("changes", binding["change_high_water"], None),
+@@ -601,8 +659,8 @@ class SilverProcessor:
+                 if after >= high:
+                     break
+                 check_frozen()
+-                page = source_reader.read_page(source_namespace, kind, after=after,
+-                                               limit=batch_size, high_water=high)
++                page = timed("journal_page", source_reader.read_page, source_namespace, kind,
++                             after=after, limit=batch_size, high_water=high)
+                 sequence_key = 'invalidation_sequence' if kind == 'invalidations' else 'change_sequence'
+                 expected_sequences = list(range(after + 1, min(after + batch_size, high) + 1))
+                 if [row[sequence_key] for row in page['rows']] != expected_sequences:
+@@ -624,12 +682,12 @@ class SilverProcessor:
+                             processed += 1
+                             continue
+                     if kind == "invalidations":
+-                        method(entry, source_reader, archive_resolver)
++                        timed("apply_invalidation", method, entry, source_reader, archive_resolver)
+                     elif entry["change_type"] == "ACCEPTED":
+-                        self.process_v1_accepted_change(entry, bronze_repo, archive_resolver,
+-                                                        lifecycle, source_reader)
++                        timed("apply_accepted", self.process_v1_accepted_change,
++                              entry, bronze_repo, archive_resolver, lifecycle, source_reader)
+                     elif entry["change_type"] == "CONFLICTED":
+-                        self.process_v1_conflicted_change(entry, source_reader)
++                        timed("apply_conflicted", self.process_v1_conflicted_change, entry, source_reader)
+                     else:
+                         raise RuntimeError("unsupported V1 Bronze change type")
+                     processed += 1
+diff --git a/de/silver/repositories.py b/de/silver/repositories.py
+index 5616f89..2077658 100644
+--- a/de/silver/repositories.py
++++ b/de/silver/repositories.py
+@@ -88,6 +88,11 @@ V1_KEY_COLUMNS = {
+     "silver_invalidation_v1": ("namespace", "invalidation_sequence", "event_id", "invalidation_id"),
+     "silver_quarantine_v1": ("namespace", "failure_stage", "error_code", "created_at", "quarantine_id"),
+ }
++V1_DIRECTION_TABLES = frozenset({
++    "silver_traffic_observation_fact_v1",
++    "silver_signal_state_fact_v1",
++})
++V1_DIRECTION_BATCH_LIMIT = 16
+ QUARANTINE_REPLAY_TABLE = "silver_quarantine_replay"
+ LEDGER_TABLE = "silver_processing_ledger"
+ 
+@@ -180,6 +185,34 @@ class WriteReceipt:
+ # ── Small pure helpers ───────────────────────────────────────────────────────
+ 
+ 
++def _normalize_v1_cell(name: str, value: Any) -> Any:
++    from datetime import datetime, timezone
++
++    if isinstance(value, bytes):
++        value = value.decode("utf-8").rstrip("\x00")
++    if name in {"created_at", "observed_at", "captured_at", "registry_updated_at"} and value is not None:
++        if isinstance(value, str):
++            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
++        if isinstance(value, datetime):
++            if value.tzinfo is None:
++                value = value.replace(tzinfo=timezone.utc)
++            if name == "captured_at":
++                value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
++            return value.astimezone(timezone.utc).isoformat(timespec="microseconds")
++    return value
++
++
++def verify_v1_content(table: str, actual: dict, expected: dict) -> None:
++    differing = sorted(set(actual) ^ set(expected))
++    differing.extend(name for name in expected if name in actual and
++        not (table in {"silver_run_dimension_v1", "silver_topology_dimension_v1",
++                       "silver_run_topology_binding_v1"} and name == "created_at") and
++        not (table == "silver_topology_dimension_v1" and name == "catalog_path") and
++        _normalize_v1_cell(name, actual[name]) != _normalize_v1_cell(name, expected[name]))
++    if differing:
++        raise FactBusinessKeyConflictError("V1 same-key content differs in: " + ", ".join(differing))
++
++
+ def _cell(value: Any) -> Any:
+     """Normalize ClickHouse cell values (FixedString often arrives as bytes)."""
+     if isinstance(value, memoryview):
+@@ -681,7 +714,7 @@ class SilverClickHouseRepository:
+     def reconcile_v1_row(self, table: str, expected: Dict[str, Any],
+                          *, replay_run_id: Optional[str] = None) -> bool:
+         """Return false for missing; raise on any conflicting same-key content."""
+-        from datetime import datetime, timezone
++        from datetime import datetime
+ 
+         if table not in V1_TABLES:
+             raise InvalidTargetTableError(table)
+@@ -711,32 +744,50 @@ class SilverClickHouseRepository:
+         if len(result.result_rows) > 1000:
+             raise FactBusinessKeyConflictError("excess physical V1 duplicates")
+ 
+-        def normalized(name: str, value: Any) -> Any:
+-            if isinstance(value, bytes):
+-                value = value.decode("utf-8").rstrip("\x00")
+-            if name in {"created_at", "observed_at", "captured_at", "registry_updated_at"} and value is not None:
+-                if isinstance(value, str):
+-                    value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+-                if isinstance(value, datetime):
+-                    if value.tzinfo is None:
+-                        value = value.replace(tzinfo=timezone.utc)
+-                    if name == "captured_at":
+-                        value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
+-                    return value.astimezone(timezone.utc).isoformat(timespec="microseconds")
+-            return value
++        for values in result.result_rows:
++            verify_v1_content(table, dict(zip(result.column_names, values)), expected_row)
++        return bool(result.result_rows)
+ 
++    def reconcile_v1_directions(self, table: str, rows: Sequence[Dict[str, Any]],
++                                *, replay_run_id: Optional[str] = None) -> list[bool]:
++        """Reconcile a bounded set of direction keys with one exact event identity."""
++        if table not in V1_DIRECTION_TABLES or not 1 <= len(rows) <= V1_DIRECTION_BATCH_LIMIT:
++            raise ValueError("invalid V1 directional reconciliation batch")
++        replay = replay_run_id is not None
++        self._guard_mode(replay=replay)
++        keys = tuple(key for key in V1_KEY_COLUMNS[table] if key != "source_direction")
++        shared = {key: rows[0][key] for key in keys}
++        if any(row[key] != value for row in rows for key, value in shared.items()):
++            raise ValueError("directional batch spans different event identities")
++        expected = {row["source_direction"]: row for row in rows}
++        if len(expected) != len(rows):
++            raise ValueError("duplicate direction key in frozen batch")
++        predicates = [
++            key + "={" + key + (":UInt64}" if key == "bronze_semantic_revision" else ":String}")
++            for key in keys
++        ]
++        params = dict(shared, directions=list(expected))
++        predicates.append("source_direction IN {directions:Array(String)}")
++        physical = table
++        if replay:
++            physical = table.replace("_v1", "_replay_v1")
++            predicates.append("replay_run_id={replay_run_id:String}")
++            params["replay_run_id"] = replay_run_id
++        from de.feed_read_budget import evidence_query
++        result = evidence_query(self.client, f"SELECT * FROM {self.database}.{physical} WHERE "
++                                + " AND ".join(predicates) + " LIMIT 1001", parameters=params)
++        if len(result.result_rows) > 1000:
++            raise FactBusinessKeyConflictError("excess physical V1 duplicates in directional batch")
++        found = set()
+         for values in result.result_rows:
+             actual = dict(zip(result.column_names, values))
+-            differing = sorted(set(actual) ^ set(expected_row))
+-            differing.extend(name for name in expected_row if name in actual and
+-                not (table in {"silver_run_dimension_v1", "silver_topology_dimension_v1",
+-                               "silver_run_topology_binding_v1"} and name == "created_at") and
+-                not (table == "silver_topology_dimension_v1" and name == "catalog_path") and
+-                normalized(name, actual[name]) != normalized(name, expected_row[name]))
+-            if differing:
+-                raise FactBusinessKeyConflictError(
+-                    "V1 same-key content differs in: " + ", ".join(differing))
+-        return bool(result.result_rows)
++            direction = _normalize_v1_cell("source_direction", actual.get("source_direction"))
++            if direction not in expected:
++                raise FactBusinessKeyConflictError("unexpected V1 direction in reconciliation evidence")
++            row = expected[direction]
++            verify_v1_content(table, actual, {"replay_run_id": replay_run_id, **row} if replay else row)
++            found.add(direction)
++        return [row["source_direction"] in found for row in rows]
+ 
+     def fetch_v1_event_rows(self, table: str, run_id: str, digest: str,
+                             event_id: str) -> List[Dict[str, Any]]:
+diff --git a/de/tests/bronze/test_v1_point_read.py b/de/tests/bronze/test_v1_point_read.py
+index 365c19c..f38b4ee 100644
+--- a/de/tests/bronze/test_v1_point_read.py
++++ b/de/tests/bronze/test_v1_point_read.py
+@@ -9,6 +9,7 @@ from contracts.traffic_observation import canonical_json
+ from de.bronze.checkpoint_store import V1SemanticStore
+ from de.bronze.clickhouse_repository import BronzeClickHouseRepository
+ from de.bronze.config import ObservationSettings
++from de.kafka_raw.v1_ledger_store import IntegrityFault
+ 
+ 
+ def test_exact_current_accepted_point_read_and_fail_closed(tmp_path):
+@@ -19,28 +20,43 @@ def test_exact_current_accepted_point_read_and_fail_closed(tmp_path):
+     store = V1SemanticStore(state)
+     raw = dict(raw_ingestion_id='primary', topic='traffic.observations.v1', partition=0,
+                offset=1, topic_identity='topic-id')
+-    intent = store.prepare('live', raw, event, 'envelope', content_hash,
+-                           lambda *args: [dict(table='bronze_observations_v1',
+-                                               row=dict(namespace='live', event_id=event['eventId']))])
++    row = dict(namespace='live', event_id=event['eventId'], semantic_revision=1,
++               observation_envelope_json=json.dumps(event), normalization_version='v1',
++               bronze_schema_version='v1', bronze_canonical_hash=content_hash)
++    lineage = dict(namespace='live', raw_ingestion_id='primary', event_id=event['eventId'])
++    intent = store.prepare('live', raw, event, 'envelope', content_hash, lambda *args: [
++        dict(table='bronze_observations_v1', row=row), dict(table='bronze_delivery_dispositions_v1', row=lineage),
++    ])
+     store.complete('live', 'primary', intent['expected_hash'])
+     repo = BronzeClickHouseRepository(ObservationSettings())
+-    row = dict(observation_envelope_json=json.dumps(event), normalization_version='v1',
+-               bronze_schema_version='v1', bronze_canonical_hash=content_hash)
+-
+     class Client:
++        missing_lineage = False
++        corrupt_duplicate = False
++
+         def query(self, sql, parameters):
+-            assert parameters == dict(ns='live', eid=event['eventId'], rev=1)
+-            return SimpleNamespace(column_names=list(row), result_rows=[list(row.values())])
++            if 'bronze_observations_v1' in sql:
++                assert parameters == dict(ns='live', eid=event['eventId'], rev=1)
++                mirrors = [list(row.values())]
++                if self.corrupt_duplicate:
++                    mirrors.append(list(dict(row, bronze_canonical_hash='wrong').values()))
++                return SimpleNamespace(column_names=list(row), result_rows=mirrors)
++            assert 'bronze_delivery_dispositions_v1' in sql
++            assert parameters == dict(p0='live', p1='primary')
++            return SimpleNamespace(column_names=list(lineage),
++                                   result_rows=[] if self.missing_lineage else [list(lineage.values())])
+ 
+-    repo._client = Client()
+-    repo.reconcile_v1_outputs = lambda obligations: []
++    client = repo._client = Client()
+     valid = repo.read_valid_observation('live', event['eventId'], 1, state_path=state)
+     assert valid['event'] == event and valid['primary_delivery']['raw_id'] == 'primary'
+     assert repo.read_valid_observation('live', event['eventId'], 2, state_path=state) is None
+     assert repo.read_valid_observation('other', event['eventId'], 1, state_path=state) is None
+-    repo.reconcile_v1_outputs = lambda obligations: obligations
++    client.missing_lineage = True
+     with pytest.raises(RuntimeError, match='mirror'):
+         repo.read_valid_observation('live', event['eventId'], 1, state_path=state)
++    client.missing_lineage = False
++    client.corrupt_duplicate = True
++    with pytest.raises(IntegrityFault, match='bronze_canonical_hash'):
++        repo.read_valid_observation('live', event['eventId'], 1, state_path=state)
+     store.db.execute("UPDATE v1_identity SET state='CONFLICTED',revision=2 WHERE namespace='live'")
+     assert repo.read_valid_observation('live', event['eventId'], 1, state_path=state) is None
+     store.close()
+diff --git a/de/tests/gold_runtime/test_core_foundation.py b/de/tests/gold_runtime/test_core_foundation.py
+index 6c8e6a3..b970d8b 100644
+--- a/de/tests/gold_runtime/test_core_foundation.py
++++ b/de/tests/gold_runtime/test_core_foundation.py
+@@ -426,6 +426,56 @@ def test_active_replay_aborts_on_boundary_change_without_touching_live(local, tm
+         release(replay, replay_owner)
+ 
+ 
++@pytest.mark.parametrize("error_code", ["AUTHORITY_UNAVAILABLE", "SOURCE_BINDING_CHANGED"])
++def test_replay_final_discovery_fault(local, tmp_path, monkeypatch, error_code):
++    import json
++    import time
++    from de.gold_runtime.replay import CoreReplayManifest
++
++    settings, source = local
++    source.event("scope", 135)
++    live, owner = open_core(local)
++    drain(live)
++    release(live, owner)
++    before = settings.checkpoint_path.read_bytes()
++    manifest = CoreReplayManifest(source.binding_id, (1, 0, 1, 0), "r1", 1, "t-r1", "m-r1", 0, 360)
++    path = tmp_path / "replay.json"
++    path.write_text(json.dumps(asdict(manifest)), encoding="utf-8")
++    replay, owner = open_core((settings.model_copy(update=dict(replay_manifest=path)), source))
++    try:
++        assert replay.run_cycle()
++        assert replay.run_cycle()
++        discover = replay.discover
++        calls = 0
++
++        def transient_at_finish():
++            nonlocal calls
++            calls += 1
++            # Cycle discovery, empty change page validation, then completion.
++            if calls == 3:
++                raise CanonicalFeedError(error_code, "final validation")
++            return discover()
++
++        monkeypatch.setattr(replay, "discover", transient_at_finish)
++        if error_code == "AUTHORITY_UNAVAILABLE":
++            replay.run_cycle()
++            assert calls == 3
++            assert replay.store.conn.execute("SELECT status FROM core_replay").fetchone()[0] == "RUNNING"
++            assert replay._faults["replay_completion"]["retryable"]
++            time.sleep(settings.retry_max_sec)
++            replay.run_cycle()
++            assert replay.store.conn.execute("SELECT status FROM core_replay").fetchone()[0] == "COMPLETE"
++            assert "replay_completion" not in replay._faults
++        else:
++            assert replay.run() == 2
++            assert calls == 3
++            assert replay.store.conn.execute("SELECT status FROM core_replay").fetchone()[0] == "ABORTED"
++        assert replay.store.cursors() == {"CHANGE": 1, "INVALIDATION": 0}
++        assert settings.checkpoint_path.read_bytes() == before
++    finally:
++        release(replay, owner)
++
++
+ def test_lease_loss_keeps_durable_cursors(local):
+     _, source = local
+     source.event("before-lease-loss", 135)
+diff --git a/de/tests/silver/test_incremental_reader.py b/de/tests/silver/test_incremental_reader.py
+index 9df2db2..ec0d87e 100644
+--- a/de/tests/silver/test_incremental_reader.py
++++ b/de/tests/silver/test_incremental_reader.py
+@@ -32,6 +32,7 @@ from de.silver.incremental_contract import (
+     CanonicalChangePageRequest, CanonicalFeedError, CanonicalInvalidationPageRequest,
+     FeedLimits, SourceDiscoveryRequest, canonical_bytes,
+ )
++from de.silver.metrics import Metrics
+ from de.silver.processor import SilverProcessor
+ from de.silver.repositories import SilverClickHouseRepository
+ from de.silver.source_binding import verify_bronze_source
+@@ -56,6 +57,7 @@ class AuthorityFixture:
+         self.worker.settings = settings
+         self.worker.checkpoint = silver
+         self.worker.repo = silver_repo
++        self.worker.metrics = Metrics()
+         self.lifecycle = SimpleNamespace(register=lambda *args: None)
+         self.binding = self.reader.discover_canonical_source(SourceDiscoveryRequest(NS)).source_binding_id
+         self.offset = 0
+@@ -440,6 +442,21 @@ def test_missing_clickhouse_fact_illegal_transition_and_archive_fault(authority,
+     expect("CANONICAL_EVIDENCE_MISSING", f.changes)
+ 
+ 
++def test_feed_rejects_changed_fact_content_with_complete_key_inventory(authority):
++    f, first, _ = authority
++    f.event(1, first)
++    f.apply()
++    table = "silver_signal_state_fact_v1"
++    rows = [json.loads(row[0]) for row in f.silver.conn.execute(
++        "SELECT expected_json FROM silver_v1_obligation WHERE target_table=? AND source_sequence=1", (table,))]
++    assert rows and f.changes().entry_count == 1
++    rows[0]["cycle_sequence"] += 1
++    repo = f.reader.silver_repo
++    repo.client.command(f"TRUNCATE TABLE {f.worker.settings.clickhouse_database}.{table}")
++    repo.insert_v1_rows(table, rows)
++    expect("SOURCE_INTEGRITY_ERROR", f.changes)
++
++
+ def test_conflict_before_materialization_and_invalidation_lag(authority):
+     f, first, _ = authority
+     unaffected = f.event(1, first)
+diff --git a/de/tests/silver/test_invalidation_feed_v1.py b/de/tests/silver/test_invalidation_feed_v1.py
+index 9473aaf..cfcf43a 100644
+--- a/de/tests/silver/test_invalidation_feed_v1.py
++++ b/de/tests/silver/test_invalidation_feed_v1.py
+@@ -9,6 +9,7 @@ from de.silver.canonical_reader import (CanonicalSilverReader, InvalidationLagEr
+     SourceBindingChangedError, ValidityUnknownError)
+ from de.silver.checkpoint_store import SilverCheckpointStore
+ from de.silver.config import SilverSettings
++from de.silver.metrics import Metrics
+ from de.silver.processor import SilverProcessor
+ from de.silver.source_binding import verify_bronze_source
+ 
+@@ -35,7 +36,7 @@ def test_incremental_feed_exposes_durable_suppression_before_ch_mirror(tmp_path)
+     def offline(*args, **kwargs):
+         raise ConnectionError('CH mirror offline')
+     worker = SimpleNamespace(settings=SilverSettings(v1_bronze_path=str(bronze_path)),
+-        checkpoint=silver, repo=SimpleNamespace(reconcile_v1_row=offline))
++        checkpoint=silver, repo=SimpleNamespace(reconcile_v1_row=offline), metrics=Metrics())
+     worker.recover_v1_obligations = lambda limit: SilverProcessor.recover_v1_obligations(worker, limit)
+     archive = SimpleNamespace(resolve=lambda *args: SimpleNamespace(generation=1))
+     def suppress(entry):
+diff --git a/de/tests/silver/test_v1_journal_worker.py b/de/tests/silver/test_v1_journal_worker.py
+index 5d90792..a3bbffb 100644
+--- a/de/tests/silver/test_v1_journal_worker.py
++++ b/de/tests/silver/test_v1_journal_worker.py
+@@ -8,6 +8,7 @@ from de.tests.silver.v1_fixtures import snapshot_v1 as _snapshot
+ from contracts.traffic_observation import build_observation
+ from de.silver.archive_resolver import ArchiveIntegrityError, VerifiedRunContext
+ from de.silver.checkpoint_store import SilverCheckpointStore
++from de.silver.metrics import Metrics
+ from de.silver.processor import SilverProcessor
+ from de.silver.source_binding import SourceVerificationError
+ import de.silver.processor as processor_module
+@@ -21,7 +22,7 @@ def test_gapped_page_is_rejected_before_any_materialization(monkeypatch, sequenc
+     checkpoint = SimpleNamespace(bind_v1_source=lambda *args: None,
+         v1_cursors=lambda *args: dict(change_cursor=0, invalidation_cursor=0),
+         pending_v1_obligations=lambda *args: [])
+-    worker = SimpleNamespace(settings=SimpleNamespace(namespace='live', v1_source_namespace='live',
++    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace='live', v1_source_namespace='live',
+         v1_bronze_path='bronze', v1_replay_run_filter=''), checkpoint=checkpoint,
+         process_v1_invalidation=lambda *args: pytest.fail('invalid page was consumed'),
+         process_v1_accepted_change=lambda *args: pytest.fail('invalid page was consumed'),
+@@ -77,7 +78,7 @@ def test_accepted_journal_entry_materializes_complete_bundle(tmp_path, topology_
+                 self.rows[table, json.dumps(row, sort_keys=True)] = row
+ 
+     repo = Repo()
+-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
++    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
+         v1_source_namespace="live", v1_archive_root="archive", destination_mode="main", replay_run_id=""),
+         checkpoint=checkpoint, repo=repo)
+     worker.recover_v1_obligations = lambda limit: SilverProcessor.recover_v1_obligations(worker, limit)
+@@ -160,7 +161,7 @@ def test_invalidation_suppresses_before_cursor_ack(tmp_path):
+                 self.rows[table, json.dumps(row, sort_keys=True)] = row
+ 
+     repo = Repo()
+-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="live", destination_mode="main",
++    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="live", destination_mode="main",
+         v1_source_namespace="live", replay_run_id=""), checkpoint=checkpoint, repo=repo)
+     worker.recover_v1_obligations = lambda limit: SilverProcessor.recover_v1_obligations(worker, limit)
+     try:
+@@ -196,7 +197,7 @@ def test_journal_pass_handles_invalidation_before_changes(monkeypatch, max_entri
+         cursors["invalidation_cursor" if kind == "invalidations" else "change_cursor"] = (
+             entry["invalidation_sequence"] if kind == "invalidations" else entry["change_sequence"])
+ 
+-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
++    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="live", v1_bronze_path="bronze",
+         v1_source_namespace="live", v1_replay_run_filter=""),
+         checkpoint=checkpoint, recover_v1_obligations=lambda limit: 0,
+         process_v1_invalidation=lambda entry, *args: mark("invalidations", entry),
+@@ -215,7 +216,7 @@ def test_replay_filters_other_run_with_durable_skip(tmp_path, monkeypatch):
+              change_high_water=1, invalidation_high_water=0))
+     checkpoint = SilverCheckpointStore(Path(tmp_path) / "replay.sqlite3")
+     checkpoint.open()
+-    worker = SimpleNamespace(settings=SimpleNamespace(namespace="replay:job",
++    worker = SimpleNamespace(metrics=Metrics(), settings=SimpleNamespace(namespace="replay:job",
+         v1_source_namespace="live", v1_bronze_path="bronze",
+         v1_replay_run_filter="target"), checkpoint=checkpoint,
+         recover_v1_obligations=lambda limit: 0,
+diff --git a/de/tests/silver/test_v1_recovery.py b/de/tests/silver/test_v1_recovery.py
+index 852854e..f51db9f 100644
+--- a/de/tests/silver/test_v1_recovery.py
++++ b/de/tests/silver/test_v1_recovery.py
+@@ -3,6 +3,8 @@ from types import SimpleNamespace
+ import pytest
+ 
+ from de.silver.checkpoint_store import SilverCheckpointStore
++from de.silver.config import SilverSettings
++from de.silver.metrics import Metrics
+ from de.silver.processor import SilverProcessor
+ from de.silver.checkpoint_store import CheckpointError
+ from de.silver.repositories import FactBusinessKeyConflictError
+@@ -34,7 +36,7 @@ def test_recovery_acknowledges_only_verified_prefix_on_later_failure(tmp_path):
+         if table == 'silver_topology_dimension_v1':
+             raise ConnectionError('second output unavailable')
+         return True
+-    worker = SimpleNamespace(checkpoint=store, settings=SimpleNamespace(
++    worker = SimpleNamespace(checkpoint=store, metrics=Metrics(), settings=SimpleNamespace(
+         namespace='live', destination_mode='main', replay_run_id=''),
+         repo=SimpleNamespace(reconcile_v1_row=reconcile))
+     try:
+@@ -57,7 +59,7 @@ def test_permanent_content_fault_is_durable_and_not_retried_after_restart(tmp_pa
+     def conflict(*args, **kwargs):
+         calls.append(True)
+         raise FactBusinessKeyConflictError('immutable content differs')
+-    worker = SimpleNamespace(checkpoint=store, settings=SimpleNamespace(
++    worker = SimpleNamespace(checkpoint=store, metrics=Metrics(), settings=SimpleNamespace(
+         namespace='live', destination_mode='main', replay_run_id=''),
+         repo=SimpleNamespace(reconcile_v1_row=conflict))
+     try:
+@@ -99,10 +101,55 @@ def test_recovery_reconciles_lost_response_without_second_insert(tmp_path):
+                 self.visible = True
+ 
+         repo = Repo()
+-        worker = SimpleNamespace(checkpoint=store, settings=SimpleNamespace(
++        worker = SimpleNamespace(checkpoint=store, metrics=Metrics(), settings=SimpleNamespace(
+             namespace="live", destination_mode="main", replay_run_id=""), repo=repo)
+         assert SilverProcessor.recover_v1_obligations(worker) == 1
+         assert repo.inserts == 0
+         assert SilverProcessor.recover_v1_obligations(worker) == 0
+     finally:
+         store.close()
++
++
++@pytest.mark.parametrize("lost_response", [False, True])
++def test_direction_group_recovery_keeps_exact_obligation_outcomes(tmp_path, lost_response):
++    table = "silver_traffic_observation_fact_v1"
++    settings = SilverSettings()
++    store = SilverCheckpointStore(tmp_path / "group.sqlite3")
++    store.open()
++
++    class Repo:
++        def __init__(self):
++            self.visible = {"east"}
++            self.inserts = []
++
++        def reconcile_v1_directions(self, target, rows, **kwargs):
++            assert target == table
++            return [row["source_direction"] in self.visible for row in rows]
++
++        def insert_v1_rows(self, target, rows, **kwargs):
++            assert target == table
++            self.inserts.append({row["source_direction"] for row in rows})
++            self.visible.add("north")
++            if lost_response and len(self.inserts) == 1:
++                raise ConnectionError("response lost after a partial write")
++            if len(self.inserts) == 2:
++                self.visible.add("south")
++
++        def reconcile_v1_row(self, target, row, **kwargs):
++            return row["source_direction"] in self.visible
++
++    worker = SilverProcessor(settings, repo=Repo(), checkpoint=store)
++    try:
++        for direction in ("east", "north", "south"):
++            store.freeze_v1_obligation("live", "changes", 1, "event", table, dict(
++                simulation_run_id="run", topology_digest="digest", event_id="event",
++                intersection_id="A", source_direction=direction, bronze_semantic_revision=1))
++        with pytest.raises(ConnectionError if lost_response else RuntimeError):
++            worker.recover_v1_obligations()
++        pending = store.pending_v1_obligations("live")
++        assert len(pending) == (3 if lost_response else 1)
++        assert worker.recover_v1_obligations() == len(pending)
++        assert worker.repo.inserts == [{"north", "south"}, {"south"}]
++        assert store.pending_v1_obligations("live") == []
++    finally:
++        store.close()
+diff --git a/de/tests/silver/test_v1_runtime_startup.py b/de/tests/silver/test_v1_runtime_startup.py
+index f63ff3e..5c293f9 100644
+--- a/de/tests/silver/test_v1_runtime_startup.py
++++ b/de/tests/silver/test_v1_runtime_startup.py
+@@ -3,6 +3,7 @@ import time
+ import threading
+ import pytest
+ from pathlib import Path
++from types import SimpleNamespace
+ 
+ import de.silver.processor as processor_module
+ from de.bronze.checkpoint_store import V1SemanticStore
+@@ -29,6 +30,38 @@ class FakeClickHouse:
+         pass
+ 
+ 
++@pytest.mark.parametrize(("verified_backlog", "wait_on_first_pass"), [(11, False), (10, True)])
++def test_worker_waits_only_after_the_verified_prefix_is_consumed(monkeypatch,
++                                                                 verified_backlog, wait_on_first_pass):
++    settings = SilverSettings(poll_interval_sec=0.02)
++    worker = SilverProcessor(settings, repo=FakeClickHouse(),
++                             checkpoint=SimpleNamespace(is_readable=lambda: True))
++    worker._schema_ok = True
++    worker.bronze_repo = FakeClickHouse()
++    monkeypatch.setattr(processor_module, "V1SemanticReader",
++                        lambda path: SimpleNamespace(close=lambda: None))
++    monkeypatch.setattr(worker, "_publish_snapshot", lambda: None)
++    seen = []
++
++    def journal_pass(*args, max_entries, **kwargs):
++        seen.append("pass")
++        if len(seen) == 1:
++            worker.metrics.source_lag = {"changes": verified_backlog, "invalidations": 0}
++            return max_entries
++        worker.metrics.source_lag = {"changes": 0, "invalidations": 0}
++        return 0
++
++    def wait(delay):
++        assert delay == settings.poll_interval_sec
++        seen.append("wait")
++        worker._stop.set()
++
++    monkeypatch.setattr(worker, "run_v1_journal_pass", journal_pass)
++    monkeypatch.setattr(worker._stop, "wait", wait)
++    worker._run_v1()
++    assert seen == (["pass", "wait"] if wait_on_first_pass else ["pass", "pass", "wait"])
++
++
+ @pytest.mark.parametrize('fault,expected_code', [
+     (None, None),
+     (SourceVerificationError('CURSOR_GAP', 'gap'), 'CURSOR_GAP'),
+diff --git a/de/tools/gold_core_capacity.py b/de/tools/gold_core_capacity.py
+index 642508e..3550dbc 100644
+--- a/de/tools/gold_core_capacity.py
++++ b/de/tools/gold_core_capacity.py
+@@ -22,7 +22,7 @@ def prepare(root, deps):
+     """Create a fresh project spec. All writable stores belong to this trial."""
+     root.mkdir(parents=True, exist_ok=False)
+     producer_path = root / "producer"
+-    producer_path.mkdir()
++    (producer_path / "runs").mkdir(parents=True)
+     mounts = [f"{REPO / 'de'}:/code/de:ro", f"{REPO / 'contracts'}:/code/contracts:ro",
+               f"{deps}:/app/acceptance-deps:ro"]
+     archives = f"{producer_path}:/app/Visualize/artifacts:ro"
+@@ -100,9 +100,9 @@ def prepare(root, deps):
+     (root / "compose.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
+ 
+ 
+-def produce(root, run_id, duration, realtime):
++def produce(root, run_id, duration, realtime, *, sumo_step=1.0):
+     artifacts = root / "producer"
+-    os.environ.update(SUMO_STEP_LENGTH="1.0", KAFKA_BOOTSTRAP_SERVERS="localhost:39092",
++    os.environ.update(SUMO_STEP_LENGTH=str(sumo_step), KAFKA_BOOTSTRAP_SERVERS="localhost:39092",
+                       KAFKA_PUBLISH_ENABLED="false", KAFKA_OUTBOX_ENABLED="false")
+     sys.path.insert(0, str(REPO / "Visualize"))
+     from configuration import config
+@@ -114,6 +114,12 @@ def produce(root, run_id, duration, realtime):
+             "--log-level", "WARNING"]
+     if realtime:
+         args.append("--realtime")
++    (root / "source-profile.json").write_text(json.dumps(dict(
++        run_id=run_id, sumo_step_seconds=config.SUMO_STEP_LENGTH, simulation_seconds=duration,
++        observation_cache_seconds=float(os.getenv("OBSERVATION_INTERVAL_SEC", "1.0")),
++        publish_interval_seconds=config.PUBLISH_INTERVAL, realtime=realtime, arguments=args,
++        v1_topic=config.V1_KAFKA_TOPIC, bootstrap_servers=config.KAFKA_BOOTSTRAP_SERVERS,
++        outbox=str(config.V1_OUTBOX_DB)), indent=2), encoding="utf-8")
+     return run(build_parser().parse_args(args))
+ 
+ 
+@@ -141,13 +147,20 @@ def outbox(path):
+                     pending=pending, pending_bytes=pending_bytes, oldest_pending_seconds=oldest_age)
+ 
+ 
+-def sample(root, seconds):
++def sample(root, seconds, *, source_only=False):
++    try:
++        import psutil
++    except ImportError:
++        psutil = None
+     deadline = time.monotonic() + seconds
+     with (root / "samples.jsonl").open("a", encoding="utf-8") as output:
+         while time.monotonic() < deadline:
+             start = time.monotonic()
+             row = {"wall_utc": time.time(), "services": {}}
+-            for name, (port, route) in ENDPOINTS.items():
++            if psutil:
++                memory = psutil.virtual_memory()
++                row["host"] = dict(available_memory_bytes=memory.available, cpu_pct=psutil.cpu_percent())
++            for name, (port, route) in (() if source_only else ENDPOINTS.items()):
+                 try:
+                     with urlopen(f"http://127.0.0.1:{port}/{route}", timeout=1) as response:
+                         row["services"][name] = json.load(response)
+@@ -179,6 +192,8 @@ def verify_pipeline(outbox_path, bronze_path, gold_path):
+         outbox_db.execute("BEGIN")
+         outbox_rows = dict(outbox_db.execute(
+             "SELECT event_id,payload_json FROM kafka_outbox WHERE status='ACKED'"))
++        unacked_outbox = outbox_db.execute(
++            "SELECT count(*) FROM kafka_outbox WHERE status IS NOT 'ACKED'").fetchone()[0]
+         changes = list(bronze_db.execute("""SELECT change_sequence,event_id,change_type
+             FROM v1_changes WHERE namespace='live' ORDER BY change_sequence"""))
+         accepted_prefix = changes[:gold_cursors["CHANGE"]]
+@@ -208,39 +223,140 @@ def verify_pipeline(outbox_path, bronze_path, gold_path):
+             receipts and receipts[0][0] == 0 and receipts[-1][1] == gold_cursors["CHANGE"]
+             and all(prev[1] == row[0] for prev, row in zip(receipts, receipts[1:]))))
+         membership_match = actual_membership == expected_membership
+-        return dict(acked_outbox=len(outbox_rows), bronze_identities=len(canonical),
++        # Classify windows against producer progress, including those that are
++        # still OPEN or absent in Gold because its observed clock is behind.
++        source_clock = {}
++        source_windows = {}
++        for event_id, payload in outbox_rows.items():
++            event = json.loads(payload)
++            run = event["simulationRunId"]
++            tick = event["simulationTimeSeconds"]
++            source_clock[run] = max(tick, source_clock.get(run, tick))
++            if canonical.get(event_id) == "CONFLICTED":
++                continue
++            for width in (60, 300):
++                lo = int(tick) // width * width
++                source_windows.setdefault((run, width, lo, lo + width), set()).add(event_id)
++        gold_windows = {}
++        for identity, observed, width, lo, hi, eligible, state, count, eligible_at, completed_at in gold_db.execute("""
++                SELECT r.identity,r.observed_time,w.duration,w.start,w.end,w.eligible,g.state,
++                       g.input_count,g.eligible_at,g.completed_at
++                FROM core_window w JOIN core_run r ON r.id=w.run_key
++                LEFT JOIN core_work g ON g.window_id=w.id AND g.generation=w.generation"""):
++            key = (json.loads(identity)["simulation_run_id"], width, lo, hi)
++            gold_windows[key] = dict(observed_time=observed, eligible=bool(eligible), state=state,
++                                     count=count, eligible_at=eligible_at, completed_at=completed_at)
++        window_progress = []
++        for (run, width, lo, hi), members in sorted(source_windows.items()):
++            gold_window = gold_windows.get((run, width, lo, hi), {})
++            window_progress.append(dict(
++                run_id=run, duration=width, start=lo, end=hi, source_time=source_clock[run],
++                source_crossed=source_clock[run] >= hi, expected_members=len(members),
++                gold=gold_window))
++        eligible_work_drained = all(
++            entry["gold"].get("state") == "COMPLETE"
++            and entry["gold"].get("count") == entry["expected_members"]
++            for entry in window_progress if entry["source_crossed"])
++        return dict(acked_outbox=len(outbox_rows), unacked_outbox=unacked_outbox,
++                    bronze_identities=len(canonical),
+                     gold_cursors=gold_cursors, membership_rows=len(actual_membership),
+                     pending_source_events=len(outbox_rows.keys()-canonical.keys()),
+                     bronze_unknown_events=len(canonical.keys()-outbox_rows.keys()),
+                     exact_sequence_coverage=sequence_coverage, receipt_coverage=receipt_coverage,
+                     membership_match=membership_match, receipts=len(receipts),
++                    eligible_work_drained=eligible_work_drained, window_progress=window_progress,
+                     membership_identity_sha256=sha256(json.dumps(sorted(actual_membership),
+                         ensure_ascii=False, separators=(",", ":")).encode()).hexdigest(),
+-                    full_drain=set(outbox_rows) == set(canonical) and len(changes) == gold_cursors["CHANGE"])
++                    full_drain=(unacked_outbox == 0 and set(outbox_rows) == set(canonical)
++                                and len(changes) == gold_cursors["CHANGE"]))
++
++
++def probe_retained_reads():
++    """Short read-only profile on a frozen, already verified isolated run."""
++    from itertools import groupby
++
++    from de.gold_runtime.silver_readers import CanonicalGoldSource
++    from de.silver.canonical_reader import CanonicalReadSession
++    from de.silver.config import SilverSettings
++    from de.silver.repositories import V1_DIRECTION_TABLES
++
++    with CanonicalReadSession(SilverSettings()) as session:
++        gold = CanonicalGoldSource(session)
++        boundary = gold.discover(None)
++        if boundary.verified_change_prefix < 48:
++            raise RuntimeError("retained profile requires at least 48 verified sequences")
++        tables = sorted(V1_DIRECTION_TABLES)
++        evidence = session.silver.execute("""
++            SELECT source_sequence,target_table,expected_json FROM silver_v1_obligation
++            WHERE namespace='live' AND source_kind='changes' AND source_sequence BETWEEN 1 AND 16
++            AND status='RECONCILED' AND target_table IN (?,?)
++            ORDER BY source_sequence,target_table,row_key LIMIT 513""", tables).fetchall()
++        if not evidence or len(evidence) > 512:
++            raise RuntimeError("unexpected retained direction evidence size")
++        groups = [
++            (table, [json.loads(row["expected_json"]) for row in group])
++            for (_, table), group in groupby(evidence, key=lambda row: (row["source_sequence"], row["target_table"]))
++        ]
++        repo = session.silver_repo
++        timings = {"single": [], "group": []}
++        for order in (("single", "group"), ("group", "single")):
++            for mode in order:
++                started = time.monotonic()
++                for table, rows in groups:
++                    found = (repo.reconcile_v1_directions(table, rows) if mode == "group"
++                             else [repo.reconcile_v1_row(table, row) for row in rows])
++                    if not all(found):
++                        raise RuntimeError("retained directional evidence does not match")
++                timings[mode].append(time.monotonic() - started)
++        reads = []
++        started = time.monotonic()
++        for sequence in range(1, 49):
++            read_start = time.monotonic()
++            page = gold.changes(boundary.source_binding_id, sequence - 1, entries=1)
++            if (page.entry_count != 1 or page.entries[0].effective_disposition != "BUNDLE_VALID"
++                    or page.entries[0].change_sequence != sequence):
++                raise RuntimeError("retained Gold member failed verification")
++            reads.append(dict(sequence=sequence, seconds=time.monotonic() - read_start,
++                              bytes=page.encoded_bytes))
++            if time.monotonic() - started > 40:
++                break
++        return dict(direction_rows_per_pass=len(evidence), direction_groups_per_pass=len(groups),
++                    direction_wall_seconds=timings, canonical_member_reads=reads,
++                    frozen_change_prefix=boundary.verified_change_prefix,
++                    frozen_invalidation_prefix=boundary.verified_invalidation_prefix)
+ 
+ 
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("action", choices=("prepare", "produce", "sample", "oracle"))
++    parser.add_argument("action", choices=("prepare", "produce", "sample", "oracle", "probe"))
+     parser.add_argument("root", type=Path)
+     parser.add_argument("--deps", type=Path, default=Path(".pytest_cache/phase4a-deps"))
+     parser.add_argument("--run-id", default="phase4a-core-capacity-a")
+     parser.add_argument("--seconds", type=int, default=120)
+     parser.add_argument("--realtime", action="store_true")
++    parser.add_argument("--sumo-step", type=float, choices=(0.01, 1.0), default=1.0)
++    parser.add_argument("--source-only", action="store_true", help="Sample the producer and host without probing DE ports")
++    parser.add_argument("--require-window", type=int, choices=(60, 300), action="append", default=[],
++                        help="Require a source-crossed completed proof for this duration in the oracle")
+     args = parser.parse_args()
+     root = args.root.resolve()
+     if args.action == "prepare":
+         prepare(root, args.deps.resolve(strict=True))
+     elif args.action == "produce":
+-        return produce(root, args.run_id, args.seconds, args.realtime)
++        return produce(root, args.run_id, args.seconds, args.realtime, sumo_step=args.sumo_step)
+     elif args.action == "sample":
+-        sample(root, args.seconds)
++        sample(root, args.seconds, source_only=args.source_only)
++    elif args.action == "probe":
++        print(json.dumps(probe_retained_reads(), sort_keys=True))
+     else:
+         evidence = verify_pipeline(root / "kafka_outbox/v1-outbox.sqlite3",
+             os.environ["SILVER_V1_BRONZE_PATH"], os.environ["GOLD_CHECKPOINT_PATH"])
++        crossed = {window["duration"] for window in evidence["window_progress"] if window["source_crossed"]}
++        evidence["missing_required_durations"] = sorted(set(args.require_window) - crossed)
+         print(json.dumps(evidence, sort_keys=True))
+-        return 0 if all(evidence[key] for key in (
+-            "exact_sequence_coverage", "receipt_coverage", "membership_match", "full_drain")) else 2
++        return 0 if not evidence["missing_required_durations"] and all(evidence[key] for key in (
++            "exact_sequence_coverage", "receipt_coverage", "membership_match", "full_drain",
++            "eligible_work_drained")) else 2
+     return 0
+ 
+ 

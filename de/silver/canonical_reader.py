@@ -14,8 +14,10 @@ from clickhouse_connect.driver.exceptions import ClickHouseError
 
 from de.bronze.checkpoint_store import V1SemanticReader
 from de.silver.source_binding import SourceVerificationError, verify_bronze_source
-from de.silver.archive_resolver import ArchiveUnavailable, ArchiveIntegrityError
-from de.silver.repositories import FactBusinessKeyConflictError, RetryableRepositoryError
+from de.silver.archive_resolver import ArchiveUnavailable, ArchiveIntegrityError, VerifiedRunContext
+from de.silver.repositories import (
+    FactBusinessKeyConflictError, RetryableRepositoryError, verify_v1_content,
+)
 from de.silver.incremental_contract import FeedLimits
 from de.silver.incremental_reader import IncrementalSilverSource
 
@@ -255,7 +257,8 @@ class CanonicalSilverReader(IncrementalSilverSource):
             raise ValidityUnknownError('malformed frozen invalidation') from exc
 
     def _bundle(self, event_id: str, revision: int, change_sequence: int,
-                query: CanonicalReadQuery) -> ObservationBundle:
+                query: CanonicalReadQuery, *, context: VerifiedRunContext | None = None,
+                frozen_facts: dict[str, list[dict]] | None = None) -> ObservationBundle:
         current = self.bronze.current(query.namespace, event_id)
         if current is None or current["state"] != "ACCEPTED" or current["revision"] != revision:
             raise SnapshotStaleError("Bronze event identity changed")
@@ -266,7 +269,8 @@ class CanonicalSilverReader(IncrementalSilverSource):
             raise ValidityUnknownError('Bronze accepted observation cannot be reconciled') from exc
         if accepted is None:
             raise SnapshotStaleError("Bronze event is no longer current")
-        context = self.archive_resolver.resolve(query.run_id, query.topology_digest)
+        if context is None:
+            context = self.archive_resolver.resolve(query.run_id, query.topology_digest)
         context.validate_event(accepted["event"])
         directions = set(context.directions[accepted["event"]["intersectionId"]])
         families = (
@@ -278,10 +282,13 @@ class CanonicalSilverReader(IncrementalSilverSource):
         for family, table, count in families:
             physical = self.silver_repo.fetch_v1_event_rows(table, query.run_id,
                                                               query.topology_digest, event_id)
-            expected = [json.loads(row[0]) for row in self.silver.execute(
-                "SELECT expected_json FROM silver_v1_obligation WHERE namespace=? "
-                "AND source_kind='changes' AND source_sequence=? AND target_table=? "
-                "AND status='RECONCILED'", (query.namespace, change_sequence, table))]
+            if frozen_facts is None:
+                expected = [json.loads(row[0]) for row in self.silver.execute(
+                    "SELECT expected_json FROM silver_v1_obligation WHERE namespace=? "
+                    "AND source_kind='changes' AND source_sequence=? AND target_table=? "
+                    "AND status='RECONCILED'", (query.namespace, change_sequence, table))]
+            else:
+                expected = frozen_facts.get(table, [])
             if len(expected) != count:
                 raise ValidityUnknownError("frozen event bundle is incomplete")
             by_key = {}
@@ -292,9 +299,16 @@ class CanonicalSilverReader(IncrementalSilverSource):
                 by_key[key] = row
             if len(by_key) != count or (family != "intersection" and set(by_key) != directions):
                 raise ValidityUnknownError("ClickHouse event bundle is incomplete")
-            for row in expected:
-                if not self.silver_repo.reconcile_v1_row(table, row):
-                    raise ValidityUnknownError("frozen fact is missing from ClickHouse")
+            expected_by_key = {
+                row.get("source_direction") if family != "intersection" else "intersection": row
+                for row in expected
+            }
+            if expected_by_key.keys() != by_key.keys():
+                raise ValidityUnknownError("physical and frozen fact keys differ")
+            # The bounded SELECT above already returned all revisions and duplicates
+            # for this event. Compare the full rows to prove content at that read.
+            for key, row in by_key.items():
+                verify_v1_content(table, row, expected_by_key[key])
             found[family] = by_key
         return ObservationBundle(event_id, found["intersection"]["intersection"],
             tuple(found["traffic"][key] for key in sorted(directions)),

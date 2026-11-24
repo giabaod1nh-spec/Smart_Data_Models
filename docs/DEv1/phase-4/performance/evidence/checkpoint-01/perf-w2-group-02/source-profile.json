@@ -1,0 +1,27 @@
+{
+  "run_id": "perf-w2-group-02",
+  "sumo_step_seconds": 0.01,
+  "simulation_seconds": 90,
+  "observation_cache_seconds": 1.0,
+  "publish_interval_seconds": 1.0,
+  "realtime": true,
+  "arguments": [
+    "--no-gui",
+    "--no-orion",
+    "--no-api",
+    "--v1-observations",
+    "--v1-publish",
+    "--nodes",
+    "A,B,C,D,M",
+    "--simulation-run-id",
+    "perf-w2-group-02",
+    "--max-sim-time",
+    "90",
+    "--log-level",
+    "WARNING",
+    "--realtime"
+  ],
+  "v1_topic": "traffic.observations.v1",
+  "bootstrap_servers": "localhost:39092",
+  "outbox": "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-group-02\\producer\\kafka_outbox\\v1-outbox.sqlite3"
+}

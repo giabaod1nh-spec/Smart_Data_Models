@@ -26,6 +26,8 @@ _LOG = logging.getLogger(__name__)
 _BINDING_KEYS = ("namespace", "source_path", "file_identity", "schema_fingerprint", "bronze_version")
 _TRANSITION_KEYS = ("namespace", "change_sequence", "event_id", "revision", "change_type",
                     "previous_state", "new_state", "content_hash", "invalidation_id")
+_BUNDLE_FACT_TABLES = ("silver_intersection_state_fact_v1", "silver_traffic_observation_fact_v1",
+                       "silver_signal_state_fact_v1")
 
 
 class _PrefixBlocked(Exception):
@@ -216,7 +218,7 @@ class IncrementalSilverSource:
                 "SOURCE_INTEGRITY_ERROR", "Frozen obligation event or hash differs", sequence=sequence)
             yield row["target_table"], row["status"], json.loads(row["body"]), row["expected_hash"]
 
-    def _validity_obligation(self, change):
+    def _validity_obligation(self, change, fact_rows=None):
         ns, seq, eid = change["namespace"], change["change_sequence"], change["event_id"]
         marker = None
         signature = hashlib.sha256()
@@ -224,6 +226,8 @@ class IncrementalSilverSource:
             _check(status == "RECONCILED", "CANONICAL_EVIDENCE_MISSING",
                    "Applied change obligation is not reconciled", sequence=seq)
             signature.update(digest.encode("ascii"))
+            if fact_rows is not None and table in _BUNDLE_FACT_TABLES:
+                fact_rows.setdefault(table, []).append(row)
             if table == "silver_event_validity_v1":
                 _check(marker is None, "SOURCE_INTEGRITY_ERROR", "Multiple validity obligations")
                 marker = row
@@ -309,33 +313,24 @@ class IncrementalSilverSource:
             identity["simulation_run_id"], identity["topology_digest"], generation)
         _check(context.registry_status is not None and identity["intersection_id"] in context.directions,
                "CANONICAL_EVIDENCE_MISSING", "Missing published archive identity")
-        return dict(run_id=context.run_id, run_generation=context.generation,
-                    topology_digest=context.topology_digest, manifest_identity=context.manifest_identity)
+        return context, dict(run_id=context.run_id, run_generation=context.generation,
+                             topology_digest=context.topology_digest, manifest_identity=context.manifest_identity)
 
-    def _verified_bundle(self, ns, event_id, sequence, revision, run):
+    def _verified_bundle(self, ns, event_id, sequence, revision, context, frozen_facts):
         from de.silver.canonical_reader import CanonicalReadQuery, ObservationBundle
 
-        query = CanonicalReadQuery(ns, run["run_id"], run["topology_digest"], -1e300, 1e300)
-        physical = self._bundle(event_id, revision, sequence, query)
+        query = CanonicalReadQuery(ns, context.run_id, context.topology_digest, -1e300, 1e300)
+        physical = self._bundle(event_id, revision, sequence, query, context=context, frozen_facts=frozen_facts)
         # Read the stable JSON form from the same verified obligations. Driver
         # objects such as DateTime64 cannot be hashed as JSON.
-        tables = {
-            "silver_intersection_state_fact_v1": (physical.intersection,),
-            "silver_traffic_observation_fact_v1": physical.traffic,
-            "silver_signal_state_fact_v1": physical.signal,
-        }
         facts = []
-        for table, actual in tables.items():
-            frozen = list(self._obligations(ns, "changes", sequence, event_id, table=table))
-            expected = {row.get("source_direction"): row for _, status, row, _ in frozen
-                        if status == "RECONCILED"}
-            _check(len(expected) == len(actual) == len(frozen), "CANONICAL_EVIDENCE_MISSING",
-                   "Missing or duplicate frozen fact")
+        for table, actual in zip(_BUNDLE_FACT_TABLES, ((physical.intersection,), physical.traffic, physical.signal)):
+            expected = {row.get("source_direction"): row for row in frozen_facts[table]}
             ordered = []
             for physical_row in actual:
                 row = expected[physical_row.get("source_direction")]
                 _check((row["run_generation"], row["manifest_identity"]) ==
-                       (run["run_generation"], run["manifest_identity"]),
+                       (context.generation, context.manifest_identity),
                        "SOURCE_INTEGRITY_ERROR", "Canonical bundle archive identity differs")
                 ordered.append(freeze(row))
             facts.append(tuple(ordered))
@@ -385,15 +380,16 @@ class IncrementalSilverSource:
                     ) from exc
                 raise
             disposition = "BUNDLE_VALID"
-        marker, signature = self._validity_obligation(change)
+        frozen_facts = {} if disposition == "BUNDLE_VALID" and materialize else None
+        marker, signature = self._validity_obligation(change, frozen_facts)
         _check(marker["simulation_run_id"] == identity["simulation_run_id"] and
                marker["topology_digest"] == identity["topology_digest"],
                "SOURCE_INTEGRITY_ERROR", "Validity obligation archive identity differs")
-        run = self._run_identity(identity, generation)
+        context, run = self._run_identity(identity, generation)
         if disposition == "BUNDLE_VALID":
             _check(marker["validity_state"] == "VALID", "SOURCE_INTEGRITY_ERROR", "Valid marker expected")
             if materialize:
-                bundle = self._verified_bundle(ns, eid, sequence, change["revision"], run)
+                bundle = self._verified_bundle(ns, eid, sequence, change["revision"], context, frozen_facts)
                 bundle_hash = canonical_hash(bundle)
         transition_hash = self._transition_hash(change)
         entry = CanonicalChangeEntry(
@@ -411,7 +407,7 @@ class IncrementalSilverSource:
         identity, conflict, row, status, digest = self._invalidation_proof(ns, invalidation)
         hc, _, _, _ = self._feed_cursors(boundary)
         _check(conflict["change_sequence"] <= hc, "BOUNDARY_STALE", "Conflict exceeds captured Hc")
-        run = self._run_identity(identity, row["run_generation"])
+        _, run = self._run_identity(identity, row["run_generation"])
         entry = CanonicalInvalidationEntry(
             **run, invalidation_sequence=sequence, invalidation_id=row["invalidation_id"],
             event_id=row["event_id"], semantic_revision=row["semantic_revision"],

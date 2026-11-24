@@ -1,0 +1,297 @@
+{
+  "services": {
+    "clickhouse": {
+      "image": "clickhouse/clickhouse-server:24.3",
+      "ports": [
+        "127.0.0.1:18124:8123"
+      ],
+      "environment": {
+        "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1"
+      },
+      "volumes": [
+        "clickhouse:/var/lib/clickhouse"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8123/ping"
+        ],
+        "interval": "3s",
+        "timeout": "5s",
+        "retries": 30
+      }
+    },
+    "kafka": {
+      "image": "apache/kafka:3.8.1",
+      "ports": [
+        "127.0.0.1:39092:39092"
+      ],
+      "environment": {
+        "KAFKA_NODE_ID": "1",
+        "KAFKA_PROCESS_ROLES": "broker,controller",
+        "KAFKA_LISTENERS": "INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:39092",
+        "KAFKA_ADVERTISED_LISTENERS": "INTERNAL://kafka:9092,EXTERNAL://localhost:39092",
+        "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT",
+        "KAFKA_INTER_BROKER_LISTENER_NAME": "INTERNAL",
+        "KAFKA_CONTROLLER_LISTENER_NAMES": "CONTROLLER",
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@kafka:9093",
+        "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
+        "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1",
+        "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": "1",
+        "KAFKA_HEAP_OPTS": "-Xms256m -Xmx512m"
+      },
+      "volumes": [
+        "kafka:/var/lib/kafka/data"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null"
+        ],
+        "interval": "3s",
+        "timeout": "5s",
+        "retries": 30
+      }
+    },
+    "topic": {
+      "image": "apache/kafka:3.8.1",
+      "depends_on": {
+        "kafka": {
+          "condition": "service_healthy"
+        }
+      },
+      "entrypoint": [
+        "/opt/kafka/bin/kafka-topics.sh",
+        "--bootstrap-server",
+        "kafka:9092",
+        "--create",
+        "--if-not-exists",
+        "--topic",
+        "traffic.observations.v1",
+        "--partitions",
+        "3",
+        "--replication-factor",
+        "1",
+        "--config",
+        "retention.ms=604800000",
+        "--config",
+        "retention.bytes=1073741824"
+      ]
+    },
+    "migrate": {
+      "image": "smart_data_models-de-silver-processor:latest",
+      "working_dir": "/code",
+      "environment": {
+        "PYTHONPATH": "/app/acceptance-deps:/code",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "K4_CLICKHOUSE_HOST": "clickhouse"
+      },
+      "volumes": [
+        "D:\\DATN\\Smart_Data_Models\\de:/code/de:ro",
+        "D:\\DATN\\Smart_Data_Models\\contracts:/code/contracts:ro",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\phase4a-deps:/app/acceptance-deps:ro"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "de.scripts.migrate_clickhouse",
+        "--v1-bronze"
+      ],
+      "depends_on": {
+        "clickhouse": {
+          "condition": "service_healthy"
+        }
+      }
+    },
+    "silver-migrate": {
+      "image": "smart_data_models-de-silver-processor:latest",
+      "working_dir": "/code",
+      "environment": {
+        "PYTHONPATH": "/app/acceptance-deps:/code",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "K4_CLICKHOUSE_HOST": "clickhouse"
+      },
+      "volumes": [
+        "D:\\DATN\\Smart_Data_Models\\de:/code/de:ro",
+        "D:\\DATN\\Smart_Data_Models\\contracts:/code/contracts:ro",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\phase4a-deps:/app/acceptance-deps:ro"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "de.scripts.migrate_clickhouse",
+        "--v1-silver"
+      ],
+      "depends_on": {
+        "migrate": {
+          "condition": "service_completed_successfully"
+        }
+      }
+    },
+    "reader-grants": {
+      "image": "clickhouse/clickhouse-server:24.3",
+      "entrypoint": [
+        "clickhouse-client",
+        "--host",
+        "clickhouse",
+        "--multiquery",
+        "--query",
+        "CREATE USER IF NOT EXISTS gold_acceptance_reader IDENTIFIED WITH no_password; GRANT SELECT ON smart_traffic.* TO gold_acceptance_reader;"
+      ],
+      "depends_on": {
+        "silver-migrate": {
+          "condition": "service_completed_successfully"
+        }
+      }
+    },
+    "raw": {
+      "image": "smart_data_models-de-silver-processor:latest",
+      "working_dir": "/code",
+      "environment": {
+        "PYTHONPATH": "/app/acceptance-deps:/code",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "DE_V1_RAW_BOOTSTRAP_SERVERS": "kafka:9092",
+        "DE_V1_RAW_CLICKHOUSE_HOST": "clickhouse",
+        "DE_V1_RAW_LEDGER_PATH": "/app/de/artifacts/kafka_raw_v1/ledger.sqlite3"
+      },
+      "volumes": [
+        "D:\\DATN\\Smart_Data_Models\\de:/code/de:ro",
+        "D:\\DATN\\Smart_Data_Models\\contracts:/code/contracts:ro",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\phase4a-deps:/app/acceptance-deps:ro",
+        "raw:/app/de/artifacts/kafka_raw_v1"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "de.kafka_raw.v1_main"
+      ],
+      "ports": [
+        "127.0.0.1:18097:8097"
+      ],
+      "depends_on": {
+        "migrate": {
+          "condition": "service_completed_successfully"
+        },
+        "topic": {
+          "condition": "service_completed_successfully"
+        }
+      }
+    },
+    "bronze": {
+      "image": "smart_data_models-de-silver-processor:latest",
+      "working_dir": "/code",
+      "environment": {
+        "PYTHONPATH": "/app/acceptance-deps:/code",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "DE_BRONZE_CLICKHOUSE_HOST": "clickhouse",
+        "DE_BRONZE_RAW_LEDGER_PATH": "/raw/ledger.sqlite3",
+        "DE_BRONZE_CHECKPOINT_PATH": "/app/de/artifacts/bronze_v1/checkpoint.sqlite3"
+      },
+      "volumes": [
+        "D:\\DATN\\Smart_Data_Models\\de:/code/de:ro",
+        "D:\\DATN\\Smart_Data_Models\\contracts:/code/contracts:ro",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\phase4a-deps:/app/acceptance-deps:ro",
+        "raw:/raw:ro",
+        "bronze:/app/de/artifacts/bronze_v1"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "de.bronze.main"
+      ],
+      "ports": [
+        "127.0.0.1:18098:8098"
+      ],
+      "depends_on": {
+        "raw": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "silver": {
+      "image": "smart_data_models-de-silver-processor:latest",
+      "working_dir": "/code",
+      "environment": {
+        "PYTHONPATH": "/app/acceptance-deps:/code",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "SILVER_CLICKHOUSE_HOST": "clickhouse",
+        "SILVER_V1_ARCHIVE_ROOT": "/app/Visualize/artifacts",
+        "SILVER_CHECKPOINT_PATH": "/app/de/artifacts/silver_v1/checkpoint.sqlite3",
+        "SILVER_V1_BRONZE_PATH": "/app/de/artifacts/bronze_v1/checkpoint.sqlite3"
+      },
+      "volumes": [
+        "D:\\DATN\\Smart_Data_Models\\de:/code/de:ro",
+        "D:\\DATN\\Smart_Data_Models\\contracts:/code/contracts:ro",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\phase4a-deps:/app/acceptance-deps:ro",
+        "bronze:/app/de/artifacts/bronze_v1:ro",
+        "silver:/app/de/artifacts/silver_v1",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-group-02\\producer:/app/Visualize/artifacts:ro"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "de.silver.main"
+      ],
+      "ports": [
+        "127.0.0.1:18095:8095"
+      ],
+      "depends_on": {
+        "bronze": {
+          "condition": "service_started"
+        },
+        "silver-migrate": {
+          "condition": "service_completed_successfully"
+        }
+      }
+    },
+    "gold": {
+      "image": "smart_data_models-de-silver-processor:latest",
+      "working_dir": "/code",
+      "environment": {
+        "PYTHONPATH": "/app/acceptance-deps:/code",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "SILVER_CLICKHOUSE_HOST": "clickhouse",
+        "SILVER_V1_ARCHIVE_ROOT": "/app/Visualize/artifacts",
+        "SILVER_CHECKPOINT_PATH": "/app/de/artifacts/silver_v1/checkpoint.sqlite3",
+        "SILVER_V1_BRONZE_PATH": "/app/de/artifacts/bronze_v1/checkpoint.sqlite3",
+        "SILVER_CLICKHOUSE_USER": "gold_acceptance_reader",
+        "GOLD_CHECKPOINT_PATH": "/app/de/artifacts/gold_v1/checkpoint.sqlite3",
+        "GOLD_INSTANCE_LOCK_PATH": "/app/de/artifacts/gold_v1/instance.lock"
+      },
+      "volumes": [
+        "D:\\DATN\\Smart_Data_Models\\de:/code/de:ro",
+        "D:\\DATN\\Smart_Data_Models\\contracts:/code/contracts:ro",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\phase4a-deps:/app/acceptance-deps:ro",
+        "bronze:/app/de/artifacts/bronze_v1:ro",
+        "silver:/app/de/artifacts/silver_v1:ro",
+        "gold:/app/de/artifacts/gold_v1",
+        "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-group-02\\producer:/app/Visualize/artifacts:ro"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "de.gold_runtime.main"
+      ],
+      "ports": [
+        "127.0.0.1:18096:8096"
+      ],
+      "depends_on": {
+        "silver": {
+          "condition": "service_started"
+        },
+        "reader-grants": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "stop_grace_period": "90s"
+    }
+  },
+  "volumes": {
+    "clickhouse": {},
+    "kafka": {},
+    "raw": {},
+    "bronze": {},
+    "silver": {},
+    "gold": {}
+  }
+}
