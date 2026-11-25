@@ -1,0 +1,12 @@
+{
+  "utc": "2026-11-24T17:04:52.317022+00:00",
+  "simulation_seconds": 117.04,
+  "valid": false,
+  "invalid": {
+    "raw": "endpoint unavailable",
+    "bronze": "endpoint unavailable",
+    "silver": "endpoint unavailable",
+    "gold": "endpoint unavailable"
+  },
+  "stop_reason": "silver: endpoint unavailable; gold: endpoint unavailable"
+}

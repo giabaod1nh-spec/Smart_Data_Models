@@ -147,11 +147,74 @@ def outbox(path):
                     pending=pending, pending_bytes=pending_bytes, oldest_pending_seconds=oldest_age)
 
 
-def sample(root, seconds, *, source_only=False):
+class MeasurementGuard:
+    """Distinguish short sampling gaps from a run that has lost its evidence."""
+
+    def __init__(self, *, missing_budget_sec=15, snapshot_budget_sec=60, allowed_outages=()):
+        self.missing_budget_sec = missing_budget_sec
+        self.snapshot_budget_sec = snapshot_budget_sec
+        self.allowed_outages = frozenset(allowed_outages)
+        self.invalid_since = {}
+
+    def assess(self, services, *, wall_utc, monotonic):
+        invalid = {}
+        terminal = []
+        for name, snapshot in services.items():
+            reason = self._reason(name, snapshot, wall_utc)
+            if reason is None:
+                self.invalid_since.pop(name, None)
+                continue
+            invalid[name] = reason
+            self.invalid_since.setdefault(name, monotonic)
+            if reason.startswith("terminal"):
+                terminal.append(name)
+        sustained = [name for name in invalid if name not in self.allowed_outages
+                     and monotonic - self.invalid_since[name] >= self.missing_budget_sec]
+        failures = terminal or sustained
+        return dict(valid=not invalid, invalid=invalid, stop_reason=(
+            "; ".join(f"{name}: {invalid[name]}" for name in failures) if failures else None))
+
+    def _reason(self, name, snapshot, wall_utc):
+        if not isinstance(snapshot, dict):
+            return "endpoint unavailable"
+        states = {value.strip().upper() for field in ("state", "status")
+                  if isinstance(value := snapshot.get(field), str) and value.strip()}
+        terminal = states & {"FAULTED", "FAILED"}
+        if terminal:
+            return "terminal state " + ", ".join(sorted(terminal))
+        faults = snapshot.get("fault_status")
+        if isinstance(faults, dict) and any(isinstance(fault, dict) and fault.get("retryable") is False
+                                            for fault in faults.values()):
+            return "terminal reported fault"
+        if "STOPPED" in states:
+            return "worker stopped" if name in self.allowed_outages else "terminal state STOPPED"
+        if snapshot.get("worker_alive") is False or snapshot.get("consumer_thread_alive") is False:
+            return "worker not alive"
+        if snapshot.get("metrics_stale") is True:
+            return "metrics flagged stale"
+        if states & {"STARTING", "STOPPING"} or not states:
+            return "endpoint has no running snapshot"
+        if name in {"silver", "gold"}:
+            try:
+                captured = datetime.fromisoformat(snapshot["snapshot_at"])
+                if captured.tzinfo is None:
+                    raise ValueError("timestamp must include its timezone")
+                age = wall_utc - captured.timestamp()
+            except (KeyError, TypeError, ValueError, OverflowError):
+                return "snapshot timestamp missing or invalid"
+            if age > self.snapshot_budget_sec:
+                return "snapshot too old"
+            if age < -5:
+                return "snapshot clock ahead of collector"
+        return None
+
+
+def sample(root, seconds, *, source_only=False, allowed_outages=()):
     try:
         import psutil
     except ImportError:
         psutil = None
+    guard = MeasurementGuard(allowed_outages=allowed_outages)
     deadline = time.monotonic() + seconds
     with (root / "samples.jsonl").open("a", encoding="utf-8") as output:
         while time.monotonic() < deadline:
@@ -164,15 +227,20 @@ def sample(root, seconds, *, source_only=False):
                 try:
                     with urlopen(f"http://127.0.0.1:{port}/{route}", timeout=1) as response:
                         row["services"][name] = json.load(response)
-                except OSError:
+                except (OSError, ValueError):
                     row["services"][name] = None
             try:
                 row["outbox"] = outbox(root / "producer/kafka_outbox/v1-outbox.sqlite3")
             except sqlite3.Error:
                 row["outbox"] = None
+            row["measurement"] = guard.assess(row["services"], wall_utc=time.time(), monotonic=time.monotonic())
             output.write(json.dumps(row, separators=(",", ":")) + "\n")
             output.flush()
+            if row["measurement"]["stop_reason"]:
+                print(row["measurement"]["stop_reason"], file=sys.stderr)
+                return 2
             time.sleep(max(0, 2 - (time.monotonic() - start)))
+    return 0
 
 
 def verify_pipeline(outbox_path, bronze_path, gold_path):
@@ -336,6 +404,8 @@ def main():
     parser.add_argument("--realtime", action="store_true")
     parser.add_argument("--sumo-step", type=float, choices=(0.01, 1.0), default=1.0)
     parser.add_argument("--source-only", action="store_true", help="Sample the producer and host without probing DE ports")
+    parser.add_argument("--allow-outage", choices=tuple(ENDPOINTS), action="append", default=[],
+                        help="Allow this endpoint to be unavailable in an intentional outage experiment")
     parser.add_argument("--require-window", type=int, choices=(60, 300), action="append", default=[],
                         help="Require a source-crossed completed proof for this duration in the oracle")
     args = parser.parse_args()
@@ -345,7 +415,7 @@ def main():
     elif args.action == "produce":
         return produce(root, args.run_id, args.seconds, args.realtime, sumo_step=args.sumo_step)
     elif args.action == "sample":
-        sample(root, args.seconds, source_only=args.source_only)
+        return sample(root, args.seconds, source_only=args.source_only, allowed_outages=args.allow_outage)
     elif args.action == "probe":
         print(json.dumps(probe_retained_reads(), sort_keys=True))
     else:

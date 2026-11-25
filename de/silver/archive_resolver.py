@@ -65,6 +65,7 @@ class VerifiedRunContext:
 class ArchiveResolver:
     def __init__(self, artifacts_root: Path):
         self.root = Path(artifacts_root)
+        self._last_catalog_digest: tuple[str, str] | None = None
 
     @staticmethod
     def _load(path: Path) -> tuple[dict, str]:
@@ -120,7 +121,14 @@ class ArchiveResolver:
         try:
             identity = manifest_identity(manifest)
             generation = manifest["runGeneration"]
-            actual_digest = topology_digest(catalog)
+            # Cache only the pure digest. Every resolve reads and hashes the current
+            # files, parses fresh values and separately checks the live registry.
+            cached = self._last_catalog_digest
+            if cached is not None and cached[0] == catalog_hash:
+                actual_digest = cached[1]
+            else:
+                actual_digest = topology_digest(catalog)
+                self._last_catalog_digest = (catalog_hash, actual_digest)
             participants = tuple(manifest["participatingIntersectionIds"])
             if (not isinstance(generation, int) or isinstance(generation, bool) or generation < 1 or
                     not participants or len(set(participants)) != len(participants)):

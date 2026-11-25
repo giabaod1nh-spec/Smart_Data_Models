@@ -180,6 +180,23 @@ def drain(p, rounds=150):
         pytest.fail("Foundation did not reach an idle cycle")
 
 
+def test_lane_metrics_separate_executed_calls_from_backoff(local):
+    processor, lock = open_core(local)
+    try:
+        processor._retry["work"] = (1, float("inf"))
+        assert not processor._lane("work", lambda: pytest.fail("backoff should skip the call"))
+        assert "work_lane_calls" not in processor._counts
+        processor._retry.clear()
+        assert processor._lane("work", lambda: True)
+        processor._publish_core()
+        metrics = processor.health_snapshot()["metrics"]
+        assert metrics["work_lane_backoff_skips"] == 1
+        assert metrics["work_lane_calls"] == 1
+        assert metrics["work_lane_wall_sec"] >= 0
+    finally:
+        release(processor, lock)
+
+
 def test_fractional_boundaries_and_malformed_times():
     assert tumbling_bounds(nextafter(60., 0.), 60) == (0, 60)
     assert tumbling_bounds(60., 60) == (60, 120)

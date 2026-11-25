@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.568" timestamp="2026-11-25T14:02:49.749046+07:00" hostname="LAPTOP-7OIR6267"><testcase classname="de.tests.silver.test_archive_lifecycle_v1" name="test_multi_run_poll_allows_journal_ack_during_archive_resolution" time="0.081"><failure message="sqlite3.OperationalError: database is locked">tmp_path = WindowsPath('D:/DATN/Smart_Data_Models/.pytest_cache/perf-receipt-baseline-temp/test_multi_run_poll_allows_jou0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000027F603AF490&gt;
+
+    def test_multi_run_poll_allows_journal_ack_during_archive_resolution(tmp_path, monkeypatch):
+        manifest, _, _ = _fixture(tmp_path)
+        resolver = ArchiveResolver(tmp_path)
+        first = resolver.resolve(manifest["simulationRunId"], manifest["topologyDigest"])
+        second = replace(first, run_id="zz-second-run")
+        path = tmp_path / "silver.sqlite3"
+        checkpoint = SilverCheckpointStore(path)
+        checkpoint.open()
+        try:
+            checkpoint.conn.execute("PRAGMA busy_timeout=0")
+            checkpoint.freeze_v1_obligation("live", "changes", 1, "event", "facts", {"event_id": "event"})
+            pending = checkpoint.pending_v1_obligations("live")
+            poller = LifecycleRefresher(path, resolver)
+            poller.register_verified(first)
+            poller.register_verified(second)
+    
+            def read_archive(run_id, _digest, _generation):
+                if run_id == first.run_id:
+                    return first
+                assert run_id == second.run_id
+                # Another SQLite writer must make progress while this archive is read.
+                checkpoint.reconcile_v1_obligations(pending)
+                return second
+    
+            monkeypatch.setattr(resolver, "resolve", read_archive)
+&gt;           assert [snapshot.run_id for snapshot in poller.poll()] == [first.run_id, second.run_id]
+                                                    ^^^^^^^^^^^^^
+
+de\tests\silver\test_archive_lifecycle_v1.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+de\silver\lifecycle_refresher.py:112: in poll
+    context = self.resolver.resolve(row["run_id"], row["topology_digest"], row["generation"])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+de\tests\silver\test_archive_lifecycle_v1.py:103: in read_archive
+    checkpoint.reconcile_v1_obligations(pending)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;de.silver.checkpoint_store.SilverCheckpointStore object at 0x0000027F604BEE40&gt;
+obligations = [{'namespace': 'live', 'source_kind': 'changes', 'source_sequence': 1, 'event_id': 'event', ...}]
+
+    def reconcile_v1_obligations(self, obligations: list[dict]) -&gt; None:
+        """Commit only CH-verified acknowledgements in one bounded transaction."""
+        if len(obligations) &gt; 1000:
+            raise ValueError('bounded acknowledgement batch required')
+        if not obligations:
+            return
+        with self._lock:
+&gt;           self.conn.execute('BEGIN IMMEDIATE')
+E           sqlite3.OperationalError: database is locked
+
+de\silver\checkpoint_store.py:521: OperationalError</failure></testcase></testsuite></testsuites>

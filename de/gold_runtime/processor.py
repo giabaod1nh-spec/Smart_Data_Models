@@ -1302,6 +1302,7 @@ class GoldCoreProcessor:
         now = time.monotonic()
         attempts, due = self._retry.get(lane, (0, 0.0))
         if now < due:
+            self.add_count(f"{lane}_lane_backoff_skips", 1)
             return False
         try:
             result = call()
@@ -1336,6 +1337,9 @@ class GoldCoreProcessor:
             delay = min(self.settings.retry_initial_sec * 2 ** min(attempts, 20), self.settings.retry_max_sec)
             self._retry[lane] = (attempts + 1, time.monotonic() + delay)
             return False
+        finally:
+            self.add_count(f"{lane}_lane_calls", 1)
+            self.add_count(f"{lane}_lane_wall_sec", time.monotonic() - now)
         self._retry.pop(lane, None)
         if lane in self._faults:
             with self.store.transaction(self.namespace, self.lock.lease_token) as db:

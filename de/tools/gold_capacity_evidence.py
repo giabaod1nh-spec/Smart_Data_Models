@@ -17,6 +17,12 @@ import rfc8785
 from de.tools.gold_core_capacity import verify_pipeline
 
 
+TRANSITION_FIELDS = ("namespace", "change_sequence", "event_id", "revision", "change_type",
+                     "previous_state", "new_state", "content_hash", "invalidation_id")
+FACT_FAMILIES = {"silver_intersection_state_fact_v1": "intersection",
+                 "silver_traffic_observation_fact_v1": "traffic", "silver_signal_state_fact_v1": "signal"}
+
+
 def wire(value):
     """Apply the external V1 JSON projection without reader or processor helpers."""
     def project(item, field=""):
@@ -38,6 +44,121 @@ def open_readonly(path):
     db = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
     db.execute("PRAGMA query_only=ON")
     return db
+
+
+def canonical_bundle(event, families):
+    intersection, = families["intersection"]
+    return dict(event_id=event, intersection=intersection,
+                traffic=sorted(families["traffic"], key=lambda row: row["source_direction"]),
+                signal=sorted(families["signal"], key=lambda row: row["source_direction"]))
+
+
+def receipt_entries(bronze, silver, after, through):
+    facts = defaultdict(lambda: defaultdict(list))
+    for sequence, event, table, body, expected_hash, state in silver.execute(
+            """SELECT source_sequence,event_id,target_table,expected_json,expected_hash,status
+               FROM silver_v1_obligation WHERE namespace='live' AND source_kind='changes'
+                 AND source_sequence>? AND source_sequence<=? AND target_table IN (?,?,?)""",
+            (after, through, *FACT_FAMILIES)):
+        row = json.loads(body)
+        if state != "RECONCILED" or digest(body.encode()) != expected_hash or row["event_id"] != event:
+            raise ValueError(f"Frozen fact evidence differs at sequence {sequence}")
+        facts[sequence, event][FACT_FAMILIES[table]].append(row)
+    entries = []
+    for values in bronze.execute(
+            "SELECT " + ",".join(TRANSITION_FIELDS) + " FROM v1_changes WHERE namespace='live' "
+            "AND change_sequence>? AND change_sequence<=? ORDER BY change_sequence", (after, through)):
+        transition = dict(zip(TRANSITION_FIELDS, values))
+        _, sequence, event, revision, kind, previous, state, _, invalidation = values
+        if (revision, kind, previous, state, invalidation) != (1, "ACCEPTED", "PENDING", "ACCEPTED", None):
+            raise ValueError(f"Receipt reconstruction requires an uncontested ACCEPTED at sequence {sequence}")
+        families = facts.pop((sequence, event), None)
+        if not families:
+            raise ValueError(f"Frozen fact evidence absent at sequence {sequence}")
+        bundle = canonical_bundle(event, families)
+        intersection = bundle["intersection"]
+        entries.append(dict(
+            change_sequence=sequence, event_id=event, semantic_revision=revision, change_type=kind,
+            previous_state=previous, new_state=state, source_transition_hash=digest(wire(transition)),
+            source_invalidation_id=None, effective_disposition="BUNDLE_VALID",
+            superseding_change_sequence=None, invalidation_sequence=None,
+            canonical_bundle=bundle, bundle_hash=digest(wire(bundle)), evidence_status="VERIFIED",
+            run_id=intersection["simulation_run_id"], run_generation=intersection["run_generation"],
+            manifest_identity=intersection["manifest_identity"], topology_digest=intersection["topology_digest"],
+        ))
+    if facts or [entry["change_sequence"] for entry in entries] != list(range(after + 1, through + 1)):
+        raise ValueError("Bronze changes or frozen fact coverage differs from the receipt interval")
+    return entries
+
+
+def audit_change_receipts(bronze, silver, gold):
+    """Reconstruct saved V1 CHANGE pages in a frozen, conflict-free fixture."""
+    after = verified = 0
+    receipt_id = None
+    try:
+        binding_id, identity, version = gold.execute(
+            "SELECT binding_id,identity,contract_version FROM core_binding WHERE namespace='live'"
+        ).fetchone()
+        projected = json.loads(identity)
+        projected["canonical_source_path"] = projected.pop("source_path")
+        if version != "1" or projected["namespace"] != "live" or binding_id != "sha256:" + digest(wire(projected)):
+            raise ValueError("Gold source binding identity differs")
+        cursors = dict(gold.execute("SELECT kind,sequence FROM core_cursor"))
+        if cursors["INVALIDATION"] or gold.execute("SELECT count(*) FROM core_receipt WHERE kind='INVALIDATION'").fetchone()[0]:
+            raise ValueError("Receipt reconstruction requires a conflict-free fixture")
+        if not 0 < cursors["CHANGE"] <= 10_000:
+            raise ValueError("Receipt audit requires a nonempty prefix of at most 10,000 changes")
+        (bronze_ceiling,) = bronze.execute(
+            "SELECT next_change-1 FROM v1_sequence WHERE namespace='live'").fetchone()
+        (silver_ceiling,) = silver.execute(
+            "SELECT change_cursor FROM silver_v1_source_binding WHERE namespace='live'").fetchone()
+        for receipt_id, lower, upper, raw_header in gold.execute(
+                "SELECT id,after_sequence,through_sequence,header FROM core_receipt "
+                "WHERE kind='CHANGE' ORDER BY after_sequence"):
+            if lower != after or not 1 <= upper - lower <= 100 or upper > cursors["CHANGE"]:
+                raise ValueError("Receipt interval is missing, overlaps, or exceeds the V1 page limits")
+            header = json.loads(raw_header)
+            high = int(header["captured_bronze_change_high_water"])
+            applied = int(header["captured_silver_change_applied_sequence"])
+            size = header["encoded_bytes"]
+            if (not upper <= applied <= min(high, silver_ceiling) or high > bronze_ceiling
+                    or type(size) is not int or not 0 < size <= 8 * 1024 * 1024):
+                raise ValueError("Receipt has an inconsistent captured boundary or size")
+            bounds = dict(captured_bronze_change_high_water=high, captured_bronze_invalidation_high_water=0,
+                          captured_silver_change_applied_sequence=applied, captured_silver_invalidation_applied_sequence=0)
+            scope = dict(namespace="live", source_binding_id=binding_id, contract_version=version)
+            entries = receipt_entries(bronze, silver, lower, upper)
+            material = dict(scope, **bounds, receipt_kind="CHANGE", requested_after_sequence=lower,
+                            returned_after_sequence=lower, returned_through_sequence=upper,
+                            safe_invalidation_through_sequence=0, entry_count=len(entries))
+            batch_hash = digest(wire(dict(material, entries=entries)))
+            expected_id = "sha256:" + batch_hash
+            expected_header = dict(material, encoded_bytes=size, receipt_id=expected_id, batch_digest=batch_hash)
+            if receipt_id != expected_id or raw_header != wire(expected_header):
+                raise ValueError("Receipt ID, header or batch digest differs from the durable source evidence")
+            boundary_material = dict(bounds, contract_version=version, source_binding_id=binding_id)
+            page = dict(scope, **bounds, entry_count=len(entries), entries=entries, receipt=expected_header,
+                        status="OK", has_more=upper < applied, encoded_bytes=size,
+                        boundary_id="sha256:" + digest(wire(boundary_material)), after_change_sequence=lower,
+                        through_change_sequence=upper, verified_change_prefix=applied, safe_invalidation_through_sequence=0)
+            if len(wire(page)) != size:
+                raise ValueError("Receipt byte count differs from the reconstructed page")
+            actual = gold.execute(
+                "SELECT sequence,event_id,transition_hash,disposition,bundle_hash,receipt_id "
+                "FROM core_transition WHERE kind='CHANGE' AND sequence>? AND sequence<=? ORDER BY sequence",
+                (lower, upper)).fetchall()
+            expected = [(entry["change_sequence"], entry["event_id"], entry["source_transition_hash"],
+                         entry["effective_disposition"], entry["bundle_hash"], receipt_id) for entry in entries]
+            if actual != expected:
+                raise ValueError("Gold transition identity, hashes or receipt linkage differs")
+            after = upper
+            verified += 1
+        if after != cursors["CHANGE"] or gold.execute("SELECT count(*) FROM core_transition").fetchone()[0] != after:
+            raise ValueError("Retained receipts and transitions do not cover the entire Gold prefix")
+    except (TypeError, KeyError, ValueError, sqlite3.Error) as exc:
+        return dict(passed=False, verified_receipts=verified, through_sequence=after,
+                    failed_receipt=receipt_id, reason=str(exc))
+    return dict(passed=True, verified_receipts=verified, through_sequence=after)
 
 
 def text(value):
@@ -152,10 +273,8 @@ def audit_pipeline(outbox_path, raw_path, bronze_path, silver_path, gold_path, c
                                 and all(intents[key] == (row[0], row[2], "COMPLETED")
                                         for key, row in raw_evidence.items()))
 
-        transition_fields = ("namespace", "change_sequence", "event_id", "revision", "change_type",
-                             "previous_state", "new_state", "content_hash", "invalidation_id")
-        transitions = {row[2]: dict(zip(transition_fields, row)) for row in bronze.execute(
-            "SELECT " + ",".join(transition_fields) + " FROM v1_changes WHERE namespace='live'")}
+        transitions = {row[2]: dict(zip(TRANSITION_FIELDS, row)) for row in bronze.execute(
+            "SELECT " + ",".join(TRANSITION_FIELDS) + " FROM v1_changes WHERE namespace='live'")}
         observations = {event: json.loads(payload) for event, payload in source.items()}
         silver_validity = dict(silver.execute("SELECT event_id,change_sequence FROM silver_v1_event_validity "
                                               "WHERE namespace='live' AND state='VALID'"))
@@ -163,18 +282,16 @@ def audit_pipeline(outbox_path, raw_path, bronze_path, silver_path, gold_path, c
                                        "WHERE namespace='live'").fetchone()
         silver_applied = (silver_cursor == (len(source), 0) and silver_validity ==
                           {event: row["change_sequence"] for event, row in transitions.items()})
-        families = {"silver_intersection_state_fact_v1": "intersection",
-                    "silver_traffic_observation_fact_v1": "traffic", "silver_signal_state_fact_v1": "signal"}
         facts = defaultdict(lambda: defaultdict(list))
-        expected_physical = {table: [] for table in families}
+        expected_physical = {table: [] for table in FACT_FAMILIES}
         bad_obligations = 0
         for event, table, body, expected_hash, status in silver.execute(
                 "SELECT event_id,target_table,expected_json,expected_hash,status FROM silver_v1_obligation "
                 "WHERE namespace='live' ORDER BY event_id,row_key"):
             bad_obligations += int(status != "RECONCILED" or digest(body.encode()) != expected_hash)
-            if table in families:
+            if table in FACT_FAMILIES:
                 row = json.loads(body)
-                facts[event][families[table]].append(row)
+                facts[event][FACT_FAMILIES[table]].append(row)
                 expected_physical[table].append(row)
         physical_facts_match = compare_physical_facts(clickhouse, expected_physical)
 
@@ -189,13 +306,10 @@ def audit_pipeline(outbox_path, raw_path, bronze_path, silver_path, gold_path, c
                     or {row["source_direction"] for row in bundle[family]} != directions
                     for family in ("traffic", "signal"))):
                 continue
-            intersection = bundle["intersection"][0]
-            canonical_bundle = dict(event_id=event, intersection=intersection,
-                                    traffic=sorted(bundle["traffic"], key=lambda row: row["source_direction"]),
-                                    signal=sorted(bundle["signal"], key=lambda row: row["source_direction"]))
+            canonical = canonical_bundle(event, bundle)
             projected[event] = wire(dict(event_id=event, change_sequence=transition["change_sequence"],
-                                         semantic_revision=transition["revision"], scenario_id=intersection["scenario_id"],
-                                         transition_hash=digest(wire(transition)), bundle_hash=digest(wire(canonical_bundle))))
+                                         semantic_revision=transition["revision"], scenario_id=canonical["intersection"]["scenario_id"],
+                                         transition_hash=digest(wire(transition)), bundle_hash=digest(wire(canonical))))
 
         source_windows = defaultdict(list)
         for event, row in observations.items():
@@ -217,6 +331,7 @@ def audit_pipeline(outbox_path, raw_path, bronze_path, silver_path, gold_path, c
                 verified_work[duration] += 1
             else:
                 mismatched_work += 1
+        receipt_audit = audit_change_receipts(bronze, silver, gold)
 
     prefix = verify_pipeline(outbox_path, bronze_path, gold_path)
     required_work = Counter(item["duration"] for item in prefix["window_progress"] if item["source_crossed"])
@@ -225,12 +340,13 @@ def audit_pipeline(outbox_path, raw_path, bronze_path, silver_path, gold_path, c
                 bronze_lineage_match=bronze_lineage_match, silver_applied=silver_applied,
                 silver_fact_keys_match=projected.keys() == source.keys(),
                 silver_physical_facts_match=physical_facts_match,
+                gold_receipt_audit=receipt_audit,
                 bad_silver_obligations=bad_obligations, verified_completed_work=dict(verified_work),
                 mismatched_completed_work=mismatched_work, required_completed_work=dict(required_work),
                 passed=(len(source) > 0 and raw_bytes_match and raw_committed and bronze_lineage_match
                         and silver_applied and projected.keys() == source.keys()
                         and all(physical_facts_match.values())
-                        and bad_obligations == 0 and bool(required_work)
+                        and bad_obligations == 0 and receipt_audit["passed"] and bool(required_work)
                         and verified_work == required_work and mismatched_work == 0
                         and all(prefix[key] for key in ("full_drain", "exact_sequence_coverage",
                                                        "receipt_coverage", "membership_match", "eligible_work_drained"))),
@@ -238,17 +354,28 @@ def audit_pipeline(outbox_path, raw_path, bronze_path, silver_path, gold_path, c
 
 
 def main():
-    import clickhouse_connect
-
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("root", type=Path, help="retained fixture archive root")
-    parser.add_argument("--raw-ledger", type=Path, required=True)
+    parser.add_argument("root", type=Path, nargs="?", help="retained fixture archive root")
+    parser.add_argument("--raw-ledger", type=Path)
+    parser.add_argument("--sqlite-receipts", type=Path, nargs=3, metavar=("BRONZE", "SILVER", "GOLD"),
+                        help="audit saved CHANGE receipts from stopped SQLite copies only")
     args = parser.parse_args()
-    with closing(clickhouse_connect.get_client(host=os.environ["SILVER_CLICKHOUSE_HOST"],
-                 username=os.environ["SILVER_CLICKHOUSE_USER"], database="smart_traffic")) as clickhouse:
-        evidence = audit_pipeline(args.root / "kafka_outbox/v1-outbox.sqlite3", args.raw_ledger,
-                                 os.environ["SILVER_V1_BRONZE_PATH"], os.environ["SILVER_CHECKPOINT_PATH"],
-                                 os.environ["GOLD_CHECKPOINT_PATH"], clickhouse)
+    if args.sqlite_receipts:
+        if args.root is not None or args.raw_ledger is not None:
+            parser.error("--sqlite-receipts uses its three database paths only")
+        with ExitStack() as stack:
+            dbs = [stack.enter_context(closing(open_readonly(path))) for path in args.sqlite_receipts]
+            evidence = audit_change_receipts(*dbs)
+    else:
+        if args.root is None or args.raw_ledger is None:
+            parser.error("the physical audit requires a fixture root and --raw-ledger")
+        import clickhouse_connect
+
+        with closing(clickhouse_connect.get_client(host=os.environ["SILVER_CLICKHOUSE_HOST"],
+                     username=os.environ["SILVER_CLICKHOUSE_USER"], database="smart_traffic")) as clickhouse:
+            evidence = audit_pipeline(args.root / "kafka_outbox/v1-outbox.sqlite3", args.raw_ledger,
+                                     os.environ["SILVER_V1_BRONZE_PATH"], os.environ["SILVER_CHECKPOINT_PATH"],
+                                     os.environ["GOLD_CHECKPOINT_PATH"], clickhouse)
     print(json.dumps(evidence, sort_keys=True))
     return 0 if evidence["passed"] else 2
 

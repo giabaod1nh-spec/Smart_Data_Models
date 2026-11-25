@@ -109,7 +109,7 @@ def test_real_benign_duplicate_preserves_silver_and_grows_lineage(monkeypatch, c
                     'SELECT status,count(*) FROM silver_v1_obligation GROUP BY status')])
         worker = SilverProcessor(settings, repo=repo, checkpoint=silver)
         reader = V1SemanticReader(settings.v1_bronze_path)
-        lifecycle = SimpleNamespace(register=lambda *args: None)
+        lifecycle = SimpleNamespace(register_verified=lambda _context: None)
         if conflict_before_consumption:
             snapshot['directions'][next(iter(snapshot['directions']))]['vehicle_count'] = 1
             event = build_observation(snapshot, cycle_sequence=7, simulation_step=700)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from de.silver.archive_resolver import ArchiveIntegrityError, ArchiveResolver, ArchiveUnavailable
+from de.silver.archive_resolver import ArchiveIntegrityError, ArchiveResolver, ArchiveUnavailable, VerifiedRunContext
 
 
 def _now() -> str:
@@ -81,68 +81,87 @@ class LifecycleRefresher:
         return LifecycleSnapshot(**json.loads(row[0])) if row and row[0] else None
 
     def register(self, run_id: str, digest: str, generation: int) -> None:
-        context = self.resolver.resolve(run_id, digest, generation)
+        self.register_verified(self.resolver.resolve(run_id, digest, generation))
+
+    def register_verified(self, context: VerifiedRunContext) -> None:
+        """Enroll a run during the operation that resolved its archive."""
+        run_id = context.run_id
+        expected = (context.generation, context.topology_digest, context.manifest_identity)
+        query = ("SELECT generation,topology_digest,manifest_identity "
+                 "FROM silver_known_runs_v1 WHERE run_id=?")
         with self._connect() as db:
-            row = db.execute("SELECT generation,topology_digest,manifest_identity "
-                             "FROM silver_known_runs_v1 WHERE run_id=?", (run_id,)).fetchone()
-            expected = (generation, digest, context.manifest_identity)
-            if row and tuple(row) != expected:
+            row = db.execute(query, (run_id,)).fetchone()
+            if row is None:
+                db.execute("INSERT OR IGNORE INTO silver_known_runs_v1 "
+                           "(run_id,generation,topology_digest,manifest_identity) VALUES (?,?,?,?)",
+                           (run_id, *expected))
+                row = db.execute(query, (run_id,)).fetchone()
+            if row is None or tuple(row) != expected:
                 raise ArchiveIntegrityError("known-run immutable identity changed")
-            db.execute("INSERT OR IGNORE INTO silver_known_runs_v1 "
-                       "(run_id,generation,topology_digest,manifest_identity) VALUES (?,?,?,?)",
-                       (run_id, *expected))
 
     def poll(self, limit: int = 100) -> list[LifecycleSnapshot]:
         if not 1 <= limit <= 1000:
             raise ValueError("poll batch limit must be 1..1000")
-        changed = []
         with self._connect() as db:
             rows = db.execute("SELECT * FROM silver_known_runs_v1 "
                               "ORDER BY COALESCE(last_polled_at,''),run_id LIMIT ?", (limit,)).fetchall()
-            for row in rows:
-                old = json.loads(row["snapshot_json"]) if row["snapshot_json"] else None
-                try:
-                    context = self.resolver.resolve(row["run_id"], row["topology_digest"], row["generation"])
-                    if context.manifest_identity != row["manifest_identity"]:
-                        raise ArchiveIntegrityError("known-run manifest identity changed")
-                    manifest_status = context.manifest.get("runStatus")
-                    mirror = "SYNCED" if manifest_status == context.registry_status else "LAGGING"
-                    count = context.manifest.get("failedCycleCount") if mirror == "SYNCED" else (
-                        old["failed_cycle_count"] if old else None)
-                    file_hash = context.manifest_file_hash if mirror == "SYNCED" else (
-                        old["manifest_file_hash"] if old else None)
-                    snapshot = LifecycleSnapshot(row["run_id"], row["generation"], "AVAILABLE",
-                        context.registry_status, context.registry_updated_at, mirror,
-                        manifest_status, count, file_hash, "CURRENT")
-                except ArchiveUnavailable:
-                    try:
-                        registry = self.resolver.registry_row(row["run_id"])
-                    except ArchiveUnavailable:
-                        registry = None
-                    if registry is not None and (registry["generation"] != row["generation"] or
-                            registry["manifest_identity"] != row["manifest_identity"] or
-                            registry['status'] not in {'RUNNING', 'COMPLETE', 'INCOMPLETE', 'STOPPED'}):
-                        raise ArchiveIntegrityError("registry immutable identity changed")
-                    snapshot = LifecycleSnapshot(row["run_id"], row["generation"],
-                        "AVAILABLE" if registry else "UNAVAILABLE",
-                        registry["status"] if registry else (old["status"] if old else None),
-                        registry["updated_at"] if registry else (
-                            old["registry_updated_at"] if old else None), "UNAVAILABLE",
-                        old["manifest_status"] if old else None,
-                        old["failed_cycle_count"] if old else None,
-                        old["manifest_file_hash"] if old else None,
-                        "CURRENT" if registry else "STALE")
-                encoded = json.dumps(snapshot.__dict__, sort_keys=True, separators=(",", ":"))
+        if not rows:
+            return []
+        # Archive and registry reads can block. Finish the bounded observations before opening a write transaction.
+        observations = []
+        for row in rows:
+            snapshot = self._observe(row)
+            encoded = json.dumps(snapshot.__dict__, sort_keys=True, separators=(",", ":"))
+            observations.append((row, snapshot, encoded, _now()))
+        changed = []
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            for row, snapshot, encoded, observed_at in observations:
+                updated = db.execute(
+                    "UPDATE silver_known_runs_v1 SET snapshot_json=?,last_polled_at=? "
+                    "WHERE run_id=? AND generation=? AND topology_digest=? AND manifest_identity=? "
+                    "AND snapshot_json IS ? AND last_polled_at IS ?",
+                    (encoded, observed_at, row["run_id"], row["generation"], row["topology_digest"],
+                     row["manifest_identity"], row["snapshot_json"], row["last_polled_at"]),
+                ).rowcount
+                if updated != 1:
+                    raise RuntimeError("known-run lifecycle changed while polling")
                 if encoded != row["snapshot_json"]:
                     version = db.execute("SELECT COALESCE(MAX(version),0)+1 FROM silver_lifecycle_history_v1 "
                                          "WHERE run_id=?", (row["run_id"],)).fetchone()[0]
                     db.execute("INSERT INTO silver_lifecycle_history_v1 "
                                "(run_id,version,snapshot_json,observed_at) VALUES (?,?,?,?)",
-                               (row["run_id"], version, encoded, _now()))
+                               (row["run_id"], version, encoded, observed_at))
                     changed.append(snapshot)
-                db.execute("UPDATE silver_known_runs_v1 SET snapshot_json=?,last_polled_at=? WHERE run_id=?",
-                           (encoded, _now(), row["run_id"]))
         return changed
+
+    def _observe(self, row: sqlite3.Row) -> LifecycleSnapshot:
+        run_id, generation = row["run_id"], row["generation"]
+        old = json.loads(row["snapshot_json"]) if row["snapshot_json"] else {}
+        try:
+            context = self.resolver.resolve(run_id, row["topology_digest"], generation)
+        except ArchiveUnavailable:
+            try:
+                registry = self.resolver.registry_row(run_id)
+            except ArchiveUnavailable:
+                registry = None
+            if registry is not None and (registry["generation"] != generation or
+                    registry["manifest_identity"] != row["manifest_identity"] or
+                    registry["status"] not in {"RUNNING", "COMPLETE", "INCOMPLETE", "STOPPED"}):
+                raise ArchiveIntegrityError("registry immutable identity changed")
+            return LifecycleSnapshot(run_id, generation, "AVAILABLE" if registry else "UNAVAILABLE",
+                registry["status"] if registry else old.get("status"),
+                registry["updated_at"] if registry else old.get("registry_updated_at"),
+                "UNAVAILABLE", old.get("manifest_status"), old.get("failed_cycle_count"),
+                old.get("manifest_file_hash"), "CURRENT" if registry else "STALE")
+        if context.manifest_identity != row["manifest_identity"]:
+            raise ArchiveIntegrityError("known-run manifest identity changed")
+        manifest_status = context.manifest.get("runStatus")
+        synced = manifest_status == context.registry_status
+        return LifecycleSnapshot(run_id, generation, "AVAILABLE",
+            context.registry_status, context.registry_updated_at, "SYNCED" if synced else "LAGGING",
+            manifest_status, context.manifest.get("failedCycleCount") if synced else old.get("failed_cycle_count"),
+            context.manifest_file_hash if synced else old.get("manifest_file_hash"), "CURRENT")
 
     def project_pending(self, repository, *, replay_run_id: str | None = None,
                         limit: int = 100) -> int:

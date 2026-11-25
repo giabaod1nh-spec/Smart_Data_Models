@@ -1,0 +1,12 @@
+{
+  "services": {
+    "kafka": {
+      "healthcheck": {
+        "interval": "20s"
+      },
+      "environment": {
+        "KAFKA_HEAP_OPTS": "-Xms128m -Xmx512m"
+      }
+    }
+  }
+}

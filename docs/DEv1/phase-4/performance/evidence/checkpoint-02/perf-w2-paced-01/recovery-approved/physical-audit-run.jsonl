@@ -1,0 +1,15 @@
+{"phase": "preflight", "elapsed": 0.00017269999989366625, "available_bytes": 5594185728, "utc": "2026-11-25T07:53:33.748028+00:00"}
+{"phase": "startup", "elapsed": 0.6229316999997536, "available_bytes": 5568815104, "utc": "2026-11-25T07:53:34.370787+00:00", "health": "starting"}
+{"phase": "startup", "elapsed": 1.6727658999998312, "available_bytes": 5186932736, "utc": "2026-11-25T07:53:35.420621+00:00", "health": "starting"}
+{"phase": "startup", "elapsed": 2.7611735999998928, "available_bytes": 4518174720, "utc": "2026-11-25T07:53:36.509029+00:00", "health": "starting"}
+{"phase": "startup", "elapsed": 3.8106125000003885, "available_bytes": 4487057408, "utc": "2026-11-25T07:53:37.558467+00:00", "health": "healthy"}
+{"phase": "audit", "elapsed": 3.822386799999549, "available_bytes": 4486705152, "utc": "2026-11-25T07:53:37.570242+00:00"}
+{"phase": "audit", "elapsed": 4.822926900000311, "available_bytes": 4339445760, "utc": "2026-11-25T07:53:38.570782+00:00"}
+{"phase": "audit", "elapsed": 5.823697300000276, "available_bytes": 4328730624, "utc": "2026-11-25T07:53:39.571551+00:00"}
+{"phase": "audit", "elapsed": 6.824382400000104, "available_bytes": 4330131456, "utc": "2026-11-25T07:53:40.572237+00:00"}
+{"phase": "audit", "elapsed": 7.825221699999929, "available_bytes": 4335689728, "utc": "2026-11-25T07:53:41.573076+00:00"}
+{"phase": "audit", "elapsed": 8.82603680000011, "available_bytes": 4338642944, "utc": "2026-11-25T07:53:42.573891+00:00"}
+{"phase": "audit", "elapsed": 9.82654309999998, "available_bytes": 4323000320, "utc": "2026-11-25T07:53:43.574397+00:00"}
+{"phase": "audit", "elapsed": 10.827004699999634, "available_bytes": 4329910272, "utc": "2026-11-25T07:53:44.574861+00:00"}
+{"phase": "audit-exit", "elapsed": 11.827706500000204, "available_bytes": 4549201920, "utc": "2026-11-25T07:53:45.575561+00:00", "exit_code": 0}
+{"phase": "sealed", "elapsed": 13.899240599999757, "available_bytes": 4565745664, "utc": "2026-11-25T07:53:47.647095+00:00", "copies_unchanged": true, "audit_exit": 0}

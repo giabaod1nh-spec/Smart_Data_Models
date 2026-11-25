@@ -58,7 +58,7 @@ class AuthorityFixture:
         self.worker.checkpoint = silver
         self.worker.repo = silver_repo
         self.worker.metrics = Metrics()
-        self.lifecycle = SimpleNamespace(register=lambda *args: None)
+        self.lifecycle = SimpleNamespace(register_verified=lambda _context: None)
         self.binding = self.reader.discover_canonical_source(SourceDiscoveryRequest(NS)).source_binding_id
         self.offset = 0
 

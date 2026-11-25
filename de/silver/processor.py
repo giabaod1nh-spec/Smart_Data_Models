@@ -420,8 +420,12 @@ class SilverProcessor:
         rows = [json.loads(item["expected_json"]) for item in obligations]
         timed = self.metrics.timed
         reconcile = self.repo.reconcile_v1_directions
+        found = [False] * len(rows)
         try:
-            found = timed("reconcile_existing_group", reconcile, target, rows, replay_run_id=replay_run_id)
+            existing = timed("reconcile_existing_group", reconcile, target, rows, replay_run_id=replay_run_id)
+            if len(existing) != len(rows):
+                raise ValueError("direction reconciliation returned incomplete key accounting")
+            found = existing
             missing = [index for index, present in enumerate(found) if not present]
             if missing:
                 inserts = [rows[index] for index in missing]
@@ -430,9 +434,18 @@ class SilverProcessor:
                 visible = timed("reconcile_visibility_group", reconcile, target, inserts, replay_run_id=replay_run_id)
                 for index, present in zip(missing, visible, strict=True):
                     found[index] = present
-        except (FactBusinessKeyConflictError, ValueError):
+        except (FactBusinessKeyConflictError, InvalidTargetTableError, ValueError):
             # Reconcile each key independently to attribute a conflict or excessive duplicates.
             return False
+        except Exception as exc:
+            # An ambiguous insert cannot confirm any previously absent member.
+            # Preserve positive evidence from the successful initial lookup.
+            for obligation, present in zip(obligations, found, strict=True):
+                if present:
+                    verified.append(obligation)
+                else:
+                    self.checkpoint.record_v1_obligation_failure(obligation, exc, permanent=False)
+            raise
         verified.extend(obligation for obligation, present in zip(obligations, found, strict=True) if present)
         if not all(found):
             exc = RuntimeError("V1 inserted direction obligation is not visible")
@@ -490,8 +503,7 @@ class SilverProcessor:
         context = timed("archive_resolve", archive_resolver.resolve,
                         event["simulationRunId"], event["topologyDigest"])
         timed("archive_validate_event", context.validate_event, event)
-        timed("lifecycle_register", lifecycle.register,
-              context.run_id, context.topology_digest, context.generation)
+        timed("lifecycle_register", lifecycle.register_verified, context)
         existing = self.checkpoint.conn.execute(
             "SELECT 1 FROM silver_v1_obligation WHERE namespace=? AND source_kind='changes' "
             "AND source_sequence=? LIMIT 1", (namespace, sequence)).fetchone()

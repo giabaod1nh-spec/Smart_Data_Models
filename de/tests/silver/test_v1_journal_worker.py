@@ -60,7 +60,7 @@ def test_accepted_journal_entry_materializes_complete_bundle(tmp_path, topology_
     bronze = SimpleNamespace(read_valid_observation=lambda *args, **kwargs: current)
     archive = SimpleNamespace(resolve=lambda *args: context)
     registered = []
-    lifecycle = SimpleNamespace(register=lambda *args: registered.append(args))
+    lifecycle = SimpleNamespace(register_verified=registered.append)
     checkpoint = SilverCheckpointStore(Path(tmp_path) / "silver.sqlite3")
     checkpoint.open()
     checkpoint.bind_v1_source("live", dict(namespace="live", source_path="bronze",
@@ -110,7 +110,7 @@ def test_accepted_journal_entry_materializes_complete_bundle(tmp_path, topology_
                    if table == "silver_traffic_observation_fact_v1"]
         assert {row["intersection_id"] for row in traffic} == {"A"}
         assert {row["source_direction"] for row in traffic} == set(directions)
-        assert registered == [(context.run_id, context.topology_digest, context.generation)]
+        assert registered == [context]
         # Journal order is authoritative even when simulation cycles move back.
         expected_ids = {event['eventId']}
         for sequence, cycle in ((2, 9), (3, 2)):

@@ -1,0 +1,28 @@
+{
+  "services": {
+    "gold": {
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "raw",
+          "target": "/app/de/artifacts/kafka_raw_v1"
+        },
+        {
+          "type": "volume",
+          "source": "bronze",
+          "target": "/app/de/artifacts/bronze_v1"
+        },
+        {
+          "type": "volume",
+          "source": "silver",
+          "target": "/app/de/artifacts/silver_v1"
+        },
+        {
+          "type": "bind",
+          "source": "D:\\DATN\\Smart_Data_Models\\.pytest_cache\\perf-w2-paced-01\\recovery-before",
+          "target": "/app/recovery-evidence"
+        }
+      ]
+    }
+  }
+}

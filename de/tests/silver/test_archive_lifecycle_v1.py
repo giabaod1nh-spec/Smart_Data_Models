@@ -1,11 +1,13 @@
 import json
 import sqlite3
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from de.silver.archive_resolver import ArchiveIntegrityError, ArchiveResolver, ArchiveUnavailable, manifest_identity
+from de.silver.checkpoint_store import SilverCheckpointStore
 from de.silver.lifecycle_refresher import LifecycleRefresher
 from de.silver.dimension_builders import build_v1_dimensions
 from contracts.topology.v1_digest import topology_digest
@@ -59,6 +61,111 @@ def test_archived_context_and_lifecycle_outages(tmp_path, monkeypatch):
     (folder / "manifest.offline").rename(folder / "run_manifest.json")
     assert restarted.poll()[0].freshness == "CURRENT"
     assert restarted.poll() == []
+
+
+def test_register_verified_reuses_current_context_and_checks_durable_identity(tmp_path, monkeypatch):
+    manifest, _, _ = _fixture(tmp_path)
+    resolver = ArchiveResolver(tmp_path)
+    context = resolver.resolve(manifest["simulationRunId"], manifest["topologyDigest"])
+    poller = LifecycleRefresher(tmp_path / "silver.sqlite3", resolver)
+
+    def unexpected_resolve(*_args, **_kwargs):
+        pytest.fail("registration should use the verified context from this operation")
+
+    monkeypatch.setattr(resolver, "resolve", unexpected_resolve)
+    poller.register_verified(context)
+    poller.register_verified(context)
+    with pytest.raises(ArchiveIntegrityError, match="known-run immutable identity changed"):
+        poller.register_verified(replace(context, manifest_identity="another-identity"))
+
+
+def test_catalog_digest_reuse_checks_current_file_and_registry(tmp_path, monkeypatch):
+    manifest, folder, registry_path = _fixture(tmp_path)
+    resolver = ArchiveResolver(tmp_path)
+    catalog = folder / "network_topology_catalog.json"
+    args = (manifest["simulationRunId"], manifest["topologyDigest"], manifest["runGeneration"])
+    calls = []
+
+    def digest(document):
+        calls.append(True)
+        return topology_digest(document)
+
+    monkeypatch.setattr("de.silver.archive_resolver.topology_digest", digest)
+    original = resolver.resolve(*args)
+    original.catalog["edges"].clear()
+    with sqlite3.connect(registry_path) as db:
+        db.execute("UPDATE runs SET status='COMPLETE',updated_at='t2'")
+    same_bytes = resolver.resolve(*args)
+    assert len(calls) == 1
+    assert same_bytes.registry_status == "COMPLETE" and same_bytes.registry_updated_at == "t2"
+    assert same_bytes.catalog["edges"]
+
+    raw = catalog.read_bytes()
+    catalog.write_bytes(raw + b"\n")
+    replaced = resolver.resolve(*args)
+    assert len(calls) == 2
+    assert replaced.topology_digest == same_bytes.topology_digest
+    assert replaced.catalog_file_hash != same_bytes.catalog_file_hash
+
+    changed = json.loads(raw)
+    changed["edges"].clear()
+    catalog.write_text(json.dumps(changed), encoding="utf-8")
+    with pytest.raises(ArchiveIntegrityError, match="run identity or digest mismatch"):
+        resolver.resolve(*args)
+    assert len(calls) == 3
+
+
+def test_multi_run_poll_allows_journal_ack_during_archive_resolution(tmp_path, monkeypatch):
+    manifest, _, _ = _fixture(tmp_path)
+    resolver = ArchiveResolver(tmp_path)
+    first = resolver.resolve(manifest["simulationRunId"], manifest["topologyDigest"])
+    second = replace(first, run_id="zz-second-run")
+    path = tmp_path / "silver.sqlite3"
+    checkpoint = SilverCheckpointStore(path)
+    checkpoint.open()
+    try:
+        checkpoint.conn.execute("PRAGMA busy_timeout=0")
+        checkpoint.freeze_v1_obligation("live", "changes", 1, "event", "facts", {"event_id": "event"})
+        pending = checkpoint.pending_v1_obligations("live")
+        poller = LifecycleRefresher(path, resolver)
+        poller.register_verified(first)
+        poller.register_verified(second)
+
+        def read_archive(run_id, _digest, _generation):
+            if run_id == first.run_id:
+                return first
+            assert run_id == second.run_id
+            # Another SQLite writer must make progress while this archive is read.
+            checkpoint.reconcile_v1_obligations(pending)
+            return second
+
+        monkeypatch.setattr(resolver, "resolve", read_archive)
+        assert [snapshot.run_id for snapshot in poller.poll()] == [first.run_id, second.run_id]
+        assert checkpoint.pending_v1_obligations("live") == []
+        assert poller.latest(first.run_id).freshness == "CURRENT"
+        assert poller.latest(second.run_id).freshness == "CURRENT"
+    finally:
+        checkpoint.close()
+
+
+def test_poll_retains_newer_freshness_publication(tmp_path, monkeypatch):
+    manifest, _, _ = _fixture(tmp_path)
+    resolver = ArchiveResolver(tmp_path)
+    context = resolver.resolve(manifest["simulationRunId"], manifest["topologyDigest"])
+    poller = LifecycleRefresher(tmp_path / "silver.sqlite3", resolver)
+    poller.register_verified(context)
+    assert poller.poll()[0].freshness == "CURRENT"
+
+    def read_archive(*_args):
+        assert poller.mark_stale(0) == 1
+        return context
+
+    monkeypatch.setattr(resolver, "resolve", read_archive)
+    with pytest.raises(RuntimeError, match="known-run lifecycle changed"):
+        poller.poll()
+    assert poller.latest(context.run_id).freshness == "STALE"
+    monkeypatch.undo()
+    assert poller.poll()[0].freshness == "CURRENT"
 
 
 def test_subset_run_keeps_topology_dimension_catalog_complete(tmp_path):

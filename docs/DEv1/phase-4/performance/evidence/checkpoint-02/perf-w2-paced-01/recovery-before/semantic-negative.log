@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\semantic-prefix.py", line 152, in <module>
+    print(json.dumps(run("--negative-control" in sys.argv), sort_keys=True))
+                     ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\semantic-prefix.py", line 125, in run
+    check(result["total_vehicle_count"], sum(counts) if complete else None,
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          (sequence, "total_vehicle_count"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\semantic-prefix.py", line 32, in check
+    raise AssertionError(f"{label}: expected {expected!r}, observed {actual!r}")
+AssertionError: (1, 'total_vehicle_count'): expected 0, observed 1

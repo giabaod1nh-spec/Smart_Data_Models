@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\recover-stopped.py", line 185, in <module>
+    run(evidence)
+    ~~~^^^^^^^^^^
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\recover-stopped.py", line 132, in run
+    bounds = {partition: broker.get_watermark_offsets(TopicPartition(TOPIC, partition), timeout=3)
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+cimpl.KafkaException: KafkaError{code=_TIMED_OUT,val=-185,str="Failed to get watermark offsets: Local: Timed out"}

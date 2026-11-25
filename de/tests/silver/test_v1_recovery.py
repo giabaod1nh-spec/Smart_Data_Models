@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 import pytest
@@ -147,9 +148,43 @@ def test_direction_group_recovery_keeps_exact_obligation_outcomes(tmp_path, lost
         with pytest.raises(ConnectionError if lost_response else RuntimeError):
             worker.recover_v1_obligations()
         pending = store.pending_v1_obligations("live")
-        assert len(pending) == (3 if lost_response else 1)
+        assert {json.loads(item["expected_json"])["source_direction"] for item in pending} == (
+            {"north", "south"} if lost_response else {"south"})
+        assert all(item["status"] == "PENDING" and item["attempts"] == 1 and item["last_error"]
+                   for item in pending)
         assert worker.recover_v1_obligations() == len(pending)
         assert worker.repo.inserts == [{"north", "south"}, {"south"}]
         assert store.pending_v1_obligations("live") == []
+    finally:
+        store.close()
+
+
+def test_group_conflict_fallback_faults_only_the_divergent_key(tmp_path):
+    table = "silver_signal_state_fact_v1"
+    store = SilverCheckpointStore(tmp_path / "conflict.sqlite3")
+    store.open()
+
+    class Repo:
+        def reconcile_v1_directions(self, _target, _rows, **_kwargs):
+            raise FactBusinessKeyConflictError("Group contents differ")
+
+        def reconcile_v1_row(self, _target, row, **_kwargs):
+            if row["source_direction"] == "south":
+                raise FactBusinessKeyConflictError("South contains different content")
+            return True
+
+    worker = SilverProcessor(SilverSettings(), repo=Repo(), checkpoint=store)
+    try:
+        for direction in ("east", "south"):
+            store.freeze_v1_obligation("live", "changes", 1, "event", table, dict(
+                simulation_run_id="run", topology_digest="digest", event_id="event",
+                intersection_id="A", source_direction=direction, bronze_semantic_revision=1))
+        with pytest.raises(FactBusinessKeyConflictError, match="South"):
+            worker.recover_v1_obligations()
+        pending = store.pending_v1_obligations("live")
+        assert len(pending) == 1
+        assert json.loads(pending[0]["expected_json"])["source_direction"] == "south"
+        assert pending[0]["status"] == "FAULT"
+        assert pending[0]["attempts"] == 1
     finally:
         store.close()

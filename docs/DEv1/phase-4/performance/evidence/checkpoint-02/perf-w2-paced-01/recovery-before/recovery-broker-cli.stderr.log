@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\recover-stopped.py", line 181, in <module>
+    run(evidence)
+    ~~~^^^^^^^^^^
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recovery-before\recover-stopped.py", line 125, in run
+    raise RuntimeError(f"retained broker topic identity mismatch: {identity}")
+RuntimeError: retained broker topic identity mismatch: b1wOSAiIRuCEWk-6Jqy6Dg

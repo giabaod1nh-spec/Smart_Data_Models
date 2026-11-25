@@ -42,7 +42,7 @@ def main():
     setattr(target, method, exit_after_commit)
     worker = SilverProcessor(settings, repo=repo, checkpoint=store)
     worker.run_v1_journal_pass(V1SemanticReader(settings.v1_bronze_path), bronze,
-        ArchiveResolver(Path(settings.v1_archive_root)), SimpleNamespace(register=lambda *args: None))
+        ArchiveResolver(Path(settings.v1_archive_root)), SimpleNamespace(register_verified=lambda _context: None))
     raise AssertionError('crash boundary was not reached')
 
 

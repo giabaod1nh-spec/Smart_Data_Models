@@ -1,0 +1,5 @@
+{
+  "compared_ack_count": 550,
+  "matched_raw_hash_and_event": 545,
+  "outbox_ack_without_matching_raw": 5
+}

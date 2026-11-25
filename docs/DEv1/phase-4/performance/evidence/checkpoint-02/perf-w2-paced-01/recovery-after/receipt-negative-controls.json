@@ -1,0 +1,1 @@
+{"changed_digest": "Receipt ID, header or batch digest differs from the durable source evidence", "changed_size": "Receipt byte count differs from the reconstructed page", "wrong_link": "Gold transition identity, hashes or receipt linkage differs"}

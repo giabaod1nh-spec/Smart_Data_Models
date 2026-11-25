@@ -1,0 +1,4 @@
+{"available": 4057759744, "phase": "preflight", "utc": "2026-11-25T06:47:39.503039+00:00"}
+{"available": 3951796224, "phase": "wait-broker", "utc": "2026-11-25T06:47:40.162345+00:00"}
+{"available": 3597774848, "phase": "wait-broker", "utc": "2026-11-25T06:47:44.177296+00:00"}
+{"available": 3394711552, "broker_reported": "b1wOSAiIRuCEWk-6Jqy6Dg", "expected": "b1wOSAiIRuCEWk+6Jqy6Dg", "host_reported": "AAAAAAiIRuAAAAAAJqy6Dg", "phase": "broker-identity-check", "utc": "2026-11-25T06:47:48.454542+00:00"}

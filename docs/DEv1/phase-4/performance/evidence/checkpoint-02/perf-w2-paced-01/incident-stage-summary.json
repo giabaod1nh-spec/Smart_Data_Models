@@ -1,0 +1,538 @@
+{
+  "body": null,
+  "final_gold_metrics": {
+    "ack_transaction_sec": {
+      "max": 1.2208195529997283,
+      "p50": 0.0027495129997987533,
+      "p95": 0.01763224199976321,
+      "p99": 0.322871718999977,
+      "samples": 317
+    },
+    "change_ack_rate_per_sec": 3.698091009623616,
+    "change_acknowledged": 488,
+    "change_backlog_rate_per_sec": 0.0,
+    "change_encoded_bytes": 9930182,
+    "change_iteration_commit_sec": {
+      "max": 1.3356757730002755,
+      "p50": 0.12632209299999886,
+      "p95": 0.4020716719996926,
+      "p99": 0.891017020000163,
+      "samples": 317
+    },
+    "change_page_read_verify_sec": {
+      "max": 0.9636648870000499,
+      "p50": 0.10788892100026715,
+      "p95": 0.3472286069995789,
+      "p99": 0.47796770400009336,
+      "samples": 382
+    },
+    "change_page_to_durable_sec": {
+      "max": 1.3356433280000601,
+      "p50": 0.1263023050000811,
+      "p95": 0.40203603899999507,
+      "p99": 0.8909900670000752,
+      "samples": 317
+    },
+    "cpu_sec": 33.9302369,
+    "dirty_work": 0,
+    "disk_free_bytes": 985606266880,
+    "invalidation_ack_rate_per_sec": 0.0,
+    "invalidation_backlog_rate_per_sec": 0.0,
+    "materialization_encoded_bytes": 3596982,
+    "materialization_page_reads": 173,
+    "materialization_read_sec": {
+      "max": 0.8041276499998276,
+      "p50": 0.10670368199998848,
+      "p95": 0.18413118699982078,
+      "p99": 0.5343091979998462,
+      "samples": 173
+    },
+    "open_work": 2,
+    "peak_rss_bytes": 77492224,
+    "process_disk_read_bytes": 2670592,
+    "process_disk_write_bytes": 62255104,
+    "promotion_pending_runs": 0,
+    "promotion_queue_oldest_sec": 0,
+    "retry_SOURCE_LAG": 57,
+    "running_work": 1,
+    "running_work_oldest_sec": 49.76056957244873,
+    "source_to_gold_durable_sec": {
+      "max": 11.224684000015259,
+      "p50": 5.99480128288269,
+      "p95": 8.804465055465698,
+      "p99": 10.783697843551636,
+      "samples": 488
+    },
+    "sqlite_bytes": 2498560,
+    "sqlite_wal_bytes": 4305432,
+    "startup_recovery_sec": {
+      "max": 0.07652702899986252,
+      "p50": 0.07652702899986252,
+      "p95": 0.07652702899986252,
+      "p99": 0.07652702899986252,
+      "samples": 1
+    },
+    "window_promotion_sec": {
+      "max": 0.896859675000087,
+      "p50": 0.0009542380003040307,
+      "p95": 0.007642046999990271,
+      "p99": 0.02573476399993524,
+      "samples": 395
+    }
+  },
+  "final_sample": {
+    "acked": 515,
+    "bronze_change": 508,
+    "bronze_pending_deliveries": 0,
+    "bronze_pending_intents": 0,
+    "bronze_to_silver": 21,
+    "gold_change": 488,
+    "gold_completed": 0,
+    "gold_dirty": 0,
+    "gold_invalidation_lag": 0,
+    "gold_member_reads": 173,
+    "gold_pending_age": 0,
+    "gold_pending_work": 0,
+    "gold_promotion_age": 0,
+    "gold_promotion_runs": 0,
+    "gold_running_age": 49.76056957244873,
+    "gold_running_work": 1,
+    "host_available_bytes": 2104393728,
+    "host_cpu_percent": 60.7,
+    "offered": 520,
+    "outbox_oldest": 0.684371,
+    "outbox_pending": 5,
+    "raw_buffered": 0,
+    "raw_persisted": 515,
+    "silver_change": 487,
+    "silver_to_gold": -1,
+    "simulation_second": 103.04,
+    "source_bytes": 2041947
+  },
+  "final_silver_operations": {
+    "ack_obligations": {
+      "calls": 480,
+      "exclusive_ns": 3740955434,
+      "failures": 0,
+      "max_wall_ns": 933518616,
+      "wall_ns": 3740955434
+    },
+    "apply_accepted": {
+      "calls": 480,
+      "exclusive_ns": 844351270,
+      "failures": 0,
+      "max_wall_ns": 4781073222,
+      "wall_ns": 108202745058
+    },
+    "archive_resolve": {
+      "calls": 480,
+      "exclusive_ns": 9706260285,
+      "failures": 0,
+      "max_wall_ns": 103217490,
+      "wall_ns": 9706260285
+    },
+    "archive_validate_event": {
+      "calls": 480,
+      "exclusive_ns": 4966231,
+      "failures": 0,
+      "max_wall_ns": 45560,
+      "wall_ns": 4966231
+    },
+    "bronze_ping": {
+      "calls": 50,
+      "exclusive_ns": 145623368,
+      "failures": 0,
+      "max_wall_ns": 5681486,
+      "wall_ns": 145623368
+    },
+    "bronze_read": {
+      "calls": 480,
+      "exclusive_ns": 10425358462,
+      "failures": 0,
+      "max_wall_ns": 544998739,
+      "wall_ns": 10425358462
+    },
+    "build_dimensions": {
+      "calls": 480,
+      "exclusive_ns": 41081721,
+      "failures": 0,
+      "max_wall_ns": 357498,
+      "wall_ns": 41081721
+    },
+    "build_facts": {
+      "calls": 480,
+      "exclusive_ns": 1449473528,
+      "failures": 0,
+      "max_wall_ns": 7865942,
+      "wall_ns": 1449473528
+    },
+    "final_bronze_read": {
+      "calls": 480,
+      "exclusive_ns": 10584621176,
+      "failures": 0,
+      "max_wall_ns": 196894658,
+      "wall_ns": 10584621176
+    },
+    "finalize_validity": {
+      "calls": 480,
+      "exclusive_ns": 3337398550,
+      "failures": 0,
+      "max_wall_ns": 2427244774,
+      "wall_ns": 3337398550
+    },
+    "freeze_bundle": {
+      "calls": 480,
+      "exclusive_ns": 2074268428,
+      "failures": 0,
+      "max_wall_ns": 565496191,
+      "wall_ns": 2074268428
+    },
+    "insert_obligation": {
+      "calls": 963,
+      "exclusive_ns": 7569849437,
+      "failures": 0,
+      "max_wall_ns": 28271153,
+      "wall_ns": 7569849437
+    },
+    "insert_obligation_group": {
+      "calls": 960,
+      "exclusive_ns": 9534683275,
+      "failures": 0,
+      "max_wall_ns": 1114576208,
+      "wall_ns": 9534683275
+    },
+    "journal_page": {
+      "calls": 95,
+      "exclusive_ns": 8930658,
+      "failures": 0,
+      "max_wall_ns": 246577,
+      "wall_ns": 8930658
+    },
+    "journal_pass": {
+      "calls": 50,
+      "exclusive_ns": 20726541,
+      "failures": 0,
+      "max_wall_ns": 6512068331,
+      "wall_ns": 108307807571
+    },
+    "lifecycle_register": {
+      "calls": 480,
+      "exclusive_ns": 9756592619,
+      "failures": 0,
+      "max_wall_ns": 75542961,
+      "wall_ns": 9756592619
+    },
+    "pending_lookup": {
+      "calls": 480,
+      "exclusive_ns": 41380157,
+      "failures": 0,
+      "max_wall_ns": 1918882,
+      "wall_ns": 41380157
+    },
+    "poll_wait": {
+      "calls": 3,
+      "exclusive_ns": 6000442007,
+      "failures": 0,
+      "max_wall_ns": 2000157841,
+      "wall_ns": 6000442007
+    },
+    "reconcile_existing": {
+      "calls": 2400,
+      "exclusive_ns": 13491194676,
+      "failures": 0,
+      "max_wall_ns": 585673529,
+      "wall_ns": 13491194676
+    },
+    "reconcile_existing_group": {
+      "calls": 960,
+      "exclusive_ns": 7557854603,
+      "failures": 0,
+      "max_wall_ns": 71503917,
+      "wall_ns": 7557854603
+    },
+    "reconcile_visibility": {
+      "calls": 963,
+      "exclusive_ns": 7761014364,
+      "failures": 0,
+      "max_wall_ns": 27369186,
+      "wall_ns": 7761014364
+    },
+    "reconcile_visibility_group": {
+      "calls": 960,
+      "exclusive_ns": 10281440842,
+      "failures": 0,
+      "max_wall_ns": 47788998,
+      "wall_ns": 10281440842
+    },
+    "retry_wait": {
+      "calls": 3,
+      "exclusive_ns": 7000453132,
+      "failures": 0,
+      "max_wall_ns": 4000148147,
+      "wall_ns": 7000453132
+    },
+    "silver_ping": {
+      "calls": 50,
+      "exclusive_ns": 158407914,
+      "failures": 0,
+      "max_wall_ns": 4517206,
+      "wall_ns": 158407914
+    },
+    "source_binding": {
+      "calls": 50,
+      "exclusive_ns": 75405314,
+      "failures": 0,
+      "max_wall_ns": 3963913,
+      "wall_ns": 75405314
+    },
+    "sqlite_probe": {
+      "calls": 50,
+      "exclusive_ns": 3925165,
+      "failures": 0,
+      "max_wall_ns": 735760,
+      "wall_ns": 3925165
+    }
+  },
+  "first_work_period": {
+    "head": {
+      "acked": 305,
+      "bronze_change": 300,
+      "bronze_pending_deliveries": 0,
+      "bronze_pending_intents": 0,
+      "bronze_to_silver": 25,
+      "gold_change": 275,
+      "gold_completed": 0,
+      "gold_dirty": 0,
+      "gold_invalidation_lag": 0,
+      "gold_member_reads": 0,
+      "gold_pending_age": 0,
+      "gold_pending_work": 0,
+      "gold_promotion_age": 0,
+      "gold_promotion_runs": 0,
+      "gold_running_age": 0,
+      "gold_running_work": 0,
+      "host_available_bytes": 2568491008,
+      "host_cpu_percent": 47.6,
+      "offered": 305,
+      "outbox_oldest": null,
+      "outbox_pending": 0,
+      "raw_buffered": 4,
+      "raw_persisted": 301,
+      "silver_change": 275,
+      "silver_to_gold": 0,
+      "simulation_second": 60.04,
+      "source_bytes": 1190564
+    },
+    "rates": {
+      "acked": 3.7494532922491306,
+      "bronze_change": 3.713744213275329,
+      "bronze_to_silver": -0.07141815794760249,
+      "gold_change": 3.8030169107098324,
+      "gold_completed": 0.0,
+      "gold_member_reads": 3.0888353312338075,
+      "offered": 3.838725989683634,
+      "raw_persisted": 3.820871450196733,
+      "silver_change": 3.7851623712229316,
+      "silver_to_gold": -0.017854539486900623,
+      "simulation_second": 0.7677451979367269,
+      "source_bytes": 15201.051391975912
+    },
+    "sample_count": 29,
+    "source_range": [
+      60.04,
+      103.04
+    ],
+    "tail": {
+      "acked": 515,
+      "bronze_change": 508,
+      "bronze_pending_deliveries": 0,
+      "bronze_pending_intents": 0,
+      "bronze_to_silver": 21,
+      "gold_change": 488,
+      "gold_completed": 0,
+      "gold_dirty": 0,
+      "gold_invalidation_lag": 0,
+      "gold_member_reads": 173,
+      "gold_pending_age": 0,
+      "gold_pending_work": 0,
+      "gold_promotion_age": 0,
+      "gold_promotion_runs": 0,
+      "gold_running_age": 49.76056957244873,
+      "gold_running_work": 1,
+      "host_available_bytes": 2104393728,
+      "host_cpu_percent": 60.7,
+      "offered": 520,
+      "outbox_oldest": 0.684371,
+      "outbox_pending": 5,
+      "raw_buffered": 0,
+      "raw_persisted": 515,
+      "silver_change": 487,
+      "silver_to_gold": -1,
+      "simulation_second": 103.04,
+      "source_bytes": 2041947
+    },
+    "wall_seconds": 56.00816535949707
+  },
+  "host_minimum_bytes": 1150148608,
+  "late_source": null,
+  "matched_early": {
+    "head": {
+      "acked": 155,
+      "bronze_change": 150,
+      "bronze_pending_deliveries": 0,
+      "bronze_pending_intents": 0,
+      "bronze_to_silver": 22,
+      "gold_change": 128,
+      "gold_completed": 0,
+      "gold_dirty": 0,
+      "gold_invalidation_lag": 0,
+      "gold_member_reads": 0,
+      "gold_pending_age": 0,
+      "gold_pending_work": 0,
+      "gold_promotion_age": 0,
+      "gold_promotion_runs": 0,
+      "gold_running_age": 0,
+      "gold_running_work": 0,
+      "host_available_bytes": 2766077952,
+      "host_cpu_percent": 56.6,
+      "offered": 160,
+      "outbox_oldest": 0.06236,
+      "outbox_pending": 5,
+      "raw_buffered": 0,
+      "raw_persisted": 155,
+      "silver_change": 128,
+      "silver_to_gold": 0,
+      "simulation_second": 31.04,
+      "source_bytes": 622131
+    },
+    "rates": {
+      "acked": 4.59609851204151,
+      "bronze_change": 4.531591866258471,
+      "bronze_to_silver": -0.06450664578303873,
+      "gold_change": 4.59609851204151,
+      "gold_completed": 0.0,
+      "gold_member_reads": 1.628792806021728,
+      "offered": 4.5154652048127115,
+      "raw_persisted": 4.531591866258471,
+      "silver_change": 4.59609851204151,
+      "silver_to_gold": 0.0,
+      "simulation_second": 0.9030930409625424,
+      "source_bytes": 17795.319358875327
+    },
+    "sample_count": 32,
+    "source_range": [
+      31.04,
+      87.04
+    ],
+    "tail": {
+      "acked": 440,
+      "bronze_change": 431,
+      "bronze_pending_deliveries": 0,
+      "bronze_pending_intents": 0,
+      "bronze_to_silver": 18,
+      "gold_change": 413,
+      "gold_completed": 0,
+      "gold_dirty": 0,
+      "gold_invalidation_lag": 0,
+      "gold_member_reads": 101,
+      "gold_pending_age": 0,
+      "gold_pending_work": 0,
+      "gold_promotion_age": 0,
+      "gold_promotion_runs": 0,
+      "gold_running_age": 26.087851762771606,
+      "gold_running_work": 1,
+      "host_available_bytes": 2230956032,
+      "host_cpu_percent": 69.8,
+      "offered": 440,
+      "outbox_oldest": null,
+      "outbox_pending": 0,
+      "raw_buffered": 4,
+      "raw_persisted": 436,
+      "silver_change": 413,
+      "silver_to_gold": 0,
+      "simulation_second": 87.04,
+      "source_bytes": 1725603
+    },
+    "wall_seconds": 62.00911474227905
+  },
+  "source_active": {
+    "head": {
+      "acked": 10,
+      "bronze_change": 0,
+      "bronze_pending_deliveries": 0,
+      "bronze_pending_intents": 0,
+      "bronze_to_silver": 0,
+      "gold_change": 0,
+      "gold_completed": 0,
+      "gold_dirty": 0,
+      "gold_invalidation_lag": 0,
+      "gold_member_reads": 0,
+      "gold_pending_age": 0,
+      "gold_pending_work": 0,
+      "gold_promotion_age": 0,
+      "gold_promotion_runs": 0,
+      "gold_running_age": 0,
+      "gold_running_work": 0,
+      "host_available_bytes": 3263631360,
+      "host_cpu_percent": 32.5,
+      "offered": 10,
+      "outbox_oldest": null,
+      "outbox_pending": 0,
+      "raw_buffered": 9,
+      "raw_persisted": 1,
+      "silver_change": 0,
+      "silver_to_gold": 0,
+      "simulation_second": 1.01,
+      "source_bytes": 38810
+    },
+    "rates": {
+      "acked": 4.352752195889881,
+      "bronze_change": 4.378610129726851,
+      "bronze_to_silver": 0.18100553685878715,
+      "gold_change": 4.206223904147054,
+      "gold_completed": 0.0,
+      "gold_member_reads": 1.4911408512652464,
+      "offered": 4.395848752284831,
+      "raw_persisted": 4.43032599740079,
+      "silver_change": 4.197604592868063,
+      "silver_to_gold": -0.008619311278989863,
+      "simulation_second": 0.8794283297953358,
+      "source_bytes": 17265.66133746192
+    },
+    "sample_count": 58,
+    "source_range": [
+      1.01,
+      103.04
+    ],
+    "tail": {
+      "acked": 515,
+      "bronze_change": 508,
+      "bronze_pending_deliveries": 0,
+      "bronze_pending_intents": 0,
+      "bronze_to_silver": 21,
+      "gold_change": 488,
+      "gold_completed": 0,
+      "gold_dirty": 0,
+      "gold_invalidation_lag": 0,
+      "gold_member_reads": 173,
+      "gold_pending_age": 0,
+      "gold_pending_work": 0,
+      "gold_promotion_age": 0,
+      "gold_promotion_runs": 0,
+      "gold_running_age": 49.76056957244873,
+      "gold_running_work": 1,
+      "host_available_bytes": 2104393728,
+      "host_cpu_percent": 60.7,
+      "offered": 520,
+      "outbox_oldest": 0.684371,
+      "outbox_pending": 5,
+      "raw_buffered": 0,
+      "raw_persisted": 515,
+      "silver_change": 487,
+      "silver_to_gold": -1,
+      "simulation_second": 103.04,
+      "source_bytes": 2041947
+    },
+    "wall_seconds": 116.01855039596558
+  }
+}

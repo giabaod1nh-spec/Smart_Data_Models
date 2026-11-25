@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recover-downstream.py", line 168, in <module>
+    run(log, arguments.reference.resolve())
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DATN\Smart_Data_Models\.pytest_cache\perf-w2-paced-01\recover-downstream.py", line 92, in run
+    raise RuntimeError("available host memory below 2.5 GB before startup")
+RuntimeError: available host memory below 2.5 GB before startup
