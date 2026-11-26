@@ -45,3 +45,27 @@ Crash after ClickHouse insert but before manifest publish leaves invisible stage
 
 All direction/intersection/network rows served together must carry one publication manifest, run generation, topology, definition set and business revision. A missing metric cannot borrow its value from an older revision. Use idempotent result IDs; conflicting output for same ID is an integrity fault. Replay state is isolated and V2 is untouched. An independent source-derived oracle checks expected slot set, values, row identities, digests and effective selection. Crash tests inspect both SQLite manifests and ClickHouse physical rows plus serving results.
 
+## Protocol bổ sung (RV-07/09/10)
+
+SQLite do Gold coordinator sở hữu. Obligation key gồm namespace, Core work ID, generation, input hash, source binding, definition set, source semantics version và population/schedule digest. Unique key chặn cấp revision lặp. Immutable result ID hash canonical obligation key + assigned revision. Expected row set là exact grain/entity keys cộng content hashes và row count cho mỗi grain. Durable transaction finish + obligation là một đơn vị: crash trước commit để RUNNING và replay work, sau commit obligation luôn tồn tại dù worker chưa gửi CH. Quét đối chiếu bounded theo keyset phát hiện proof cũ hoặc lỗi invariant.
+
+Writer đọc exact result ID trước retry insert mơ hồ. Read-back đối chiếu canonical payload từng key với manifest, chỉ retry bổ sung key thiếu dưới writer lease. Bản sao byte-identical được gộp theo key khi đọc và ghi cảnh báo, kể cả sau thời hạn insert-token. Hai payload khác nhau cùng key là integrity fault, cách ly cả revision. Đối soát tất cả grain trước transaction đổi pointer. Không lấy MAX(revision), insertion time hoặc merge làm authority. Cleanup staged/orphan chỉ khi fence xác định không còn quyền publish và retention/read pin đã hết. Sau invalidation/late event, transaction Gold bump fence và suppress pointer liên quan, outstanding stages mất quyền publish. Nguồn thay đổi trước khi Gold nhận invalidate có khoảng eventual consistency.
+
+Serving qua module Gold reader sở hữu truy cập SQLite read-only với transaction ngắn, CH read-only. Stage B gọi giao diện Gold logic này qua adapter/transport cần owner duyệt. CH-only views không kiểm tra được pointer. CH mirror của authority có chi phí đồng bộ và stale-read, chỉ xem xét nếu đo được cần thiết. Ưu tiên reader module với một adapter được cấp quyền, chưa yêu cầu service mới hay Spring truy cập SQLite trực tiếp.
+
+1. Trong cùng SQLite snapshot, resolve scope/range, exact manifest IDs kể cả gaps và pin fence token gồm publication epoch theo run/duration và timeline/definitions digest.
+2. Kết thúc transaction rồi query CH bằng exact result IDs. Validate keys, digests, grain counts và duplicate/conflict rules, chỉ trả projections sau verify.
+3. Mở snapshot SQLite mới, revalidate cùng fence/pointer set trước khi trả response. Mốc đọc là lần kiểm tra cuối thành công trong local authority, không thu hồi được response đã phát. Không claim distributed snapshot.
+4. Fence đổi trong lúc đọc → retry trong retry/deadline budget hoặc REPROCESSING. Authority outage → UNAVAILABLE, không fallback CH/cache. Revision 1 suppressed + revision 2 staged → không có effective result. Multi-window pin cả set trong một snapshot; từng window có revision riêng. KPI/rank/cell chia sẻ selection token. Cursor theo range, sort key và fence. Nếu revision đổi giữa pages thì trả STALE_CURSOR và bắt đầu lại. Cache theo exact IDs + fence, revalidate authority mỗi hit. Coarse epoch có thể retry vì đổi ngoài range, đo trước khi chuyển sang fine-grained validation.
+
+| Barrier bổ sung | Trạng thái và recovery | Acceptance |
+|---|---|---|
+| Trước/sau Core finish CAS | Cả proof và obligation commit cùng nhau hoặc không có; restart claim work hoặc drain durable obligation | SA-09 |
+| Fence đổi khi staging (late/invalidate) | Suppress; discard stage khỏi effective set; worker generation mới tính lại | AC-16/18 |
+| CH duplicate/conflicting rows | Identical dedup, divergent digest fail closed; rebuild có quản trị | SA-17 |
+| Invalidation/range revision race trong khi serving | Retry hoặc REPROCESSING/STALE_CURSOR; không trộn manifest set | SA-13/14 |
+| Authority mất kết nối | UNAVAILABLE kể cả cache còn warm; retry bounded | SA-18 |
+
+## Historical proofs và rebuild
+
+Scan Core proof index theo current generation, run/range và durable keyset cursor riêng. Barriers ghi cursor và obligation idempotent cùng transaction. Historical proof chỉ là discovery input. Backfill cần source/binding/version, lịch và retention tương thích. Đọc lại indexed members qua public Silver, reverify proof/generation/hash/fence. Proof cũ lệch current source thì dùng current generation đủ bằng chứng, hoặc báo unsupported/retention gap, giữ evidence. Quota theo windows, bytes, wall budget, RSS và priority live. Replay dùng namespace riêng. Late data tạo generation mới. Invalidation suppress current. Definition upgrade cùng proof nhưng definition set mới. Source semantics hoặc coverage policy đổi thì key compatibility mới và explicit rebuild/selection approval. Không diễn giải lại rows cũ.

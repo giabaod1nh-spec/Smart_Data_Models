@@ -1,37 +1,74 @@
-# Acceptance strategy and traceability
+# Acceptance và independent oracle
 
-The production aggregation under test must not calculate its own expected value. Oracle inputs are frozen source observations, archived run/topology, approved expected-slot schedule and metric registry. A separate, simple reference implementation or hand-calculated fixture derives memberships, populations, sufficient statistics, quantiles, statuses and output identities. Verify physical ClickHouse rows, SQLite publication fences and serving selection.
+Fixture F-01…07 từ Business Spec. Dùng frozen raw observations, manifest, schedule và topology làm inputs độc lập. Reference dùng arithmetic, sorted arrays, timestamp boundary và expected key joins riêng. Với crash/race kiểm tra cả SQLite state, CH physical rows và public Gold reader. Mọi evidence dưới đây cần thu thập trong phạm vi được duyệt.
 
-## Business Spec AC mapping
+| AC | Business requirement | Metric/contract | Stage A task | Fixture | Independent oracle | Expected result | Stage A | Stage B | Stage C | Phase 5 | Evidence cần lưu | Gate/status |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| AC-01 | Tốc độ | M-01 weighted speed | A-I01 | F-01 + unequal weights | Tính tay / sorted reference, raw probes khi cần | 24 km/h for 10×40+40×20; no mean-of-means | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-02 | Tỷ lệ dừng | M-02 ratio | A-I01 | F-01/F-02 | Tính tay / sorted reference, raw probes khi cần | ΣH/ΣV, 100% all stopped, empty N/A | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-03 | P95 hàng đợi | M-03 quantile | A-I01 | F-02 | Tính tay / sorted reference, raw probes khi cần | exact nearest rank, 57/285 index, zero/duplicates | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-QUEUE |
+| AC-04 | Đơn vị occupancy | M-04 units | A-P02 / A-I01 | SUMO-only known raw occupancy | Tính tay / sorted reference, raw probes khi cần | 0.8% remains 0.8%, no unit guessing; source version recorded | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-SRC |
+| AC-05 | Pressure calibration | M-05 score and calibration | A-P04 / A-I01 | F-02 + G-CAL holdout | Tính tay / sorted reference, raw probes khi cần | weights/threshold/version approved, independent reference cases, max approach correct | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-CAL |
+| AC-06 | High count | M-06 count | A-I01 | F-02/03 | Tính tay / sorted reference, raw probes khi cần | correct 2/5, missing participant withheld, threshold pre-round | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-CAL |
+| AC-07 | Observed load | M-07 load | A-I01 | F-01/03 | Tính tay / sorted reference, raw probes khi cần | aligned sum/slot, no unique network claim without scope audit | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-08 | Empty semantics | M-01/02/05 empty semantics | A-I01 | F-02/03 | Tính tay / sorted reference, raw probes khi cần | N/A vs zero vs missing, no div-by-zero | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-09 | Rollup | Rollup invariants | A-I01 | F-01/02/07 | Tính tay / sorted reference, raw probes khi cần | direction/intersection/network direct oracle equivalence | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-10 | Window boundary | Q-01 window boundaries | A-I01 | F-03 | Lịch và archive frozen, join keys độc lập | half-open, two durations, exact time precision and no clipping | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-COV |
+| AC-11 | Expected schedule | Q-01 expected schedule | A-P03 / A-I01 | F-03 + real capture | Lịch và archive frozen, join keys độc lập | independent population, cadence/offset/eligibility agreed; no hardcoded counts | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-COV |
+| AC-12 | Metric coverage | Q-02 metric quality | A-I01 | F-03 | Lịch và archive frozen, join keys độc lập | missing/invalid input suppress dependent output only; no denominator shrink | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-COV |
+| AC-13 | Network coverage | Q-02 network population | A-I01 | F-03 | Lịch và archive frozen, join keys độc lập | missing participant cannot publish full network KPI | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-COV |
+| AC-14 | Topology isolation | Topology and run context | A-I01 | F-03 | Lịch và archive frozen, join keys độc lập | different archived directions supported, no cross-run mixing | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / G-COV |
+| AC-15 | Dedup/replay | Duplicate/replay | A-I02 / A-I06 | F-07 | Source ledger/manifest oracle và crash barriers | no double count, exact semantic result on replay | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff, transaction snapshots | OPEN / G-REV |
+| AC-16 | Invalidation | Invalidation | A-I03 / A-I06 | F-07 | Source ledger/manifest oracle và crash barriers | old effective result suppressed, new revision correct | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff, transaction snapshots | OPEN / G-REV |
+| AC-17 | Restart/write | Restart/ambiguous write | A-I03 / A-I06 | F-07 | Source ledger/manifest oracle và crash barriers | no partial publication or duplicate current revision | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff, transaction snapshots | OPEN / G-REV |
+| AC-18 | Late/conflict | Late observation/conflict | A-I03 / A-I06 | F-07 | Source ledger/manifest oracle và crash barriers | dirty generation and recomputation, no stale proof | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff, transaction snapshots | OPEN / G-REV |
+| AC-19 | Atomic visibility | Q-04 visibility | A-I03 / A-I06 | F-07 | Source ledger/manifest oracle và crash barriers | no half-published data across compatible projections, fence retained | Kiểm chứng logic/physical | — | — | Inherited regression | Fixture inputs, expected/actual diff, transaction snapshots | OPEN / G-REV |
+| AC-20 | Run selection | O-01 default/filter | A-I04 | F-04 | Reference timeline/projection theo fixture | 60s, one run, no global scenario/control command | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-21 | Latest/pin | O-01 follow/pin | A-I04 | F-04 | Reference timeline/projection theo fixture | follow latest published, pin unaffected, invalidation state explicit | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-22 | Range/duration | O-01 range/duration | A-I04 | F-04 | Reference timeline/projection theo fixture | correct relative/custom range, deterministic duration mapping | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-23 | Cards/delta | O-02 scope/delta | A-I04 | F-01–04 | Reference timeline/projection theo fixture | 4 cards same W, previous adjacent compatible baseline, units correct | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-24 | Rank/diagnostic | O-03 rank | A-I04 | F-02/03 | Reference timeline/projection theo fixture | deterministic rank and argmax; correct diagnostic direction | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-CAL |
+| AC-25 | Heatmap | O-04 heatmap | A-I04 | F-04 | Reference timeline/projection theo fixture | cells equal effective scores; gaps and click synchronize W | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-CAL |
+| AC-26 | Trends | O-05 trends | A-I04 | F-04 | Reference timeline/projection theo fixture | selected metric unit, correct grain, gaps, synchronized focus | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-27 | Persistence | O-06 persistence | A-I04 | F-04 | Reference timeline/projection theo fixture | valid/expected counts, missing breaks streak, correct observed/full distinction | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-CAL |
+| AC-28 | Historical quality | O-07 historical/quality | A-I04 | F-03/04/07 | Reference timeline/projection theo fixture | no active run dependency; publication health not coverage; explicit states | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-29 | Direction detail | D-01 direction detail | A-I04 | F-02/03 | Reference timeline/projection theo fixture | topology rows, correct argmax, preserve run/window/range | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / Applicable approvals |
+| AC-30 | Storage | D-02 storage | A-I04 | F-05 + geometry audit | Reference timeline/projection theo fixture | ratio/p95 correct, optional missing withheld, no PCU substitution | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / P1 adoption |
+| AC-31 | Signal | D-03 signal | A-I04 | F-05 | Reference timeline/projection theo fixture | sampled share and conditional q ratio, no phase duration overcount | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / P1 adoption |
+| AC-32 | Context | D-04 local context | A-I04 | F-04/05 | Reference timeline/projection theo fixture | scenario per intersection, network mode, observed evidence not exact cause | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / P1 adoption |
+| AC-33 | Comparability | E-01 comparability | A-I05 | F-06 | Pair metadata đối chiếu và rollup độc lập | fail-closed if required evidence missing/mismatch; no false verified badge | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-EXP |
+| AC-34 | Paired summary | E-02 summary | A-I05 | F-06 | Pair metadata đối chiếu và rollup độc lập | sufficient-stat rollup, zero baseline, valid queue scope | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-EXP |
+| AC-35 | Paired trends | E-03/04 trends/delta | A-I05 | F-06 | Pair metadata đối chiếu và rollup độc lập | matched boundaries, improvements and deteriorations, no fake missing curve | Query/data correctness | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-EXP |
+| AC-36 | Trip/crossing | E-R1/R2 counts | A-P02 / A-I06 nếu adopt | SUMO independent arrivals/crossing oracle | Trajectories/TripInfo hoặc mixed-version fixture | one count per eligible completion/passage, exact interval boundaries/restart | Feasibility và regression nếu adopt | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Optional adoption |
+| AC-37 | Waiting | E-R3/R4 waiting | A-P02 / A-I06 nếu adopt | known trajectories/TripInfo | Trajectories/TripInfo hoặc mixed-version fixture | completed population, zero waits, incomplete separately, correct units | Feasibility và regression nếu adopt | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Optional adoption |
+| AC-38 | Compatibility | Extended contract | A-P02 / A-I06 nếu adopt | versioned mixed-history fixture | Trajectories/TripInfo hoặc mixed-version fixture | old metric absent N/A, no break V1 compatibility, approved replay | Feasibility và regression nếu adopt | — | — | Inherited regression | Fixture inputs, expected/actual diff | OPEN / Optional adoption |
+| AC-39 | Serving | Serving consistency | A-I04 | F-07 API/browser | Pinned ID/time barrier oracle | stale responses ignored, current-effective revision and aligned projections | Gold fenced read | API contract/error mapping | Hiển thị và tương tác | E2E scenario | Fixture inputs, expected/actual diff | OPEN / G-REV |
+| AC-40 | Performance | Gold overhead/operating envelope | A-I07 | representative integrated benchmark | Sampler wall/sim và source-derived oracle | owner-approved limits; both durations; stable resource/backlog/lag; bounded drain; independent oracle | Gold envelope | — | — | Integrated paced acceptance | Fixture inputs, expected/actual diff | OPEN / G-PERF |
 
-| AC range | Scope | Stage/owner | Independent evidence |
-|---|---|---|---|
-| AC-01..09 | speed, stopped ratio, exact P95, occupancy, calibrated pressure, high count, load, empties, rollups | Stage A; occupancy/calibration/metric approvals | F-01/F-02 independent arithmetic and source unit fixture |
-| AC-10..14 | 60/300 membership, expected schedule, quality, network population, topology/run isolation | Stage A; G-COV | F-03 independent manifest+archive slot oracle |
-| AC-15..19 | duplicates, invalidation, restart/ambiguous insert, late change, cross-mart fence | Stage A; G-REV | F-07 durable source oracle, injected crash points, physical audit |
-| AC-20..28 | overview selection, latest/pinned, range, cards, ranking, heatmap/trends, persistence, historical quality | Stage B/C; Stage A data support | F-04 fixture queries; API/UI owner acceptance later |
-| AC-29..32 | detail, optional storage/signal/context | Stage A data / Stage C UI; only if adopted | F-05 geometry and signal joint-coverage oracle |
-| AC-33..35 | experiment comparability, summaries, trends and intersection changes | Stage A data + source experiment protocol; Stage B/C query/UI | F-06 matched/mismatched independent-run fixture |
-| AC-36..38 | trip throughput/waiting and extended contract | Research owner; only if metric adopted | independent SUMO arrival/TripInfo oracle; old-run N/A fixture |
-| AC-39 | serving consistency/stale selection | Stage B and Phase 5 integration, Gold prerequisite Stage A | manifest/revision fixture plus API response verification |
-| AC-40 | Gold overhead/operating envelope | Stage A + Phase 4 PA owner | both durations, backlog/resource/latency instrumentation and approved limits |
+## Supplemental regression
 
-Deferred ACs remain traceable and open; they are not implicitly accepted by this stage.
-
-## Required test matrix
-
-| Category | Cases and oracle result |
+| ID | Case và expected result độc lập |
 |---|---|
-| Metric correctness | Unequal speed populations; H/V ratio; exact nearest-rank 60/300; occupancy raw/normalized units; approved pressure only; ties/argmax; invalid H>V; empty, null, unavailable; direct and rolled-up results; Decimal/float tolerance |
-| Window/population | `[start,end)` boundaries, fractional values, source cadence/slot alignment, missing sample/participant, invalid approach, topology/run isolation, scenario/control changes, incomplete terminal run |
-| Revision/publication | duplicate delivery, late event, conflicting event, post-publication invalidation, work-generation bump, failed stage, ambiguous CH insert, crashes before/after every durable step, all-grain manifest consistency |
-| Recovery/replay | restart and idempotent resume; deterministic same-source output; replay namespace isolation/no live mutation; legacy V2 preservation |
-| Serving | selected historical run; latest published; metric-specific unavailable; stable rank ties; time gaps; persistence streak breaks; comparable/incompatible runs; range/page limits; revision visibility and cache invalidation |
-| Performance | both durations; change/invalidation and eligible work backlog; read amplification; source-to-ACK vs business publication latency; memory/CPU/SQLite/ClickHouse writes; bounded recovery/drain; wall time vs simulation time |
+| SA-01 | Scenario-neutral: NORMAL/PEAK dùng cùng key, đúng hai memberships |
+| SA-02 | Entire missing window: timeline có gap, không physical zero |
+| SA-03 | Duplicate slot claims: cả hai invalid, denominator giữ nguyên |
+| SA-04 | Actual timestamp mismatch: preserve Core membership, không coverage credit |
+| SA-05 | Inbound E2: 0.8% giữ 0.8% |
+| SA-06 | Inbound lane: verify wire unit trước normalization |
+| SA-07 | Outbound E2 và lane fallback: 0.8% thành .008 nếu raw percent |
+| SA-08 | E2 measured zero khác fallback positive và unavailable |
+| SA-09 | Crash quanh Core COMPLETE: obligation atomic, recover được |
+| SA-10 | Old proof: bounded reconciliation hoặc explicit unsupported |
+| SA-11 | Accumulator bị hủy khi fence/generation đổi |
+| SA-12 | Vượt budget: RESOURCE_LIMIT, no publish, no retry spin |
+| SA-13 | Invalidation trong khi serve: retry hoặc REPROCESSING |
+| SA-14 | Range nhiều revisions: pin manifest set, stale pagination |
+| SA-15 | Definition upgrade: cùng proof, immutable version mới |
+| SA-16 | Source semantics boundary: không trộn histories |
+| SA-17 | CH divergent duplicate: reject; identical dedup |
+| SA-18 | Authority unavailable: fail-closed kể cả cache warm |
+| SA-19 | Experiment metadata mismatch: cùng seed khác demand bị reject |
 
-## Definition of Done proposals
+## Exit
 
-Require approved requirements and metric versions; authoritative expected population and strict coverage; public canonical source only; one verified Core traversal for approved aggregations; output parity with independent oracle at Direction/Intersection/Network grains; no zero substitution; generation invalidation/recompute/revision proof; atomic family visibility; restart/replay evidence; bounded serving contract; separate performance verdict under approved envelope; outstanding requirements/stage ownership recorded; Stage B has stable data and query contract.
-
-Report six separate verdicts: **business correctness**, **publication correctness**, **recovery/replay**, **serving readiness**, **performance acceptance**, **operational readiness**. Valid values include PASS, FAIL, OPEN, INCONCLUSIVE, ENVIRONMENT BLOCKED, NOT MEASURED as appropriate; never compress them to one PASS.
-
+Chốt riêng business correctness (approved metric registries, strict independently computed population, cả hai durations và ba grain), publication (one manifest, no zero fill, no mixed rows), recovery/replay (late/invalidation/restart/version rebuild), serving (fenced queries độc lập Orion và handoff B), performance và operational readiness. Giữ A-I05 mandatory cho comparison. Mọi phạm vi deferred có owner và evidence gate riêng. Vòng revision này chưa thực thi acceptance cases.

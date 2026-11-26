@@ -27,3 +27,8 @@ Each benchmark records objective, exact fixture/source, rate, pace, duration, re
 
 Do not add throughput targets, concurrency, batch size, infra, 30-minute soak or performance waiver by assumption. API/dashboard latency and final cutover belong to later gates.
 
+## Sizing và gate tách biệt (RV-12/13)
+
+Ở pace 1×, ví dụ 1Hz/5 intersections tạo 5 obs/wall-s và khoảng 10 membership obligations/wall-s. 30 simulation minutes có 30 windows 60s + 6 windows 300s tiềm năng và 612 direction + 180 intersection + 36 network rows nếu tất cả eligible, chưa tính revisions, stages, metadata. Baseline ở `performance/profiling-result.md` và checkpoint-02 stopped-source: 2338 reads/242.43 wall-s, 9.64 reads/wall-s sau ACK, stream cuối 1500 members/136.20 wall-s, last proof ở 338.13 wall-s từ readiness. Fresh run `perf-w2-paced-02` dừng ở 206.05 simulation-s, thiếu proof 300s/drain/oracle. Hai profile khác nhau, headroom chưa xác định. Không lấy 10−9.64 làm tốc độ backlog.
+
+Tách baseline Raw/Bronze/Silver source progress, Core ACK, eligible wait, member verification, accumulator CPU/heap, exact queue sample state O(direction slots), staged bytes/rows và read-back, SQLite WAL/manifest growth, publication lag, retry/cancel do fence, range queries và comparative range reads. Đo Core-only và Core+business cùng isolated workload đã duyệt, từng wall/simulation clock, CPU/RSS/disk, tail latency và backlog age. Không tăng concurrency hay budget dựa trên stopped-source evidence. G-ENTRY cấp scope implementation. G-PERF đánh giá runtime/operational envelope riêng. Safety guards giữ nguyên 1 GiB runtime floor/2.5 GB startup reserve theo acceptance.

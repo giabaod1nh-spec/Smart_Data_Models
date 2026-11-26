@@ -1,36 +1,28 @@
-# Expected Observation and coverage contract
+# Expected Observation và coverage (RV-04/05)
 
-**Mandatory design gate G-COV.** The Business Spec's strict 100% applicable coverage is a proposed owner direction. It must be made precise and approved before any official publication. The examples 300/1,020 samples per 60s and 1,500/5,100 per 300s assume five intersections, 17 approaches and exactly 1Hz aligned sampling; they are not runtime constants or approved denominators.
+## Evidence và lựa chọn
 
-## Authoritative expected population
+`Visualize/simulation/backend.py:417,449–536` đọc clock sau step, lần đầu quan sát ngay sau step vì last < 0, sau đó dùng hiệu float với interval mặc định 1s. Sequence tăng khi attempt bắt đầu, last time cập nhật kể cả khi generate trả lỗi. Pause không tạo simulation steps. Restart/terminal cần bằng chứng riêng về generation và clock tiến tới đâu. Snapshot realtime làm tròn hai chữ số. `canonical_cycle.capture_cycle` ghi đè timestamp bằng clock truyền vào và V1 yêu cầu đủ participant khi tạo cycle. Fixture `phase-2/fixtures/current-sumo-cycle.json` có 60.04s. Một fixture hoặc cadence setting không chứng minh lịch kỳ vọng.
 
-For each immutable run generation and topology digest, derive participants and applicable approaches from verified run manifest/archive. Define expected sampling cadence and alignment from producer configuration plus measured event times/steps. Use simulation time and the approved precision; do not derive expected counts from records received. Define slot identity independently (e.g., an approved manifest schedule/sequence mapping), including start offset, first/last partial eligibility, delayed and missing events, duplicate delivery, terminal status and tolerance. Do not round 0.01s / 60.04s observations to a convenient slot without approved mapping. Gold's current epoch-zero `[start,end)` membership and fractional timestamp handling are Core invariants unless owner approves an amendment.
+`traffic_observation.build_observation` ghi simulationStep, cycleSequence và simulationTimeSeconds vào envelope. Raw giữ envelope, Bronze giữ observation và lineage. `de/silver/fact_builders.py:build_v1_fact_rows` ánh xạ cycle và time vào facts, không ánh xạ step. Public changes trả bundle facts đã kiểm chứng và run identity, invalidation có cycle/time. Gold không giả định step, raw envelope, expected schedule hoặc terminal status có trong bundle.
 
-The current source defaults to `OBSERVATION_INTERVAL_SEC=1.0`, tests elapsed simulation time against the last observation, records rounded observation simulation time and step, but does not expose a verified expected-slot schedule. Therefore slot contract is **not available yet**. The observation-count table in Business Spec is a conditional example only.
+| Phương án | Evidence, thay đổi và recovery |
+|---|---|
+| A. Tái dựng scheduler hiện có | Ưu tiên nếu authoritative step/clock/config và deterministic execution tái dựng được cùng kết quả qua failure/restart. Ít thay đổi, nhưng lần đầu, float drift và terminal chưa được chứng minh. Historical chỉ đủ điều kiện nếu còn đủ provenance. |
+| B. Lịch deterministic tại producer | Khuyến nghị nếu A/C không chứng minh được. Producer ghi lịch trước capture, định danh slot riêng, giữ actual clock, cần extension tối thiểu và versioning. Chi phí metadata theo slot/range, recovery từ durable schedule. |
+| C. Durable attempt/outcome ledger | Ghi attempted/failed/committed, idempotent theo run/slot. Hữu ích bổ trợ B. Chỉ đủ độc lập nếu có planned schedule hoặc counter evidence phát hiện cả attempt chưa chạy. Đo write overhead, crash giữa capture và Outbox. |
+| D. Đếm records đã nhận | Loại vì không phát hiện được slot hay cả window vắng mặt. |
 
-## Per-metric, per-grain accounting
+## Contract ứng viên B
 
-Persist or reproducibly derive counts for `expected`, `received`, `valid`, `unavailable`, `not_applicable`, `missing`, `invalid/conflicted`, plus population and slot-set identity. Enforce conservation: each expected metric slot is classified exactly once; transport duplicates are deduplicated by semantic event identity before counts. Coverage is `valid / expected_applicable`, while NOT_APPLICABLE is included only if independently specified as not part of that metric's population. Never relabel missing as not-applicable to reach 100%.
+Schedule bất biến theo (run ID, generation, topology digest, manifest identity, schedule version). Digest bao gồm participant/approach set, time unit (đề xuất integer microseconds để biểu diễn lịch), origin, period, first slot ordinal, step rule, capture tolerance, producer version. Slot ordinal k có due time = origin + k × period và key (run context, intersection, schedule ID, k). Lưu actual simulation timestamp nguyên giá trị canonical, step/cycle nếu được expose, planned due time và outcome. Timestamp tolerance cần owner chọn từ capture. Slot và actual time phải thuộc cùng Core window ở cả hai durations, nếu lệch boundary hoặc ngoài tolerance thì báo mismatch, giữ nguyên Core membership và không cấp coverage credit. Cycle/step phải khớp schedule mapping đã phê duyệt.
 
-| State | Meaning | Numeric value |
-|---|---|---|
-| Measured zero | valid observation measured value 0 | zero, contributes to valid count |
-| NULL + UNAVAILABLE | applicable metric could not be measured | no numeric contribution; lowers coverage |
-| NULL + NOT_APPLICABLE | contract says metric does not apply to this slot/entity | excluded only by approved applicability rule and recorded separately |
-| Missing | expected observation not received | not zero; lowers coverage |
-| Invalid/conflicted | observation rejected or source identity in conflict | not valid; affected result suppressed/reprocessed |
-| INCOMPLETE | expected population not fully valid | no official result under strict policy |
-| N/A | complete applicable population, but formula denominator is zero or there is no applicable event | no numeric result, reason included |
-| REPROCESSING | prior result fenced after change/invalidation | not serve prior revision as current |
-| PUBLISHED | one verified current business revision is eligible to serve | values and manifest share one revision fence |
+Lifecycle evidence có start, observed-through simulation time, terminal reason/cutoff và last eligible slot. Pause giữ nguyên tiến độ. Resume cùng generation chỉ khi chứng minh continuity. Restart thiếu continuity cần generation mới hoặc đánh dấu unsupported. Failed/missed capture giữ nguyên denominator. Chỉ lấy lịch và linkage qua contract public đã verify hoặc qua extension Silver có owner approval. Legacy thiếu evidence trả UNSUPPORTED_SCHEDULE. Không suy đoán metadata từ journal riêng.
 
-## Strict publication policy proposal
+## Accounting và timeline
 
-For an official metric result at grain G, require all expected applicable slots and participants for that metric to be valid, identity-consistent and in the same input generation/definition. Coverage is metric-specific: missing speed does not by itself suppress queue P95; missing an applicable participant suppresses a network metric whose population includes it. A complete zero-vehicle window differs from an absent observation. A missing expected slot is never converted to zero. Only the result family for which all required inputs are met may be published; dependent metrics can be unavailable independently.
+Tính distinct expected keys độc lập, classify từng key VALID, MISSING, UNAVAILABLE, INVALID/CONFLICTED hoặc contract-defined NOT_APPLICABLE. Received là số slot có claim. Structural coverage xét danh tính và participant. Metric input coverage xét từng field/joint input. Numerical applicability xét denominator sau khi đủ coverage. Hai event ID cùng claim slot làm slot conflicted, cả hai bị loại khỏi metric state và yêu cầu xử lý có lineage. Transport retry cùng event là idempotent. Late valid claim cập nhật current generation/revision, không cộng thêm slot. Không hạ denominator vì thiếu dữ liệu. Full coverage với V=H có thể cho speed N/A.
 
-Terminal `RUN COMPLETE`, passed window end, Core `COMPLETE`, or an empty feed do not establish business completeness. The public feed currently lacks authoritative lifecycle/finality. Until a source contract supplies it, expose Core `UNKNOWN` / not-final and do not claim closed-run completeness. No provisional aggregates are in scope.
+Serving dựng bounded aligned timeline từ schedule và lifecycle rồi đối chiếu Core work và publication. Interval đã eligible mà không có observation là MISSING_WINDOW ngay cả khi không có core_window. Window có dữ liệu đo đầy đủ và không xe là measured empty. Trước cutoff là NOT_YET_ELIGIBLE. Work chưa xong là PROCESSING, correction đang chạy là REPROCESSING. Terminal partial là TERMINAL_PARTIAL, không extrapolate. Thiếu lifecycle là UNKNOWN. Không tạo rows zero để lấp gap. Chỉ PUBLISHED khi manifest hiện hành và metric đạt strict applicable coverage. Các số 300/1020 và 1500/5100 chỉ áp dụng topology 5/17 và 1Hz đã chứng minh.
 
-## Acceptance cases
-
-For every metric and grain: complete measured zero; full coverage with zero denominator; one missing sample; one explicit unavailable; approved not-applicable member; invalid/conflicted event; missing intersection; changed topology; scenario change; late delivery after publication; terminal incomplete window. Assert exact counts and reason codes, metric-specific suppression, and no fabricated zero or denominator shrinkage. Independent oracle must construct expected population from manifest/topology and schedule fixture, not from Gold rows.
-
+Gate G-COV cần SF-07 có start, 59.99/60.04/299.99/300, missing entire window, duplicate claim, pause/resume, failure và terminal, đối chiếu độc lập với producer clock/steps và archive.

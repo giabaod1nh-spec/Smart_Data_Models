@@ -34,3 +34,6 @@ All B4B items below are repository requirements with open semantics from `phase-
 
 Stage A includes feasibility, metric/coverage decisions, independent oracles, Gold aggregation, proposed physical storage, revision/publication and Gold serving query design/verification. It does not implement Spring Controllers/Repositories/DTOs, React components, dashboard integration or final cutover. Throughput and Waiting Time remain research and do not block independent core traffic metrics. No chart-specific tables or unsupported extra KPI are authorized.
 
+## Ranh giới sau review
+
+B4B-04 đề xuất duration switch 60/300. Nếu owner xác nhận nested comparison riêng thì dùng cùng aligned end, ghi rõ samples chồng lấn, không tạo mart riêng. B4B-01/02/03 giữ scenario-neutral Core membership và context sampled. B4B-08 cùng E-01…04 có data support/comparability ở A-I05. End-to-end UI riêng ở Stage C. B4B-12 phụ thuộc durable obligation và read protocol. Pressure trì hoãn riêng không đóng đủ 4 KPI.

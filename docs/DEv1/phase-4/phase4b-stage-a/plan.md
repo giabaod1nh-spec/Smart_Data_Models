@@ -1,132 +1,33 @@
-# Stage A implementation plan
+# Roadmap Stage A sau technical review
 
-All packages below are proposed tasks, not authorization. No task becomes executable merely by appearing here. Design/research may start after owner review; production writes require G-COV and G-REV, and implementation requires plan approval plus resolution of the applicable entry gates.
+## Preparation & Design Closure
 
-## Dependency graph
+| ID / mapping cũ | Scope và đường dẫn tác động dự kiến | Phụ thuộc, rủi ro và rollback | Evidence, AC và exit |
+|---|---|---|---|
+| A-P01 (A01) | Reconcile B4B-01…15, Stage A/B/C, D-A07 và governance trong bộ Markdown Stage A | Owner chọn scope. Amendment Master Plan/PA theo change riêng. Revert riêng proposed wording nếu chưa chốt | Decisions có owner/action và AC coverage |
+| A-P02 (A02) | SF-01…09 scope riêng, kiểm tra Visualize/observation/detector_manager.py, snapshot_provider.py, canonical_cycle.py, Visualize/simulation/backend.py, phase-2/fixtures/current-sumo-cycle.json, AI evaluation source | Authorization cho từng fixture. Không dùng retained volumes làm mutable input. Optional study chạy song song. Dừng fixture theo budget | Raw read vs canonical/Gold-facing evidence và independent expected values. AC-04/11, SA-05…08/19 |
+| A-P03 (A03) | Closure Q-01/02: lịch, slot claims, lifecycle, compatibility. Proposed impact Visualize/runtime/run_manifest.py, contracts/traffic_observation.py, de/silver/incremental_contract.py nếu extension cần thiết | A-P02 schedule proof. Upstream correction/extension là change riêng, có source owner approval, tests và rollback version-aware, preserve old readers | Signed G-COV, authoritative population usable, AC-10…14, SA-02…04 |
+| A-P04 (A04/A05) | Registry, precision, exact quantile, fixtures và pressure calibration protocol ở metric-contract.md. Candidate fixtures de/tests/gold_runtime/ sau authorization | A-P01, evidence A-P02 và population A-P03. Pressure holdout riêng sau source correctness. Revoke candidate version nếu calibration không đạt | G-METRIC per metric, G-CAL riêng, AC-01…09 |
+| A-P05 (A06/A07) | Design closure cho Core compatibility, SQLite obligation, ClickHouse marts, read protocol, rebuild, experiment metadata và performance. Inspect de/gold_runtime/processor.py, processing_ledger.py, checkpoint_store.py, de/migrations/005_create_gold_m1.sql | A-P01 và A-P02…04 theo áp dụng. D-A06 đã xác minh. Review bounded transaction/payload, interface serving và DDL. Nếu sizing fail quay lại alternatives | Signed designs G-MART/G-REV/G-EXP theo scope, failure matrix, SA-01/09…18 |
 
-```text
-P4B-A01 requirements/governance reconciliation
-  ├── P4B-A02 source feasibility (occupancy, queue, schedule, optional research)
-  │    └── P4B-A03 expected population and coverage contract
-  ├── P4B-A04 metric registry + independent oracles
-  │    └── P4B-A05 pressure calibration (only after occupancy/queue quality)
-  └── P4B-A06 Core/window identity compatibility decision
-P4B-A03 + A04 + A06 + P4B-A05 (only for pressure) + G-REV
-  └── P4B-A07 architecture and mart approval
-       └── P4B-A08 pure aggregation engine
-            └── P4B-A09 Core integration + staging/publication
-                 ├── P4B-A10 Gold serving/query verification
-                 └── P4B-A11 recovery/replay/failure acceptance
-P4B-A08..11 + G-PERF ──> P4B-A12 Stage A correctness/performance closeout
-```
+## G-ENTRY
 
-## Work packages
+A-P01…05 là preparation có thể cấp quyền riêng, tuỳ scope read-only hoặc isolated fixture. Production Gold business code chờ applicable approvals và G-ENTRY authority. Nếu owner duyệt amendment conditional entry thì điều kiện của amendment phải được ghi nhận trước task đầu tiên. G-PERF kiểm chứng performance/operational sau khi có workload phù hợp. Xem D-A14.
 
-### P4B-A01 — Requirements and governance reconciliation
+## Business Implementation
 
-- **Objective/requirements:** resolve B4B-01..15, Stage A/B/C proposal, Master Plan staleness, B4B-04 nested comparison and source-of-truth for gates.
-- **Dependencies/scope:** owner review of `deferred-phase-4b.md`, Master Plan, eight Business Spec files; record approved/proposed/deferred decisions and AC mapping.
-- **Out of scope:** no Master Plan/spec edits or implementation.
-- **Existing/files:** `docs/DEv1/Master_plan_DE_V1_.md`, `phase-4/deferred-phase-4b.md`, `phase4b-business-spec/*`; proposed amendments recorded in Stage A decisions.
-- **Risks/tests/evidence:** conflicting governance; review workshop and signed decision log; preserve current docs unchanged.
-- **Acceptance/exit:** each B4B has owner/status/stage/AC; amendment decision and review evidence attached.
-- **Rollback/approval:** documentation-only; owner approval required to change scope.
+Các file hiện hữu bên dưới là điểm tích hợp. Tên file mới và migration version chốt trong A-P05. Chỉ tác động source sau explicit authorization.
 
-### P4B-A02 — Source feasibility and source correctness prerequisites
+| ID / mapping cũ | Scope và file impact | Dependencies, risk và rollback | Tests, evidence, exit |
+|---|---|---|---|
+| A-I01 (A08) | Pure accumulators trong candidate de/gold/business, input qua canonical contracts | A-P03/04/05 theo metric + G-ENTRY. No persistence; disable module nếu oracle sai | AC-01…14, SA-02…08/11/12, raw fixture + independent output hashes |
+| A-I02 (A09 phần Core) | de/gold_runtime/processor.py, processing_ledger.py, checkpoint_store.py. Bounded consumption + durable obligation cùng finish CAS | A-I01. Preserve Core proof hash, scheduler, cursors, namespace. Disable business integration, preserve durable obligations for recovery | AC-15/18, SA-01/09/11/12, crash barriers và Core regressions |
+| A-I03 (A09 phần writes) | Candidate additive de/migrations and Gold coordinator. Exact staged rows, digests, manifest pointer | A-I02 + G-MART/G-REV. Disable publication, keep evidence, suppress incompatible revisions | AC-16…19, SA-17, physical ClickHouse/SQLite independent audit |
+| A-I04 (A10) | Gold reader candidate dưới de/gold_runtime, pinned manifest set, range timeline, query limits | A-I03, design adapter G-API; no Spring/React. Disable new reader nếu stale/mixed results | AC-20…32/39, SA-13/14/18, return digest, query plans, stale/cancel fixtures |
+| A-I05 (tách từ A10) | Experiment metadata validation và paired Gold query, candidate reader module dưới de/gold_runtime | A-I04 và G-EXP + controlled independent run metadata. Không chờ optional throughput/waiting. Metadata không đủ thì return UNKNOWN, disable comparisons only | AC-33…35, SA-19, signed demand/controller/geometry + paired oracle |
+| A-I06 (A11) | de/gold_runtime/replay.py và coordinator: historical backfill cursor, replay, rebuild và recovery | A-I02…04, source retention and compatibility. Pause live-independent rebuild, preserve history and V2 | AC-15…19/38 theo adoption, SA-09/10/15…18, replay proof, no live mutation |
+| A-I07 (A12) | Stage A acceptance và evidence package từ de/tests/gold_runtime, representative approved runtime fixture | A-I01…06 theo scope, G-PERF. Safety stop giữ artifacts. B/C và cutover không nằm trong package | AC-40 + toàn bộ adopted AC; ba grain, hai durations, oracle, restart, query and scope verdicts |
 
-- **Objective/requirements:** prove source units/populations for M-01..07 and optional experiment data.
-- **Dependencies/scope:** SUMO/Silver owners; SF-01..07 in `source-feasibility.md`; saved versioned fixtures and independent source oracle.
-- **Out of scope:** no source fix, schema/contract or runtime change under this package until separately approved.
-- **Files:** inspect `Visualize/observation/*`, `Visualize/simulation/backend.py`, `contracts/*`, `de/silver/*`, AI metrics; if later approved, changes isolated to identified source package and regression scope.
-- **Tests/acceptance/evidence:** occupancy raw values and unit mapping, queue method compatibility, storage geometry, cadence capture; independent TraCI/TripInfo outputs and resource overhead.
-- **Risks/exit:** old occupancy values cannot be safely transformed without provenance. Exit is explicit ADOPT/DEFER/REJECT per metric; source correction has its own approval/rollback.
+Critical path A-P01 → A-P02 required paths → A-P03 + A-P04 → A-P05 → G-ENTRY → A-I01…04 → A-I06/07. A-I05 là nhánh bắt buộc cho experiment acceptance; có thể chuẩn bị metadata song song. Source correctness implementation, nếu cần, phải được phê duyệt riêng trước dependent outputs. Pressure và queue gates chỉ chặn outputs/qualification phụ thuộc. Đóng tất cả bốn KPI cần cả pressure và queue. Optional research không nằm trên critical path.
 
-### P4B-A03 — Expected Observation and Coverage Contract
-
-- **Objective/requirements:** B4B-10 / Q-01, Q-02; define expected population/slots and per-metric strict coverage.
-- **Dependencies/scope:** A01; A02 schedule/topology evidence; lifecycle/source owner.
-- **Out of scope:** no official publication or cadence contract change.
-- **Files:** proposed contract amendment only; inspect manifest, event schema, topology/archive, Core membership.
-- **Tests/evidence:** independent schedule oracle, fractional timestamps, missing/delayed/duplicate/conflict, participant and terminal cases.
-- **Acceptance/exit:** 100% meaning, denominator, applicability and lifecycle policy approved; expected slot identity computable independently.
-- **Risk/rollback/approval:** if schedule unavailable, keep official results blocked; owner signs G-COV before output writes.
-
-### P4B-A04 — Metric registry and independent oracle
-
-- **Objective/requirements:** B4B-01..07; M-01..08 and AC-01..09.
-- **Dependencies/scope:** A01; source fields identified by A02. Define formulas, precision, tie rules, null behavior and pure oracle fixture.
-- **Out of scope:** no production aggregation and no official score calibration.
-- **Files:** proposed `de/gold/business/*` design location after owner selection; tests only in approved implementation phase.
-- **Acceptance/evidence:** independent hand-computable examples including nearest-rank, rollup and edge cases; metric registry IDs/version locked.
-- **Exit/approval:** G-METRIC; P95 exact state budget specified. Pressure may remain separately blocked.
-
-### P4B-A05 — Pressure calibration
-
-- **Objective/requirements:** B4B-06/07; AC-05,24..27.
-- **Dependencies/scope:** A02 occupancy/queue semantics corrected or versioned; A03 coverage; A04 candidate formula; domain owner ground-truth set and holdout protocol.
-- **Out of scope:** do not calibrate from buggy occupancy or solely from pressure components; no threshold tuning after seeing acceptance holdout.
-- **Evidence/acceptance:** empty/normal/red phase/peak/incident/spillback/directional cases; independent trajectories and owner-approved error targets; version/weights/thresholds signed.
-- **Exit:** G-CAL, or mark pressure-dependent metrics unavailable/deferred. Physical metrics continue.
-
-### P4B-A06 — Core compatibility and window identity decision
-
-- **Objective/requirements:** B4B-04, Q-01, B4B-12; resolve scenario-neutral request versus current scenario-bearing Core identity.
-- **Dependencies/scope:** inspect Core proof/membership behavior and test cross-scenario window examples; compare Core amendment vs business combining approach.
-- **Out of scope:** no windowing behavior change in Stage A plan task.
-- **Files:** `de/gold_runtime/processing_ledger.py`, `window_scheduler.py`, `processor.py`, `de/gold/windowing.py` inspected; amendment path separately approved if selected.
-- **Acceptance/evidence:** deterministic membership and revision oracle across scenario switch and both durations.
-- **Exit/approval:** one documented, backwards-compatible identity policy, with owner acceptance of any Core amendment.
-
-### P4B-A07 — Aggregation/mart/revision design approval
-
-- **Objective/requirements:** B4B-11/12 and Q-03/Q-04; choose Option A/B/C, physical model, lineage and atomic visibility.
-- **Dependencies:** A03, A04, A06; A05 for pressure fields only; G-REV.
-- **Scope/files:** architecture, ClickHouse/SQLite migrations design, query patterns; inspect existing migration and Core stores. No DDL yet.
-- **Acceptance/evidence:** failure matrix, row/key model, ClickHouse ambiguity/idempotency proof plan, legacy V2 isolation and additive migration plan.
-- **Exit:** owner approves model, current-effective semantics, retention and rollback.
-
-### P4B-A08 — Pure aggregation engine
-
-- **Objective:** deterministic metric computation over verified input model; AC-01..09,10..14.
-- **Dependencies:** A03/A04/A06/A07 approval; A05 only for pressure.
-- **Scope/files:** implement bounded accumulators and exact queue selection in approved Gold package; preserve Core proof interfaces.
-- **Out of scope:** no database writes, API/UI, source contract change.
-- **Tests/evidence:** independent oracle, property/fixture tests, both windows, null/zero/ties/rollups and precision; no production function as its own oracle.
-- **Exit/rollback:** pure module can be disabled/reverted without touching Core/legacy V2; owner-authorized coding task required.
-
-### P4B-A09 — Core integration, marts and publication
-
-- **Objective:** use one verified traversal to derive/stage/verify/publish compatible business revisions.
-- **Requirements/dependencies:** A08, A03, A07, G-REV and source performance entry conditions.
-- **Files:** approved `de/gold_runtime/*`, migration and runtime config changes only under later explicit implementation approval.
-- **Tests:** local/CH transaction, ambiguous write, partial rows, fence loss, generation race, invalidation after publication, one manifest across all grains.
-- **Out of scope:** no Spring/React; no changes to Raw/Bronze/Silver behavior absent separate source package.
-- **Exit/evidence:** read-back digest and cross-store crash matrix pass; rollback suppresses/removes only unpublished new namespace objects safely.
-
-### P4B-A10 — Gold serving queries
-
-- **Objective/requirements:** B4B-13; serving contract and AC-20..35,39.
-- **Dependencies:** published schema/revision from A07/A09.
-- **Scope:** bounded queries/views and selection contract; inspect existing Spring mappers only for compatibility.
-- **Out of scope:** no Spring endpoint/DTO or dashboard code.
-- **Acceptance:** historical runs offline from Orion, latest-effective selection, gaps, page/range guards, revision-consistent values, experiment fail-closed behavior.
-- **Exit/evidence:** query plans and independent fixture outputs supplied to Stage B; rollback by disabling views/new query path.
-
-### P4B-A11 — Recovery, replay and failure-path verification
-
-- **Objective:** AC-15..19, restart/replay/legacy V2 protection.
-- **Dependencies:** A09/A10; disposable isolated fixtures and resource budget.
-- **Scope:** crash barriers at every publication point, ambiguous insert recovery, replay namespace and same-binding deterministic re-run.
-- **Out of scope:** no use of preserved performance volumes/artifacts as mutable fixtures.
-- **Acceptance/evidence:** independent SQLite + ClickHouse physical audit, old effective suppression, no mixed rows, V2 unchanged.
-- **Exit:** all injected failures converge to one valid manifest or no publish; operational runbook reviewed.
-
-### P4B-A12 — Stage A acceptance and performance closeout
-
-- **Objective:** separate correctness/publication/recovery/serving/performance/operational verdicts; satisfy approved DoD.
-- **Dependencies:** A08..11, all adopted metric gates, Performance Acceptance gate and owner operating envelope.
-- **Scope:** stage tests, paced integrated proof, both durations, bounded drain and overhead evidence.
-- **Out of scope:** API/UI final acceptance and Phase 5 cutover.
-- **Acceptance/evidence:** `acceptance.md`, raw artifacts, independently verified result manifests and each separate verdict.
-- **Exit/rollback:** no single PASS shorthand; unresolved dimension stays OPEN/INCONCLUSIVE/ENVIRONMENT BLOCKED. Owner accepts Stage A results before Stage B handoff.
-
+Stage A exit theo acceptance.md, ghi riêng business correctness, publication, recovery/replay, serving, performance và operational verdicts. Phase 5 vẫn chịu integrated verification/cutover.

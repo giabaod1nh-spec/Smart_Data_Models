@@ -1,37 +1,11 @@
-# Stage A planning handover
+# Bàn giao Phase 4B Stage A
 
-## Planning baseline and work done
+Baseline review local và remote `035e88e26151951dbee407934751550ae7bfc381`, branch `codex/phase-1-v1-raw`. So với Business Spec `addb59a…`, chỉ có 16 Markdown Stage A. Xem [scope và evidence](audit.md), [RV/SR](review-resolution.md) và [decisions](decisions.md).
 
-Audit baseline: branch `codex/phase-1-v1-raw`, HEAD `addb59a88b2b62a6c97399925298cac20733f84c`, clean tree before document creation. This is exactly the requested source baseline. The only diff from Business Spec baseline `25d943fa3825523e14a596aab601bb4e38983853` is eight added Business Spec files; application source is unchanged across that range.
+**READY FOR OWNER DESIGN REVIEW. SOURCE FEASIBILITY REQUIRED. IMPLEMENTATION ENTRY BLOCKED.**
 
-Created the Stage A planning package in `docs/DEv1/phase-4/phase4b-stage-a/`. No code, schema, migration, runtime, Phase 4A evidence, Business Spec or Master Plan was changed. No git add/commit/branch operation, test, benchmark or service startup was performed.
-
-The repository ignores `docs/**` except `docs/shared/**`; these new files are local and do not appear in ordinary `git status`. They were intentionally not force-added or staged. The source worktree was clean at audit start; after document creation, Git still reports clean because the deliverables are ignored. Owner review must decide whether/how to track them.
-
-## Findings to review first
-
-1. Phase 4A Core correctness is accepted for tested cases; completeness is `UNKNOWN`, finality is `DISABLED`, performance capacity was insufficient in one scoped test, and operational readiness is not certified.
-2. Performance minimum entry gate remains `ENVIRONMENT BLOCKED`; the latest paced attempt stopped on the memory safety floor and missed the full evidence boundary.
-3. Expected Observation/coverage contract is not yet authoritative; strict 100% coverage cannot be applied with a denominator inferred from received rows.
-4. E2 occupancy percent is incorrectly scaled at values ≤1 in source; lane fallback has a different raw unit, so shared source output is not trustworthy until corrected/versioned.
-5. Queue method provenance, scenario window identity, and cross-store business publication require explicit decisions.
-6. Master Plan governance text is a stale snapshot relative to current Phase 4A implementation; reconcile proposed Stage A/B/C split and gate ownership.
-
-## Recommended next action
-
-Owner review decisions D-A01..15, prioritizing governance reconciliation, G-COV, G-SRC/G-QUEUE, D-A06 window identity, G-METRIC/G-CAL and G-REV. Then authorize narrowly scoped SF-01/02/07 feasibility packages and independent oracle design. Keep optional throughput/waiting study separate. Do not approve physical marts or business writes until metric, expected population and publication gates are settled.
-
-## Implementation prerequisites
-
-- Explicit approval of Stage A scope and amendment path for the authoritative Master Plan / Performance Acceptance record.
-- Approved source correctness and metric/definition versions for each adopted result.
-- Independently computable expected observation slots and strict per-metric coverage policy.
-- Resolved Core/business window identity and scenario provenance.
-- Approved physical model, idempotent revision protocol, cross-mart visibility and invalidation suppression boundary.
-- Independent arithmetic/source oracle, failure/replay suite and rollback path.
-- Performance gate completion or explicit approved amendment with risk/scope/stop conditions.
-
-## Readiness verdict
-
-**SOURCE FEASIBILITY REQUIRED; REQUIREMENT APPROVAL REQUIRED; PERFORMANCE ENTRY GATE BLOCKED.** This package is ready for owner plan review. It is not ready for implementation, and owner approval of the plan alone would not clear unresolved mandatory gates.
-
+- D-A06 đã đóng factual finding. Active Core giữ scenario-neutral key và chỉ lấy scenario làm provenance. Đưa regression SA-01 vào A-I02.
+- Duyệt trước A-P01 (scope Stage A/B/C và B4B-04 duration switch) và A-P02 (isolated SF-01, SF-02/Q, moving population, SF-07). Optional research có authorization riêng.
+- Dùng feasibility evidence để đóng expected slots và source version, metric registry và calibration, bounded state/retention, rebuild, publication và serving interface. Cần design closure review trước implementation.
+- G-ENTRY chờ fresh paced minimum gate hoặc owner amendment theo D-A14. G-PERF vẫn mở. Gold publication cần G-COV/G-REV. Pressure, queue và comparisons có gates riêng.
+- Stage B nhận logical Gold serving contract sau Stage A acceptance. Stage C và Phase 5 giữ nguyên trách nhiệm UI và cutover.

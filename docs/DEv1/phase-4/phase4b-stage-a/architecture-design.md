@@ -45,11 +45,18 @@ This is a design proposal only. Choose a single coordinator/store boundary after
 
 Implement a pure deterministic accumulator, independent oracle, bounded state and versioned metric registry first. At completion of a Core proof, process every verified bundle once and fan out values into all approved accumulators. Exact queue P95 should retain at most one window's samples per direction/work identity; estimated current topology memory is small (e.g. 17×300 values for one 300s region), but generic bound must derive from archived participant/approach counts and maximum eligible slots. Never retain whole history in RAM.
 
-## Window identity discrepancy
+## Tương thích Core (RV-01)
 
-Core currently includes scenario in its window identity and produces work/memberships accordingly. Business Spec wants scenario-neutral window identity with scenario provenance on each event. Preserve existing Core behavior until owner decides whether to (a) approve a Core amendment, (b) treat scenario-specific Core proofs as source partitions and deterministically combine them into a scenario-neutral business window using verified memberships, or (c) revise business requirement. Each option has edge cases when scenario changes mid-window and must pass membership/generation oracle. Do not silently alter Core.
+Active generic window scenario-neutral. Giữ key, membership, scheduler và proof hiện có. Business provenance dùng sampled distribution và chronology theo slot. D-A06 đóng factual finding, không cần sửa Core identity.
 
 ## Resource and transaction boundaries
 
 Keep Silver page limits and Core work quantum. Accumulate one member at a time; do not cache raw bundles between generations without a source binding/fence. Stage deterministic outputs and manifest separately from current-effective visibility. Avoid a distributed transaction assumption between SQLite and ClickHouse. ClickHouse inserts are retryable/ambiguous; SQLite controls eligibility only after staged row verification. See `publication-recovery-design.md`.
 
+## Điểm tích hợp và vòng đời accumulator (RV-07)
+
+Giữ Option A. `GoldCoreProcessor._work` hiện gọi next(stream) rồi bỏ bundle. `CoreInputStream` kiểm tra generation, member/receipt/hash và invalidation high water tại exhaustion. Ledger claim chỉ nhận RUNNING/PENDING. Nếu COMPLETE trước khi có durable obligation thì scheduler hiện tại không quay lại work đó.
+
+Khởi tạo state cho (binding, window, generation, definition set, expected population digest), kiểm tra limits trước allocation. Mỗi next thành công xác thực logical slot, cập nhật riêng counters/stats và buffer thời gian cho tất cả grain. Khi exhaustion hợp lệ, lấy input hash immutable, đánh giá coverage, đóng gói kết quả deterministic. Trong cùng SQLite transaction với finish CAS, ghi obligation và payload kết quả bounded hoặc obligation REMATERIALIZE với đủ lineage. Payload ưu tiên để tránh reread bình thường. Staging bền vững từng member tăng WAL và cần fence phục hồi, chỉ xem xét khi đo được nhu cầu. Reconciliation đánh chỉ mục dành cho proof có trước activation và audit thiếu obligation, không thay thế transaction mới.
+
+Nếu lease/generation/binding hoặc invalidation fence đổi, hủy accumulator và payload tạm, work mới bắt đầu sạch. Áp giới hạn cấu hình cần duyệt cho số participants/approaches, members, claim/slot state, exact samples, encoded input/output bytes, số work đồng thời, SQLite transaction/disk và processing time. Expected count không phải hard limit. Quá giới hạn ghi lỗi bounded RESOURCE_LIMIT, không publish và tránh retry loop. Chủ động bảo toàn scheduler fairness và cursor/invalidation ACK. Công việc phục hồi hoặc rematerialize chỉ đọc qua public Silver.

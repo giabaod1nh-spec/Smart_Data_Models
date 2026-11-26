@@ -2,11 +2,10 @@
 
 **Status:** Technical design and implementation plan for owner review. No business, schema, or architecture decision in this package is approved by this document.
 
-**Planning baseline:** branch `codex/phase-1-v1-raw`, HEAD `addb59a88b2b62a6c97399925298cac20733f84c`, clean working tree at audit start. Planning documents created against this baseline.
+**Baseline review:** local và remote `035e88e26151951dbee407934751550ae7bfc381` trên `codex/phase-1-v1-raw`. Working tree và index sạch trước revision.
 
 This package turns the Phase 4B review candidate into an evidence-linked Stage A plan. It does not change code, migrations, runtime configuration, Phase 4A records, or the business specification. The Phase 4B Stage A/B/C split remains proposed and must be reconciled with the Master Plan by the owner.
 
-Repository `.gitignore` excludes `docs/**` except `docs/shared/**`. These files are present locally but ignored by Git; they were not force-added or staged, in line with the instruction against Git mutations. To include them in a future reviewed change, the owner must explicitly decide how this repository should track planning documents.
 
 ## Reading order
 
@@ -27,8 +26,9 @@ Repository `.gitignore` excludes `docs/**` except `docs/shared/**`. These files 
 | [decisions.md](decisions.md) | Unapproved decisions requiring owner action |
 | [blockers.md](blockers.md) | Entry blockers, evidence and mitigation |
 | [handover.md](handover.md) | Review directions and implementation prerequisites |
+| [review-resolution.md](review-resolution.md) | RV-01…15 và SR-01…04 |
 
 ## Current planning verdict
 
-**SOURCE FEASIBILITY REQUIRED; REQUIREMENT APPROVAL REQUIRED; PERFORMANCE ENTRY GATE BLOCKED.** Gold Core correctness has an accepted result, but its source coverage remains `UNKNOWN` and finality `DISABLED`. Do not interpret this planning package as implementation authorization or as a waiver of the Phase 4 Performance Acceptance gate.
+**READY FOR OWNER DESIGN REVIEW. SOURCE FEASIBILITY REQUIRED. IMPLEMENTATION ENTRY BLOCKED.** Xem [ma trận RV và SR](review-resolution.md). G-ENTRY và G-PERF có mục đích riêng. Gate hiện hành giữ nguyên.
 

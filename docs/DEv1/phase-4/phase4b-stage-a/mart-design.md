@@ -32,3 +32,24 @@ Before schema approval, inspect actual `005_create_gold_m1.sql`, server mapper/q
 
 If one base table serves these queries efficiently with explicit grain and status, use it. Otherwise materialize only reusable statistics/results with measured access justification. Do not introduce an experiment-specific mart or per-chart table until query evidence shows need.
 
+## Candidate physical contract (RV-08)
+
+Khuyến nghị ba base marts `gold_v1_direction_window`, `gold_v1_intersection_window`, `gold_v1_network_window` trên MergeTree, dùng reusable projections/queries. Unified wide fact giảm inserts nhưng nhiều nullable fields và khó ràng buộc grain. Metric-per-row linh hoạt nhưng nhân rows, thêm joins và read-back. Chỉ giữ reusable sufficient stats cần range rollup, đo I/O trước khi materialize projection khác.
+
+| Cột ứng viên | Kiểu và ý nghĩa |
+|---|---|
+| namespace, run_id, topology_digest, manifest_identity, source_binding_id | String; replay và V1 tách riêng |
+| run_generation, core_generation, business_revision | UInt64; revision độc lập với generation |
+| duration_s, start_s, end_s | UInt16, UInt64, UInt64; simulation seconds theo Core |
+| definition_set_id, source_semantics_id, population_digest, core_work_id, input_hash, publication_manifest_id, result_id, row_hash | String; lineage bất biến |
+| intersection_id, approach_id, participant_digest | String theo grain; direction có intersection+approach, intersection chỉ intersection, network dùng population digest |
+| speed_sum_weighted, moving_n, stopped_n, vehicle_n, exposure_n, aligned_slot_n | Float64 và UInt64 cho counts; raw stats |
+| mean_speed_kmh, stopped_ratio_pct, load_veh, queue_mean_m, queue_p95_m, queue_max_m, occupancy_pct, pressure_score | Nullable(Float64); áp dụng theo grain; null kèm reason |
+| metric_quality | Map(String, Tuple(UInt64, UInt64, UInt64, UInt64, UInt64, UInt64, String)); expected/valid/missing/unavailable/invalid/not-applicable/status; structural received riêng |
+| queue_n, queue_sum_m, occupancy_n, occupancy_sum_pct, signal_green_n, signal_valid_n, joint_green_queue_n | UInt64 counts, Float64 sums; direction, signal chỉ nếu adopt |
+| worst_queue_intersection_id, worst_queue_approach_id, worst_pressure_approach_id, high_pressure_n | Nullable(String) cho IDs, Nullable(UInt32) cho count; theo grain |
+| scenario_counts, control_counts, observed_markers | Map(String, UInt64), Map(String, UInt64), bounded Array(Tuple(Float64,String,String)); theo provenance scope |
+
+Full logical key là namespace+run context+duration/endpoints+grain entity key+definition set+source semantics+population+revision. ORDER BY (namespace, run_id, run_generation, topology_digest, duration_s, start_s, definition_set_id, result_id, grain entity keys). Candidate PARTITION BY tháng UTC immutable của run registration, có thể chọn unpartitioned nếu workload nhỏ, không partition theo từng run. Retention chưa có số được duyệt. Exact P95 giữ result/count/sum/max, bỏ raw samples sau work; rebuild exact distribution qua verified input nếu giữ đủ lịch sử. Idempotency xác minh physical rows theo result ID và row hash như publication protocol. V1 additive bootstrap, chạy thử schema cả clean và V2 đã có, preserve V2. Cleanup chỉ xóa V1 orphan/expired đã release authority.
+
+Ví dụ logical select: WHERE namespace = :ns AND run_id = :run AND duration_s = :duration AND result_id IN :pinned_ids ORDER BY start_s, intersection_id. Ranking đọc intersection projection cộng direction đúng manifest. Range speed dùng Σspeed_sum_weighted / Σmoving_n. Không dùng AVG(queue_p95_m). Schedule/source/method field layout còn phụ thuộc G-COV/G-SRC, precision và partition phải qua mart design closure.
