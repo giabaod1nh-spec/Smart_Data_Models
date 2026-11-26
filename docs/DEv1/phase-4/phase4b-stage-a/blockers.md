@@ -1,0 +1,19 @@
+# Stage A blockers and dependencies
+
+| Blocker | Severity | Evidence / status | Affected work | Mitigation and resolution owner |
+|---|---|---|---|---|
+| G-PERF: Phase 4 Performance Entry Gate ENVIRONMENT BLOCKED | Critical | `performance/acceptance-result.md`; paced run stopped on 2026-11-25 at 206.05 simulation seconds due to memory floor; no full two-duration/drain/oracle boundary | Stage A runtime qualification; any conditional entry | Preserve evidence, resolve environment cause under performance owner; do not rerun or reuse retained fixture without separate authorization |
+| G-COV: no approved expected slot schedule | Critical | backend interval default and rounded sim timestamp, but no verified slot identity/alignment; Core coverage UNKNOWN | Official business publication, strict coverage, metrics/serving | SF-07 capture and manifest/producer contract proposal; source + DE + business owners approve |
+| G-SRC: E2 occupancy unit mismatch | Critical for pressure | detector code multiplies percent values ≤1; lane fallback is ratio. Confirmed source defect | Occupancy, pressure score/high count/ranking/heatmap/persistence | Separate source fix/version package, exact test vectors and old-run compatibility decision |
+| G-QUEUE: mixed queue methods lack provenance | High | E2 nonzero branch vs vehicle-based estimate fallback; no proven method compatibility | Official queue P95, pressure calibration and experiments | Source fixture study; choose compatible definition or represent separately |
+| G-CORE-ID: scenario included in Core window identity | High | `de/gold_runtime/processing_ledger.py:core_window_identity`; Business Spec requires scenario-neutral | Window/scale/trend identity and cross-scenario results | D-A06 decision; owner approves Core amendment or business combination strategy |
+| G-REV: no approved business revision/publication protocol | Critical | Core has input proof generations, but no business publication manifest/current-effective transaction across CH+SQLite | All business writes and latest serving | Approve failure matrix and implement staged immutable output + one family publication fence |
+| G-METRIC: formulas and calibration remain review candidate | High | Business Spec formulas proposed; pressure weights/thresholds need independent calibration | Metric engine and official score results | Approve registry, or defer dependent metrics without blocking independent ones |
+| G-EXP: experiment metadata/protocol incomplete | High for comparison | run manifest exists, but complete demand/schedule/controller/analysis metadata and comparable cohorts unproven | Official Fixed-Time vs Adaptive and scenario comparison | Source/AI owner metadata contract plus independent run protocol |
+| Master Plan vs implementation status drift | Medium/high governance | Master Plan snapshot still describes V1 DE unimplemented; current acceptance describes Phase 4A done and capacity blocked | Approval routing and Stage A/B/C ownership | Owner reconciles authoritative plan before approving decomposition |
+| Waiting time/throughput semantics | Medium, optional | no canonical completed-trip waiting; stop-line crossing not represented; AI `avg_waiting` count-valued | Optional experiment metrics only | Research independently; do not block core metrics |
+
+## Conditional development boundary
+
+Design review, source-feasibility fixture planning and pure independent oracle design may proceed after owner approval. Official publication is blocked until expected slot/coverage and revision gates are approved. Pressure-dependent official outputs are additionally blocked until occupancy correction and calibration pass. No conditional entry recommendation is made here; if owner wants one, update the governing gate with permitted scope, deferred ACs, resource stop conditions, rollback, evidence and owner signature.
+
