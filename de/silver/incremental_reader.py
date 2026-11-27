@@ -9,6 +9,8 @@ import time
 from dataclasses import asdict, replace
 
 from clickhouse_connect.driver.exceptions import ClickHouseError, OperationalError
+from contracts.observation_measurements import digest as observation_digest, original_anchor
+from contracts.observation_schedule import MAX_CANONICAL_INTEGER
 from de.feed_read_budget import FeedEvidenceDeadline, FeedEvidenceSize, feed_query_budget
 from de.silver.archive_resolver import ArchiveIntegrityError, ArchiveUnavailable
 from de.silver.incremental_contract import (
@@ -20,6 +22,10 @@ from de.silver.incremental_contract import (
     canonical_hash, freeze, size_page,
 )
 from de.silver.repositories import FactBusinessKeyConflictError, RetryableRepositoryError
+from de.silver.observation_archive import VerifiedObservationArchive
+from de.silver.observation_contract import (
+    ObservationMetadataCursor, ObservationMetadataRequest, VerifiedObservationMetadata,
+)
 from de.silver.source_binding import SourceVerificationError, verify_bronze_source
 
 _LOG = logging.getLogger(__name__)
@@ -442,6 +448,174 @@ class IncrementalSilverSource:
     def read_canonical_changes_page(self, request: CanonicalChangePageRequest) -> CanonicalChangePage:
         self._validate_feed_request(request, CanonicalChangePageRequest)
         return self._read_feed_page(request, False)
+
+    def read_observation_metadata(self, request: ObservationMetadataRequest) -> VerifiedObservationMetadata:
+        """Verify an incremental, bounded sidecar prefix against this Silver binding."""
+        _check(type(request) is ObservationMetadataRequest and type(request.contract_version) is int
+               and request.contract_version == 1, "INVALID_REQUEST", "Expected observation metadata v1")
+        cursor = request.cursor
+        _check(type(cursor) is ObservationMetadataCursor and cursor.stream in ("SCHEDULE", "MEASUREMENT")
+               and type(cursor.sequence) is int and 0 <= cursor.sequence < MAX_CANONICAL_INTEGER
+               and (observation_digest(cursor.digest) if cursor.sequence else cursor.digest is None)
+               and type(cursor.settled_ordinal) is int and -1 <= cursor.settled_ordinal < MAX_CANONICAL_INTEGER
+               and (cursor.pending_digest is None or (cursor.stream == "SCHEDULE" and observation_digest(cursor.pending_digest)))
+               and (cursor.stream == "SCHEDULE" or cursor.settled_ordinal == -1)
+               and isinstance(request.source_binding_id, str) and bool(request.source_binding_id)
+               and isinstance(request.run_id, str) and bool(request.run_id)
+               and type(request.run_generation) is int and request.run_generation > 0
+               and type(request.max_slots) is int and 1 <= request.max_slots <= 16
+               and type(request.max_processing_ms) is int
+               and 1 <= request.max_processing_ms <= self.feed_limits.max_processing_ms_cap,
+               "INVALID_REQUEST", "Invalid observation metadata boundaries")
+        deadline = time.monotonic() + request.max_processing_ms / 1000
+        try:
+            with feed_query_budget(deadline, self.feed_limits.max_encoded_bytes_cap):
+                return self._build_observation_metadata(request, deadline)
+        except _PrefixBlocked as exc:
+            raise CanonicalFeedError("PREFIX_BLOCKED", str(exc)) from exc
+        except FeedEvidenceDeadline as exc:
+            raise CanonicalFeedError("DEADLINE_EXCEEDED", "Observation metadata evidence deadline exceeded") from exc
+        except FeedEvidenceSize as exc:
+            raise CanonicalFeedError("RECORD_TOO_LARGE", str(exc)) from exc
+        except CanonicalFeedError:
+            raise
+        except Exception as exc:
+            raise self._translate_feed_error(exc) from exc
+
+    def _build_observation_metadata(self, request, deadline):
+        ns = "live"
+        cursor = request.cursor
+        binding, _, boundary = self._capture_feed(ns, request.source_binding_id)
+        context = self.archive_resolver.resolve(request.run_id, request.topology_digest, request.run_generation)
+        archive = VerifiedObservationArchive(self.archive_resolver.root, context)
+        schedule = archive.schedule
+        proofs = {}
+        need_change = need_invalidation = 0
+
+        def verify_event(event_id, ordinal=None):
+            nonlocal need_change, need_invalidation
+            row = self.bronze.current(ns, event_id)
+            if row is None or row["state"] == "PENDING":
+                raise _PrefixBlocked("Producer outcome has no applied canonical observation")
+            identity = dict(row)
+            _, _, sc, _ = self._feed_cursors(boundary)
+            sequence = identity["change_sequence"]
+            if sequence is None or sequence > sc:
+                raise _PrefixBlocked("Producer outcome is ahead of the Silver applied prefix")
+            entry, proof = self._read_change_entry(ns, sequence, boundary)
+            _check(proof[1] == identity, "BOUNDARY_STALE", "Canonical outcome changed during verification")
+            node = identity["intersection_id"]
+            directions = context.directions.get(node)
+            slot = identity["cycle_sequence"] - schedule.cycle_base
+            _check((entry.event_id, entry.run_id, entry.run_generation, entry.topology_digest, entry.manifest_identity)
+                   == (event_id, context.run_id, context.generation, context.topology_digest, context.manifest_identity)
+                   and directions is not None and (ordinal is None or slot == ordinal),
+                   "SOURCE_INTEGRITY_ERROR", "Producer outcome belongs to another canonical run or slot")
+            step = schedule.due_tick(slot) // schedule.step_ticks
+            schedule.verify_capture(slot, identity["simulation_time_seconds"], step)
+            anchor = {"runId": context.run_id, "generation": context.generation,
+                      "manifestIdentity": context.manifest_identity, "topologyDigest": context.topology_digest,
+                      "eventId": event_id, "payloadHash": identity["payload_hash"], "intersectionId": node,
+                      "cycle": identity["cycle_sequence"], "simulationStep": step,
+                      "simulationTimeSeconds": identity["simulation_time_seconds"]}
+            if entry.effective_disposition == "BUNDLE_VALID":
+                _check(entry.canonical_bundle.intersection["source_payload_hash"] == identity["payload_hash"],
+                       "SOURCE_INTEGRITY_ERROR", "Verified Silver facts differ from the original payload hash")
+                original = self.bronze_repo.read_valid_observation(ns, event_id, entry.semantic_revision,
+                                                                  state_path=self.bronze_path)
+                _check(original is not None, "BOUNDARY_STALE", "Canonical original became unavailable")
+                _check(original["change_sequence"] == sequence and
+                       original_anchor(original["event"], context.generation, context.manifest_identity) == anchor,
+                       "SOURCE_INTEGRITY_ERROR", "Canonical original differs from scheduled clock or identity")
+                context.validate_event(original["event"])
+            else:
+                _check(entry.invalidation_sequence is not None, "INVALIDATION_LINK_MISMATCH",
+                       "Conflicted outcome lacks verified suppression")
+            need_change = max(need_change, sequence)
+            need_invalidation = max(need_invalidation, entry.invalidation_sequence or 0)
+            proofs[event_id] = identity
+            return anchor, directions, entry.effective_disposition
+
+        payload = None
+        after = cursor
+        status = "EMPTY"
+        if cursor.stream == "MEASUREMENT":
+            captured = archive.head["measurementSequence"]
+            head_digest = archive.head["measurementDigest"]
+            _check(cursor.sequence <= captured and (cursor.sequence != captured or cursor.digest == head_digest),
+                   "SOURCE_REWOUND", "Measurement prefix was rewound or replaced")
+            if cursor.sequence < captured:
+                disposition = None
+
+                def load_anchor(event_id):
+                    nonlocal disposition
+                    anchor, directions, disposition = verify_event(event_id)
+                    return anchor, directions
+
+                index_hash, object_hash, record = archive.measurement(cursor.sequence + 1, cursor.digest,
+                                                                      load_anchor=load_anchor)
+                payload = {"objectDigest": object_hash, "anchor": record["anchor"],
+                           "revision": record["revision"], "previousDigest": record["previousDigest"],
+                           "measurements": record["measurements"] if disposition == "BUNDLE_VALID" else None,
+                           "canonicalDisposition": disposition}
+                after = replace(cursor, sequence=cursor.sequence + 1, digest=index_hash)
+                status = "VERIFIED"
+        else:
+            captured = archive.head["sequence"]
+            _check(cursor.sequence <= captured and (cursor.sequence != captured
+                   or cursor.digest == archive.head["segmentDigest"]),
+                   "SOURCE_REWOUND", "Schedule prefix was rewound or replaced")
+            previous = archive.schedule_continuation(cursor.sequence, cursor.digest)
+            _check(cursor.settled_ordinal >= previous[3], "INVALID_REQUEST", "Schedule ordinal precedes cursor")
+            if cursor.sequence == captured:
+                _check(cursor.settled_ordinal == previous[3] and cursor.pending_digest is None,
+                       "INVALID_REQUEST", "Ordinal exceeds published head")
+            else:
+                segment_digest, segment = archive.schedule_segment(cursor.sequence + 1, previous)
+                through = segment["settledOrdinal"]
+                _check(cursor.settled_ordinal <= through and
+                       (cursor.settled_ordinal == previous[3] if cursor.pending_digest is None
+                        else cursor.settled_ordinal > previous[3] and cursor.pending_digest == segment_digest),
+                       "BOUNDARY_STALE", "Pending schedule segment or ordinal changed")
+                failures = {item["ordinal"]: item["reason"] for item in segment["sparseFailures"]}
+                slots = []
+                for ordinal in range(cursor.settled_ordinal + 1, min(through, cursor.settled_ordinal + request.max_slots) + 1):
+                    prior_change, prior_invalidation = need_change, need_invalidation
+                    try:
+                        if ordinal in failures:
+                            row = {"ordinal": ordinal, "outcome": failures[ordinal], "events": []}
+                        else:
+                            events = []
+                            for event_id in schedule.event_ids(ordinal):
+                                _, _, disposition = verify_event(event_id, ordinal)
+                                events.append({"eventId": event_id, "disposition": disposition})
+                            row = {"ordinal": ordinal, "outcome": "DELIVERED", "events": events}
+                    except _PrefixBlocked:
+                        need_change, need_invalidation = prior_change, prior_invalidation
+                        status = "WAITING"
+                        break
+                    slots.append(row)
+                after_ordinal = cursor.settled_ordinal + len(slots)
+                complete = after_ordinal == through
+                if slots or complete:
+                    payload = {"schedule": json.loads(schedule.canonical_bytes()), "slots": slots,
+                               "lifecycle": segment["lifecycle"] if complete else previous[1],
+                               "lifecycleTick": segment["lifecycleTick"] if complete else previous[2],
+                               "terminalCutoffTick": segment["terminalCutoffTick"] if complete else None}
+                    after = replace(cursor, settled_ordinal=after_ordinal,
+                                    sequence=cursor.sequence + int(complete),
+                                    digest=segment_digest if complete else cursor.digest,
+                                    pending_digest=None if complete else segment_digest)
+                    status = "VERIFIED"
+        archive.revalidate()
+        self._check_feed_end(ns, binding, boundary, proofs.items())
+        _check(time.monotonic() <= deadline, "DEADLINE_EXCEEDED", "Observation metadata verification exceeded deadline")
+        return VerifiedObservationMetadata(source_binding_id=binding, run_id=context.run_id,
+            run_generation=context.generation, topology_digest=context.topology_digest,
+            manifest_identity=context.manifest_identity, schedule_id=schedule.schedule_id,
+            archive_head_digest=hashlib.sha256(archive.head_bytes).hexdigest(), captured_through_sequence=captured,
+            before=cursor, after=after, required_change_sequence=need_change if payload else 0,
+            required_invalidation_sequence=need_invalidation if payload else 0, payload=freeze(payload), status=status)
 
     def read_canonical_invalidations_page(
         self, request: CanonicalInvalidationPageRequest,

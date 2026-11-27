@@ -4,11 +4,20 @@ detector_manager.py — E1/E2 helpers (ADR-004, naming ADR §33).
 from __future__ import annotations
 
 import logging
+import math
 from typing import Dict, List, Optional, Tuple
 
 import configuration.config as cfg
 
 log = logging.getLogger(__name__)
+
+
+def occupancy_percent(raw: float) -> float:
+    """Read the TraCI percent domain without guessing units from magnitude."""
+    value = float(raw)
+    if not math.isfinite(value) or not 0 <= value <= 100:
+        raise ValueError("TraCI occupancy is outside the percent domain")
+    return value
 
 
 def build_detectors_xml(net_lane_lengths: Optional[Dict[str, float]] = None) -> str:
@@ -63,8 +72,9 @@ def build_detectors_xml(net_lane_lengths: Optional[Dict[str, float]] = None) -> 
 class DetectorManager:
     """Read E1/E2 via TraCI with fallback flags."""
 
-    def __init__(self, tls_id: str):
+    def __init__(self, tls_id: str, *, stage_a_measurements: bool = False):
         self.tls_id = tls_id
+        self.stage_a_measurements = stage_a_measurements
         self.available = False
         self._checked = False
 
@@ -109,7 +119,11 @@ class DetectorManager:
             movement = cfg.movement_for_lane(edge, i)
             try:
                 jam = float(traci_module.lanearea.getJamLengthMeters(did))
+                if self.stage_a_measurements and (not math.isfinite(jam) or jam < 0):
+                    raise ValueError("TraCI jam length is not a nonnegative distance")
                 out[movement] = round(out[movement] + jam, 1)
+                if self.stage_a_measurements and quality is not None:
+                    quality.setdefault("analytics_e2_queue", []).append([movement, jam])
             except Exception:
                 if quality is not None:
                     quality["queue_detector_incomplete"] = True
@@ -126,16 +140,20 @@ class DetectorManager:
         for i, _lane in enumerate(cfg.edge_lane_ids(edge)):
             did = cfg.detector_id_e2(self.tls_id, direction, i)
             try:
-                occ = float(traci_module.lanearea.getLastStepOccupancy(did))
-                if occ <= 1.0:
-                    occ *= 100.0
-                vals.append(max(0.0, min(100.0, occ)))
+                raw = traci_module.lanearea.getLastStepOccupancy(did)
+                if self.stage_a_measurements:
+                    vals.append(occupancy_percent(raw))
+                else:
+                    occ = float(raw)
+                    vals.append(max(0.0, min(100.0, occ * 100.0 if occ <= 1.0 else occ)))
             except Exception:
                 if quality is not None:
                     quality["occupancy_detector_incomplete"] = True
                 pass
         if not vals:
             return None
+        if self.stage_a_measurements and quality is not None:
+            quality["analytics_e2_occupancy_percent"] = vals
         return round(sum(vals) / len(vals), 1)
 
     def outbound_occupancy_ratio(self, traci_module, *, quality: Optional[dict] = None) -> Tuple[float, bool]:
@@ -143,14 +161,20 @@ class DetectorManager:
         if not self.ensure_checked(traci_module):
             return 0.0, False
         vals: List[float] = []
+        raw_percent = [] if self.stage_a_measurements and quality is not None else None
         for edge in cfg.OUTGOING_EDGES.get(self.tls_id, []):
             for i, _lane in enumerate(cfg.edge_lane_ids(edge)):
                 did = cfg.detector_id_e2_out(self.tls_id, edge, i)
                 try:
-                    occ = float(traci_module.lanearea.getLastStepOccupancy(did))
-                    if occ > 1.0:
-                        occ /= 100.0
-                    vals.append(max(0.0, min(1.0, occ)))
+                    raw = traci_module.lanearea.getLastStepOccupancy(did)
+                    if self.stage_a_measurements:
+                        percent = occupancy_percent(raw)
+                        vals.append(percent / 100.0)
+                        if raw_percent is not None:
+                            raw_percent.append(percent)
+                    else:
+                        occ = float(raw)
+                        vals.append(max(0.0, min(1.0, occ / 100.0 if occ > 1.0 else occ)))
                 except Exception:
                     if quality is not None:
                         quality["spillback_detector_incomplete"] = True
@@ -161,4 +185,6 @@ class DetectorManager:
             return 0.0, False
         mean = sum(vals) / len(vals)
         full = any(v >= cfg.BOX_OCCUPANCY_THRESHOLD for v in vals)
+        if raw_percent is not None:
+            quality["analytics_outbound_e2_percent"] = [raw_percent]
         return round(mean, 3), full

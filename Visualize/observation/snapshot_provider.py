@@ -4,10 +4,13 @@ Build get_snapshot()-compatible dicts from TraCI + optional E1/E2 detectors.
 from __future__ import annotations
 
 import logging
+import hashlib
+import json
+import math
 from typing import Dict, List, Optional, Set
 
 import configuration.config as cfg
-from observation.detector_manager import DetectorManager
+from observation.detector_manager import DetectorManager, occupancy_percent
 from configuration.model_params import get_pcu
 
 log = logging.getLogger(__name__)
@@ -59,11 +62,14 @@ def greenshields_speed_kmh(v_free_kmh: float, density_pcu_per_km: float) -> floa
 
 
 class SumoSnapshotProvider:
-    def __init__(self, tls_id: str = "411926415", node_id: str = "A"):
+    def __init__(self, tls_id: str = "411926415", node_id: str = "A", *,
+                 stage_a_measurements: bool = False):
         self.tls_id = tls_id
         self.node_id = node_id
         self.directions = cfg.directions_for_node(node_id)
-        self.detectors = DetectorManager(tls_id)
+        self.stage_a_measurements = stage_a_measurements
+        self.detectors = DetectorManager(tls_id, stage_a_measurements=stage_a_measurements)
+        self._queue_scope_digests: dict[str, tuple[tuple, str]] = {}
         self._prev_ids: Dict[str, Set[str]] = {d: set() for d in self.directions}
         self._arrival_pcu_window: Dict[str, float] = {d: 0.0 for d in self.directions}
         self._arrival_rate: Dict[str, float] = {d: 0.0 for d in self.directions}
@@ -148,6 +154,10 @@ class SumoSnapshotProvider:
             "downstream_edge_full": spill["downstream_edge_full"],
             "spillback_pressure": spill["spillback_pressure"],
             "spillback_detected": spill["spillback_detected"],
+            **({"spillback_occupancy_method": spill["spillback_occupancy_method"]}
+               if spill.get("spillback_occupancy_method") is not None else {}),
+            **({"analytics_spillback_evidence": spill["analytics_spillback_evidence"]}
+               if spill.get("analytics_spillback_evidence") is not None else {}),
             "intersection_box_blocked": box_blocked,
             "vehicles_blocked_at_entry": blocked_at_entry,
             "yellow_commitment_count": yellow_commit,
@@ -160,6 +170,8 @@ class SumoSnapshotProvider:
         if capture_quality:
             quality["_top_level"] = top_quality
             result["_measurement_quality"] = quality
+        if self.stage_a_measurements:
+            result["analytics_capture_seconds"] = sim_t
         return result
 
     def _build_direction(self, traci_module, direction: str, color: str, *, quality: Optional[dict] = None) -> dict:
@@ -194,11 +206,14 @@ class SumoSnapshotProvider:
         failed_queue_length = False
         failed_movement = False
         failed_near_stop = False
+        route_queue_samples = [] if self.stage_a_measurements else None
 
         for vid in unique_ids:
             try:
                 vt = traci_module.vehicle.getTypeID(vid)
                 speed_ms = float(traci_module.vehicle.getSpeed(vid))
+                if self.stage_a_measurements and (not math.isfinite(speed_ms) or speed_ms < 0):
+                    raise ValueError("invalid vehicle speed")
                 pcu = pcu_for_vtype(vt)
                 pcu_sum += pcu
                 class_counts[vt] = class_counts.get(vt, 0) + 1
@@ -208,7 +223,7 @@ class SumoSnapshotProvider:
                 else:
                     waiting += 1
 
-                movement_errors = [] if quality is not None else None
+                movement_errors = [] if self.stage_a_measurements or quality is not None else None
                 movement = self._infer_movement(traci_module, vid, approach_edge, errors=movement_errors)
                 if movement_errors:
                     failed_movement = True
@@ -220,8 +235,18 @@ class SumoSnapshotProvider:
                     straight_n += 1
 
                 if speed_ms < cfg.HALTING_SPEED_MS:
-                    length = float(traci_module.vehicle.getLength(vid))
-                    queue_by_movement[movement] = queue_by_movement.get(movement, 0.0) + length + 1.5
+                    if not self.stage_a_measurements:
+                        length = float(traci_module.vehicle.getLength(vid))
+                        queue_by_movement[movement] = queue_by_movement.get(movement, 0.0) + length + 1.5
+                    else:
+                        try:
+                            length = float(traci_module.vehicle.getLength(vid))
+                            if movement_errors or not math.isfinite(length) or length <= 0:
+                                raise ValueError("stopped vehicle lacks a valid route movement or length")
+                            queue_by_movement[movement] += length + 1.5
+                            route_queue_samples.append([movement, length, speed_ms])
+                        except Exception:
+                            failed_queue_length = True
 
                 try:
                     lane_id = traci_module.vehicle.getLaneID(vid)
@@ -237,36 +262,70 @@ class SumoSnapshotProvider:
                 failed_queue_length = True
                 log.debug("vehicle metrics %s: %s", vid, e)
 
-        # Prefer E2 stop-line jam / occupancy (ADR-004); full-link metrics separate.
-        e2_q = self.detectors.approach_queue_by_movement(
-            traci_module, direction, **({"quality": quality} if quality is not None else {}),
-        )
-        if e2_q and any(e2_q.values()):
-            queue_by_movement = {k: round(float(e2_q.get(k, 0.0)), 1) for k in ("straight", "left", "right")}
+        if not self.stage_a_measurements:
+            e2_q = self.detectors.approach_queue_by_movement(
+                traci_module, direction, **({"quality": quality} if quality is not None else {}),
+            )
+            legacy_e2 = bool(e2_q) and any(e2_q.values())
+            if legacy_e2:
+                queue_by_movement = {k: round(float(e2_q.get(k, 0.0)), 1) for k in queue_by_movement}
+            else:
+                queue_by_movement = {k: round(v, 1) for k, v in queue_by_movement.items()}
+            queue_valid = not ((failed_lanes or failed_queue_length or failed_movement) and not legacy_e2)
+            if legacy_e2 and quality and quality.get("queue_detector_incomplete"):
+                queue_valid = False
         else:
-            for k in queue_by_movement:
-                queue_by_movement[k] = round(queue_by_movement[k], 1)
+            configured_lanes = cfg.edge_lane_ids(approach_edge) if approach_edge else ()
+            use_e2 = bool(configured_lanes) and all(
+                cfg.movement_for_lane(approach_edge, index) in ("straight", "left", "right")
+                for index, _ in enumerate(configured_lanes)
+            )
+            if use_e2:
+                queue_method = "e2_jam_movement_v1"
+                queue_quality = quality if quality is not None else {}
+                e2_q = self.detectors.approach_queue_by_movement(traci_module, direction, quality=queue_quality)
+                queue_valid = (bool(e2_q) and not queue_quality.get("queue_detector_incomplete")
+                               and len(queue_quality.get("analytics_e2_queue", ())) == len(configured_lanes))
+                queue_samples = queue_quality.get("analytics_e2_queue", [])
+                # A complete zero is an E2 measurement in its own right.
+                queue_by_movement = {k: round(float(e2_q.get(k, 0.0)), 1) for k in queue_by_movement}
+            else:
+                queue_method = "route_stopped_length_v1"
+                queue_valid = bool(lane_ids) and not (failed_lanes or failed_queue_length)
+                queue_samples = route_queue_samples
+                queue_by_movement = {k: round(v, 1) for k, v in queue_by_movement.items()}
 
+        occupancy_quality = quality if quality is not None else {}
         e2_occ = self.detectors.approach_occupancy_pct(
-            traci_module, direction, **({"quality": quality} if quality is not None else {}),
+            traci_module, direction, **({"quality": occupancy_quality}
+                                       if quality is not None or self.stage_a_measurements else {}),
         )
-        failed_occupancy = bool(quality and quality.get("occupancy_detector_incomplete") and e2_occ is not None)
-        if e2_occ is not None:
+        failed_occupancy = False
+        if e2_occ is not None and (
+                not self.stage_a_measurements or not occupancy_quality.get("occupancy_detector_incomplete")):
             occupancy = e2_occ
+            occupancy_method = "e2_percent_v2"
+            failed_occupancy = bool(occupancy_quality.get("occupancy_detector_incomplete"))
+            occupancy_evidence = occupancy_quality.get("analytics_e2_occupancy_percent")
         else:
             occ_vals: List[float] = []
             for lid in lane_ids:
                 try:
-                    occ = float(traci_module.lane.getLastStepOccupancy(lid))
-                    if occ <= 1.0:
-                        occ *= 100.0
-                    occ_vals.append(max(0.0, min(100.0, occ)))
+                    raw = traci_module.lane.getLastStepOccupancy(lid)
+                    if self.stage_a_measurements:
+                        occ_vals.append(occupancy_percent(raw))
+                    else:
+                        occ = float(raw)
+                        occ_vals.append(max(0.0, min(100.0, occ * 100.0 if occ <= 1.0 else occ)))
                 except Exception:
-                    failed_occupancy = True
                     pass
-            occupancy = round(sum(occ_vals) / len(occ_vals), 1) if occ_vals else 0.0
-            if len(occ_vals) != len(lane_ids):
-                failed_occupancy = True
+            failed_occupancy = len(occ_vals) != len(lane_ids) or (self.stage_a_measurements and not occ_vals)
+            occupancy = (
+                round(sum(occ_vals) / len(occ_vals), 1)
+                if occ_vals and (not self.stage_a_measurements or not failed_occupancy) else 0.0
+            )
+            occupancy_method = None if failed_occupancy else "lane_percent_v2"
+            occupancy_evidence = occ_vals
 
         queue_m = max(queue_by_movement.values()) if any(queue_by_movement.values()) else 0.0
         # Moving-vehicles-only mean; precision preserved for publish — UI rounds for display.
@@ -329,7 +388,13 @@ class SumoSnapshotProvider:
             "queue_length_m": round(queue_m, 1),
             "queue_length_vehicles": queue_veh,
             "queue_by_movement": queue_by_movement,
+            **({"queue_measurement": {
+                "method": queue_method,
+                "scope_digest": self._queue_scope_digest(direction, queue_method, lane_ids, configured_lanes),
+            }} if self.stage_a_measurements and queue_valid else {}),
             "occupancy_pct": occupancy,
+            **({"occupancy_method": occupancy_method}
+               if self.stage_a_measurements and occupancy_method is not None else {}),
             "density": dens,  # SEMANTIC dual-write for NGSI trafficStatus
             "estimated_density_veh_per_km": round(pcu_per_km, 3),
             "arrival_rate_pcu_per_sec": self._arrival_rate.get(direction, 0.0),
@@ -345,6 +410,19 @@ class SumoSnapshotProvider:
             "storage_utilization_pcu": full_link["storage_utilization_pcu"],
             "nominal_storage_pcu_geometric": full_link["nominal_storage_pcu_geometric"],
         }
+        if self.stage_a_measurements:
+            evidence = {}
+            if occupancy_method is not None and occupancy_evidence:
+                evidence["occupancy"] = {"method": occupancy_method, "percent": occupancy_evidence}
+            if queue_valid:
+                evidence["queue"] = {
+                    "method": queue_method, "scopeDigest": result["queue_measurement"]["scope_digest"],
+                    "samples": queue_samples,
+                }
+                if queue_method == "route_stopped_length_v1":
+                    evidence["queue"]["haltingThreshold"] = cfg.HALTING_SPEED_MS
+            if evidence:
+                result["analytics_measurement_evidence"] = evidence
         if quality is not None:
             unavailable = set()
             if failed_lanes:
@@ -360,8 +438,7 @@ class SumoSnapshotProvider:
                 ))
             if failed_movement:
                 unavailable.update(("left_count", "straight_count", "right_count"))
-                failed_queue_length = True
-            if (failed_queue_length and not (e2_q and any(e2_q.values()))) or (quality.get("queue_detector_incomplete") and e2_q and any(e2_q.values())):
+            if not queue_valid:
                 unavailable.add("queue_length_m")
             if failed_occupancy:
                 unavailable.add("occupancy_pct")
@@ -372,6 +449,17 @@ class SumoSnapshotProvider:
             quality["failed_occupancy_reads"] = failed_occupancy
             quality["moto_front_unavailable"] = failed_near_stop
         return result
+
+    def _queue_scope_digest(self, direction, method, lanes, configured_lanes):
+        # The event also pins the archived run manifest and topology. This
+        # digest distinguishes the provider's measurement population/method.
+        key = (direction, method, tuple(sorted(lanes)), tuple(configured_lanes), cfg.HALTING_SPEED_MS)
+        cached = self._queue_scope_digests.get(direction)
+        if cached is None or cached[0] != key:
+            material = json.dumps([self.tls_id, *key], separators=(",", ":"), ensure_ascii=False)
+            cached = key, hashlib.sha256(material.encode("utf-8")).hexdigest()
+            self._queue_scope_digests[direction] = cached
+        return cached[1]
 
     def _full_link_queue_metrics(
         self,
@@ -433,14 +521,15 @@ class SumoSnapshotProvider:
         try:
             route = list(traci_module.vehicle.getRoute(vid))
             idx = int(traci_module.vehicle.getRouteIndex(vid))
-            if approach_edge and approach_edge in route:
-                ai = route.index(approach_edge)
+            offset = max(0, idx) if self.stage_a_measurements else 0
+            if approach_edge and approach_edge in (route[offset:] if offset else route):
+                ai = route.index(approach_edge, offset)
                 if ai + 1 < len(route):
                     pair = (approach_edge, route[ai + 1])
                     if errors is not None and pair not in cfg.TURN_BY_OD:
                         errors.append(vid)
                     return cfg.TURN_BY_OD.get(pair, "straight")
-            if idx + 1 < len(route):
+            if idx + 1 < len(route) and (idx >= 0 or not self.stage_a_measurements):
                 pair = (route[idx], route[idx + 1])
                 if errors is not None and pair not in cfg.TURN_BY_OD:
                     errors.append(vid)
@@ -465,42 +554,62 @@ class SumoSnapshotProvider:
         return ids
 
     def _spillback_metrics(self, traci_module, *, quality: Optional[dict] = None) -> dict:
+        occupancy_quality = quality if quality is not None else {}
         pressure, full = self.detectors.outbound_occupancy_ratio(
-            traci_module, **({"quality": quality} if quality is not None else {}),
+            traci_module, **({"quality": occupancy_quality}
+                             if quality is not None or self.stage_a_measurements else {}),
         )
-        if quality is not None and self.detectors.available and quality.get("spillback_detector_incomplete"):
-            quality["spillback_unavailable"] = True
-        if not self.detectors.available:
+        method = "e2_ratio_v2"
+        raw_groups = occupancy_quality.get("analytics_outbound_e2_percent")
+        if (self.detectors.available and occupancy_quality.get("spillback_detector_incomplete")
+                and not self.stage_a_measurements):
+            occupancy_quality["spillback_unavailable"] = True
+        if not self.detectors.available or (
+                self.stage_a_measurements and occupancy_quality.get("spillback_detector_incomplete")):
             max_pressure = 0.0
             any_full = False
             failed_fallback = False
             read_count = 0
+            raw_groups = [] if self.stage_a_measurements else None
             for edge in cfg.OUTGOING_EDGES.get(self.tls_id, []):
                 occs = []
                 for lid in cfg.edge_lane_ids(edge):
                     try:
-                        o = float(traci_module.lane.getLastStepOccupancy(lid))
-                        if o > 1.0:
-                            o = o / 100.0
-                        occs.append(o)
+                        raw = traci_module.lane.getLastStepOccupancy(lid)
+                        if self.stage_a_measurements:
+                            occs.append(occupancy_percent(raw))
+                        else:
+                            value = float(raw)
+                            occs.append(value / 100.0 if value > 1.0 else value)
                         read_count += 1
                     except Exception:
                         failed_fallback = True
                         pass
                 if not occs:
                     continue
+                if raw_groups is not None:
+                    raw_groups.append(occs)
+                    occs = [value / 100.0 for value in occs]
                 ratio = sum(occs) / len(occs)
                 max_pressure = max(max_pressure, ratio)
                 if ratio >= cfg.BOX_OCCUPANCY_THRESHOLD:
                     any_full = True
-            pressure, full = round(max_pressure, 3), any_full
-            if quality is not None and (failed_fallback or read_count == 0):
-                quality["spillback_unavailable"] = True
+            if failed_fallback or read_count == 0:
+                method = None
+                pressure, full = (0.0, False) if self.stage_a_measurements else (round(max_pressure, 3), any_full)
+                occupancy_quality["spillback_unavailable"] = True
+            else:
+                method = "lane_ratio_v2"
+                pressure, full = round(max_pressure, 3), any_full
 
         return {
             "downstream_edge_full": full,
             "spillback_pressure": pressure,
             "spillback_detected": full or pressure >= cfg.BOX_OCCUPANCY_THRESHOLD,
+            **({"spillback_occupancy_method": method} if self.stage_a_measurements else {}),
+            **({"analytics_spillback_evidence": {
+                "method": method, "percentGroups": raw_groups, "threshold": cfg.BOX_OCCUPANCY_THRESHOLD,
+            }} if self.stage_a_measurements and method is not None and raw_groups else {}),
         }
 
     def _count_blocked_at_entry(self, traci_module, box_blocked: bool, *, quality: Optional[dict] = None) -> int:

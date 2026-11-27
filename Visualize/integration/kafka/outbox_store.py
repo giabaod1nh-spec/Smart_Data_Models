@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from contracts.traffic_observation import TOPIC as V1_OBSERVATION_TOPIC
 from integration.kafka.outbox_schema import (
@@ -414,7 +414,10 @@ class KafkaOutboxStore:
             self._record_bounded(self._append_commit_ms, commit_ms)
         return ms
 
-    def append_v1_cycle(self, rows: Sequence[OutboxRow]) -> V1AppendResult:
+    def append_v1_cycle(
+        self, rows: Sequence[OutboxRow], *,
+        _seal_slot: Callable[[sqlite3.Connection, int], None] | None = None,
+    ) -> V1AppendResult:
         """Atomically insert or reuse a complete frozen V1 cycle."""
         if not rows:
             raise OutboxAppendError("empty V1 cycle")
@@ -475,6 +478,8 @@ class KafkaOutboxStore:
                         ),
                     )
                     inserted += 1
+                if _seal_slot is not None:
+                    _seal_slot(conn, inserted)
                 conn.execute("COMMIT")
         except OutboxIdentityConflictError:
             self._rollback_quiet(conn)
