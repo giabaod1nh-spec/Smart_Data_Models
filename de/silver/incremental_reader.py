@@ -322,11 +322,13 @@ class IncrementalSilverSource:
         return context, dict(run_id=context.run_id, run_generation=context.generation,
                              topology_digest=context.topology_digest, manifest_identity=context.manifest_identity)
 
-    def _verified_bundle(self, ns, event_id, sequence, revision, context, frozen_facts):
+    def _verified_bundle(self, ns, event_id, sequence, revision, context, frozen_facts, *, original_out=None):
         from de.silver.canonical_reader import CanonicalReadQuery, ObservationBundle
 
         query = CanonicalReadQuery(ns, context.run_id, context.topology_digest, -1e300, 1e300)
-        physical = self._bundle(event_id, revision, sequence, query, context=context, frozen_facts=frozen_facts)
+        original_option = {"original_out": original_out} if original_out is not None else {}
+        physical = self._bundle(event_id, revision, sequence, query, context=context, frozen_facts=frozen_facts,
+                                **original_option)
         # Read the stable JSON form from the same verified obligations. Driver
         # objects such as DateTime64 cannot be hashed as JSON.
         facts = []
@@ -342,7 +344,7 @@ class IncrementalSilverSource:
             facts.append(tuple(ordered))
         return ObservationBundle(event_id, facts[0][0], facts[1], facts[2])
 
-    def _read_change_entry(self, ns, sequence, boundary, *, materialize=True):
+    def _read_change_entry(self, ns, sequence, boundary, *, materialize=True, original_out=None):
         change = self._journal_row(ns, "changes", sequence)
         self._validate_transition(change)
         eid = change["event_id"]
@@ -395,7 +397,9 @@ class IncrementalSilverSource:
         if disposition == "BUNDLE_VALID":
             _check(marker["validity_state"] == "VALID", "SOURCE_INTEGRITY_ERROR", "Valid marker expected")
             if materialize:
-                bundle = self._verified_bundle(ns, eid, sequence, change["revision"], context, frozen_facts)
+                original_option = {"original_out": original_out} if original_out is not None else {}
+                bundle = self._verified_bundle(ns, eid, sequence, change["revision"], context, frozen_facts,
+                                               **original_option)
                 bundle_hash = canonical_hash(bundle)
         transition_hash = self._transition_hash(change)
         entry = CanonicalChangeEntry(
@@ -502,7 +506,8 @@ class IncrementalSilverSource:
             sequence = identity["change_sequence"]
             if sequence is None or sequence > sc:
                 raise _PrefixBlocked("Producer outcome is ahead of the Silver applied prefix")
-            entry, proof = self._read_change_entry(ns, sequence, boundary)
+            original_out = {}
+            entry, proof = self._read_change_entry(ns, sequence, boundary, original_out=original_out)
             _check(proof[1] == identity, "BOUNDARY_STALE", "Canonical outcome changed during verification")
             node = identity["intersection_id"]
             directions = context.directions.get(node)
@@ -521,8 +526,7 @@ class IncrementalSilverSource:
             if entry.effective_disposition == "BUNDLE_VALID":
                 _check(entry.canonical_bundle.intersection["source_payload_hash"] == identity["payload_hash"],
                        "SOURCE_INTEGRITY_ERROR", "Verified Silver facts differ from the original payload hash")
-                original = self.bronze_repo.read_valid_observation(ns, event_id, entry.semantic_revision,
-                                                                  state_path=self.bronze_path)
+                original = original_out.get("accepted")
                 _check(original is not None, "BOUNDARY_STALE", "Canonical original became unavailable")
                 _check(original["change_sequence"] == sequence and
                        original_anchor(original["event"], context.generation, context.manifest_identity) == anchor,

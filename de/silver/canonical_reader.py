@@ -258,7 +258,8 @@ class CanonicalSilverReader(IncrementalSilverSource):
 
     def _bundle(self, event_id: str, revision: int, change_sequence: int,
                 query: CanonicalReadQuery, *, context: VerifiedRunContext | None = None,
-                frozen_facts: dict[str, list[dict]] | None = None) -> ObservationBundle:
+                frozen_facts: dict[str, list[dict]] | None = None,
+                original_out: dict | None = None) -> ObservationBundle:
         current = self.bronze.current(query.namespace, event_id)
         if current is None or current["state"] != "ACCEPTED" or current["revision"] != revision:
             raise SnapshotStaleError("Bronze event identity changed")
@@ -310,6 +311,8 @@ class CanonicalSilverReader(IncrementalSilverSource):
             for key, row in by_key.items():
                 verify_v1_content(table, row, expected_by_key[key])
             found[family] = by_key
+        if original_out is not None:
+            original_out["accepted"] = accepted
         return ObservationBundle(event_id, found["intersection"]["intersection"],
             tuple(found["traffic"][key] for key in sorted(directions)),
             tuple(found["signal"][key] for key in sorted(directions)))

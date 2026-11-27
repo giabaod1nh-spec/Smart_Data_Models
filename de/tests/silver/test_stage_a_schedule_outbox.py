@@ -304,9 +304,11 @@ def test_public_silver_receipts_block_delayed_observations_and_bind_original_evi
                 captured_silver_change_applied_sequence=9, captured_bronze_invalidation_high_water=2,
                 captured_silver_invalidation_applied_sequence=2)
 
-        def _read_change_entry(self, ns, sequence, boundary):
+        def _read_change_entry(self, ns, sequence, boundary, *, original_out):
             identity = next(row for row in identities.values() if row["change_sequence"] == sequence)
             conflict = identity["state"] == "CONFLICTED"
+            if not conflict:
+                original_out["accepted"] = self.bronze_repo.read_valid_observation(ns, identity["event_id"], 1)
             return SimpleNamespace(event_id=identity["event_id"], run_id=run_id, run_generation=1,
                 topology_digest=schedule.topology_digest, manifest_identity=schedule.manifest_digest,
                 effective_disposition="CONFLICTED" if conflict else "BUNDLE_VALID", semantic_revision=2 if conflict else 1,
@@ -362,4 +364,80 @@ def test_public_silver_receipts_block_delayed_observations_and_bind_original_evi
         with pytest.raises(CanonicalFeedError, match="rewound or replaced"):
             read(replace(measurement.after, digest="f" * 64))
     finally:
+        store.close()
+
+
+def test_public_measurement_reuses_verified_bronze_read_and_rejects_changed_silver_fact(outbox):
+    from de.bronze.checkpoint_store import V1SemanticStore
+    from de.silver.canonical_reader import CanonicalSilverReader
+    from de.silver.checkpoint_store import SilverCheckpointStore
+    from de.silver.fact_builders import build_v1_fact_rows
+    from de.silver.incremental_contract import SourceDiscoveryRequest
+    from de.silver.source_binding import verify_bronze_source
+
+    schedule, rows, store_cls, _, scratch = outbox
+    store = store_cls.create(scratch, schedule)
+    bronze = V1SemanticStore(scratch / "bronze.sqlite3")
+    silver_path = scratch / "silver.sqlite3"
+    silver = SilverCheckpointStore(silver_path)
+    silver.open()
+    try:
+        first = rows(0)[0]
+        event = json.loads(first.payload_json)
+        directions = dict(schedule.participants)
+        context = VerifiedRunContext(schedule.run_id, 1, schedule.topology_digest, schedule.manifest_digest,
+            tuple(directions), directions, {"config_hash": schedule.config_digest}, {}, "b" * 64,
+            "c" * 64, "RUNNING", None)
+        store.set_lifecycle("RUNNING", tick=0)
+        evidence = {"directions": {"East": {"occupancy": {"method": "lane_percent_v2", "percent": [0.8]}}},
+                    "spillback": None}
+        store.append_scheduled_cycle(0, rows(0), measurement_evidence={first.event_id: evidence})
+        store.export_checkpoint()
+
+        transport = dict(raw_ingestion_id="raw", topic=TOPIC, topic_identity="fixture", partition=0, offset=0)
+        intent = bronze.prepare("live", transport, event, "envelope", "d" * 64, lambda *_: [])
+        bronze.complete("live", "raw", intent["expected_hash"])
+        silver.bind_v1_source("live", verify_bronze_source(bronze.path, "live"))
+        provenance = dict(bronze_semantic_revision=1, bronze_canonical_hash="d" * 64,
+            source_raw_ingestion_id="raw", source_topic=TOPIC, source_partition=0, source_offset=0,
+            source_physical_record_hash="e" * 64, source_byte_hash="f" * 64)
+        facts = build_v1_fact_rows(event, context, provenance)
+        physical = {f"silver_{name}_fact_v1": facts[key] for name, key in (
+            ("intersection_state", "intersection"), ("traffic_observation", "traffic"), ("signal_state", "signal"))}
+        marker = dict(namespace="live", event_id=first.event_id, simulation_run_id=schedule.run_id,
+            topology_digest=schedule.topology_digest, semantic_revision=1, bronze_change_sequence=1,
+            invalidation_id=None, validity_state="VALID", reason="ACCEPTED")
+        obligations = [(table, row) for table, records in physical.items() for row in records]
+        silver.freeze_v1_bundle("live", "changes", 1, first.event_id, 1,
+                               obligations + [("silver_event_validity_v1", marker)])
+        for item in silver.pending_v1_obligations("live"):
+            silver.reconcile_v1_obligation("live", "changes", 1, item["target_table"], item["expected_hash"])
+        silver.publish_v1_valid("live", first.event_id, 1, 1)
+        silver.advance_v1_cursor("live", "changes", 1, 0)
+        calls = []
+
+        def bronze_fetch(*args, **kwargs):
+            calls.append(args)
+            return {"event": event, "change_sequence": 1}
+
+        with CanonicalSilverReader(bronze.path, silver_path,
+                SimpleNamespace(fetch_v1_event_rows=lambda table, *_: physical[table]),
+                SimpleNamespace(read_valid_observation=bronze_fetch),
+                SimpleNamespace(root=store.db_path.parent, resolve=lambda *_: context)) as reader:
+            binding = reader.discover_canonical_source(SourceDiscoveryRequest("live")).source_binding_id
+            request = ObservationMetadataRequest(source_binding_id=binding, run_id=schedule.run_id,
+                run_generation=1, topology_digest=schedule.topology_digest,
+                cursor=ObservationMetadataCursor(stream="MEASUREMENT"))
+            receipt = reader.read_observation_metadata(request)
+            assert len(calls) == 1
+            assert receipt.payload["anchor"]["payloadHash"] == event["payloadHash"]
+            assert receipt.payload["measurements"]["directions"]["East"]["occupancy"]["value"] == 0.8
+            assert physical["silver_traffic_observation_fact_v1"][0]["occupancy_pct"] == 0.0
+            physical["silver_traffic_observation_fact_v1"][0]["occupancy_pct"] = 12.0
+            with pytest.raises(CanonicalFeedError, match="same-key content differs") as failure:
+                reader.read_observation_metadata(request)
+            assert failure.value.code == "SOURCE_INTEGRITY_ERROR" and not failure.value.cursor_advance
+    finally:
+        silver.close()
+        bronze.close()
         store.close()

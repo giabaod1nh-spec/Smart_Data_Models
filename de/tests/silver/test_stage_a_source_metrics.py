@@ -133,6 +133,21 @@ def test_queue_method_is_fixed_and_quality_is_not_measurement_zero(source, monke
     assert "queue_measurement" not in unavailable
 
 
+def test_isolated_queue_rejects_route_on_another_edge_without_affecting_default(source, monkeypatch):
+    monkeypatch.setattr(source.cfg, "directions_for_node", lambda _: ("East",))
+    monkeypatch.setattr(source.cfg, "TURN_BY_OD", {("edge", "out"): "right"})
+    vehicle = SimpleNamespace(getRoute=lambda _: ("earlier", "edge", "out"), getRouteIndex=lambda _: 0)
+    traci = SimpleNamespace(vehicle=vehicle)
+    legacy, corrected = (source.SumoSnapshotProvider("tls", "fixture", stage_a_measurements=opt_in)
+                         for opt_in in (False, True))
+    errors = []
+    assert legacy._infer_movement(traci, "v", "edge", errors=errors) == "right" and not errors
+    assert corrected._infer_movement(traci, "v", "edge", errors=errors) == "straight" and errors == ["v"]
+    vehicle.getRouteIndex = lambda _: 1
+    errors.clear()
+    assert corrected._infer_movement(traci, "v", "edge", errors=errors) == "right" and not errors
+
+
 def test_raw_evidence_materializes_corrected_values_without_changing_v1_facts():
     snapshot = snapshot_v1()
     direction = next(iter(snapshot["directions"]))

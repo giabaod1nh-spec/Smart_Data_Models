@@ -521,15 +521,22 @@ class SumoSnapshotProvider:
         try:
             route = list(traci_module.vehicle.getRoute(vid))
             idx = int(traci_module.vehicle.getRouteIndex(vid))
-            offset = max(0, idx) if self.stage_a_measurements else 0
-            if approach_edge and approach_edge in (route[offset:] if offset else route):
-                ai = route.index(approach_edge, offset)
+            if self.stage_a_measurements:
+                if approach_edge and 0 <= idx < len(route) - 1 and route[idx] == approach_edge:
+                    movement = cfg.TURN_BY_OD.get((approach_edge, route[idx + 1]))
+                    if movement in ("left", "straight", "right"):
+                        return movement
+                if errors is not None:
+                    errors.append(vid)
+                return "straight"
+            if approach_edge and approach_edge in route:
+                ai = route.index(approach_edge)
                 if ai + 1 < len(route):
                     pair = (approach_edge, route[ai + 1])
                     if errors is not None and pair not in cfg.TURN_BY_OD:
                         errors.append(vid)
                     return cfg.TURN_BY_OD.get(pair, "straight")
-            if idx + 1 < len(route) and (idx >= 0 or not self.stage_a_measurements):
+            if idx + 1 < len(route):
                 pair = (route[idx], route[idx + 1])
                 if errors is not None and pair not in cfg.TURN_BY_OD:
                     errors.append(vid)
