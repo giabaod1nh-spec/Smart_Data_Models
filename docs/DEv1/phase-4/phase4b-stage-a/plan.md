@@ -39,7 +39,7 @@ Existing A-I paths are proposals. UP-01 and UP-02 are separately owner-authorize
 
 | Work | Entry / dependency | Mechanism, durability and resource envelope | Exit, rollback, exclusions |
 |---|---|---|---|
-| A-I01 metric engine | A-P03/04/05 proposed contract accepted, G-ENTRY or written isolated branch scope. Synthetic authoritative slots allowed only as fixture data | From verified projected slots emit deterministic payload, no state on slot conflict except bounded reason. Cap projected slots and exact queue samples; use approved registry | FA-01…07, AC definitions, E-03 reference. Disable feature before durable integration. No upstream correction/API |
+| A-I01 metric engine | A-P03/04/05 proposed contract accepted, G-ENTRY or effective D-A14 amendment with scoped authorization. Synthetic authoritative slots allowed only as fixture data | From verified projected slots emit deterministic payload, no state on slot conflict except bounded reason. Cap projected slots and exact queue samples; use approved registry | FA-01…07, AC definitions, E-03 reference. Disable feature before durable integration. No upstream correction/API |
 | A-I02 atomic integration | A-I01 reducer + reviewed state design; schema rehearsal can start independently under conditional scope | Core processor/ledger/checkpoint store reserve both BLOBs, upgrade scratch schema, seal proof+obligation+projection atomically, release stale token on rollback. Short writer transaction | FA-08…14/21/25; recover migrated DB and unchanged cursors. Disable Business with schema-aware binary; owner-approved restoration only. No production migration under conditional |
 | A-I03 result/publication | A-I02, G-REV and G-MART, approved CH scratch access | Compute durable result/manifest then bounded CH writer/reconcile, exact verification, pointer CAS; no rerun on ambiguous write. Retain orphan evidence | FA-13/15…19/22/24, exact row oracle and WAL/queue metrics. Disable writes and retain fence/durable results. No live publication |
 | A-I04 serving | A-I03, approved read contract/deployment design | Gold reader pin/revalidate exact revision set, capped range and retries. Fail closed on authority loss | FA-20/29 and serving AC. Disable adapter. No Spring API or UI |
@@ -48,3 +48,35 @@ Existing A-I paths are proposals. UP-01 and UP-02 are separately owner-authorize
 | A-I07 acceptance | A-I01…06 applicable slices, owner-approved operating budget and authority | L4 measured integrated comparison, L5 operational retention/restore, both durations and independent durable oracle | Remain blocked until gate evidence. Halt at guards and retain raw evidence. No cutover or relaxing Phase 4A gates |
 
 Isolated-ready after conditional amendment and work-specific approvals: A-I01, A-I02 and bounded failure-path A-I03 slices only. Full paths still blocked by UP-01/G-COV, affected UP-02 and performance evidence. See [final closure](final-design-closure.md).
+## Frozen execution plan — 09ae5dd baseline
+
+This section controls future package handoff. Owner approved the architectural principles and selected D-A14. No implementation authorization is effective until the [authoritative amendment](conditional-entry-proposal.md) and package-specific approvals. All runtime checks remain planned.
+
+```
+Records: D-A14 effective + work-specific authorization
+     |-- Track 1: UP-01 U1-A -> U1-B -> U1-C -> approved U1-D integration
+     |            UP-02A -> occupancy eligible -> separate pressure calibration
+     |            UP-02B -> queue oracle and method adoption -> official queue
+     |-- Track 2: A-I01a pure fixtures -> A-I02 isolated migration/atomic handoff
+     |                                   -> A-I03 isolated failure paths
+     |      A-I02 migration rehearsal may start in parallel with A-I01a
+     '-- Full integration gate + prerequisites + verified runtime budgets
+             -> A-I01–03 integration (per adopted metric)
+             -> A-I04 -> A-I05
+                    '--> A-I06 -> A-I07 integrated/operational acceptance
+```
+
+Track 1 and Track 2 can progress independently under approved fixture identities. Do not run resource-heavy experiments concurrently. UP-01 is required for official coverage, UP-02A for occupancy/pressure and UP-02B for queue; fixture P95 does not require source approval. Optimizations OPT-01/02 and unsupported concurrent replay deferred.
+
+| Package and entry | Exact mechanism/input/output and components | Verification, exit and rollback |
+|---|---|---|
+| UP-01, UP-02A/B | Separate owner authorization and exact specs below; source, Outbox/archive, Raw/Bronze/Silver/public reader, affected consumers | Versioned receipts/provenance, fault/continuity/source oracle and gates; disable feature/emission for new runs, preserve artifacts. [UP-01](up-01-implementation-plan.md), [UP-02](up-02-implementation-plan.md) |
+| **A-I01a first** | Pure module under de/gold/business candidate path, de/tests/ Gold fixture location to match existing test layout. Inputs: frozen approved synthetic slot/population and projected member fixtures for both durations; output deterministic versioned metric payload with quality, no DB. Implement bounded NONE/UNIQUE/CONFLICT reducer and approved independent formulas, sort exact P95. Enforce fixture caps before allocation. | FA-01…07, FZ-01/06/10 applicable slices and AC metric oracle. Exit same result/hash on permutations, near boundary, equality and reject malformed input. Drop/discontinue isolated feature; no Core change or source-dependent official metrics. |
+| **A-I02** after A-I01a for integration, isolated v2 rehearsal can start earlier | de/gold_runtime/checkpoint_store.py, processing_ledger.py and processor.py. Add schema/version, lease-scoped preclaim reservation, bounded selection and atomic finish + projection + obligation. Existing public receipts/prefix unchanged. Synthetic approved metadata fixture for isolated mode; U1-D real metadata integration gated separately. | FA-08…14/21/25, FZ-06…09. Verify no loss/head-of-line starvation, preserve Core rows/ACKs and restore sealed payload. Disable with v2-aware binary, restore disposable snapshot only. No production migration. |
+| **A-I03** after A-I02 and G-MART/G-REV design sign-off | Gold coordinator + bounded compute/publication lane and candidate CH schema in disposable store. Durable payload/revision and required exact row manifest; result reuse, exact reconciliation, pointer CAS, suppression and WAL reserve. | FA-13/15…19/22/24, FZ-11. Independently verify duplicate/ambiguous/partial/stale cases and same hash/revision after restart. Disable scratch writer, retain evidence. No production use. |
+| **A-I04** after full integration approvals/A-I03 | de/gold_runtime Gold reader boundary, one logical query port, exact pinned rows/epoch and bounded retries. Approve CH consistency, adapter transport and credentials before integration. | FA-20/29 and AC serving, stale cursor/availability; disable adapter. Stage B Spring implementation excluded. |
+| **A-I05** after A-I04/G-EXP | Gold pair queries and official comparable metadata, pin both runs before metric deltas. | AC-33…35, reject incompatible or unknown. Disable comparison only. No new KPI adoption. |
+| **A-I06** after A-I02…04 and retained source approval | de/gold_runtime/replay.py, coordinator/rebuild, durable expected-set digest, separate proof/compute/publish predicates and namespace. Live-first bounded budget. | FA-23/25…28/30. Restart and deterministic replay; pause isolated work, preserve payloads. Concurrent historical replay deferred pending frozen source. |
+| **A-I07** after integrated scope and user-approved environment | Matched Core-only/Core+Business both durations, official 0.01s profile, end-to-end stages, realtime coexistence, drain/recovery and retained independent oracle. | L4/5 and G-PERF, approved numeric operating limits; stop safely/preserve snapshots. No production cutover. |
+
+The smallest scoped prerequisite now is the authoritative amendment and A-I01a fixture/oracle sign-off. No extra architecture review or new live benchmark required to request that approval.

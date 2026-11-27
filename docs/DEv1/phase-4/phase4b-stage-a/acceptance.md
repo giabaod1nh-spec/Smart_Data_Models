@@ -113,3 +113,18 @@ FA-01…07 preserve slot/window correctness. FA-08…14 test atomic state and mi
 ## Preparation evidence mapping
 
 Level 1 static, Level 2 math/source fixtures và Level 3 isolated SQLite sizing đã thực hiện trong phạm vi E-01…03. FA-01/02/07 được tập con oracle, FA-05/06/08…30 chưa đủ runtime evidence và không chuyển PASS. UP-01 thêm producer pause/resume/reset/terminal, sparse outcome recovery và slot/receipt lineage. UP-02 thêm exact unit vectors, fallback/partial quality, canonical→Silver values. E-03 không kiểm tra production migration, atomic proof, CH partial write hay contention. Level 4 future: official Core-only vs Core+Business cùng both durations, realtime, matched arrival rates, independent durable oracle, drained queues. Level 5 future: sustained capacity, retention, restore/failover and operational envelope. [Preparation result](preparation-result.md).
+## Freeze acceptance supplements — all planned
+
+| Case | Preconditions / injection | Required evidence and acceptance |
+|---|---|---|
+| FZ-01 Delayed below P | P ahead, postpone event in Kafka/Raw, fixed schedule | S/G remain behind. Slot WAITING, not MISSING or zero. Once canonical prefix and linked watermarks apply, classify correctly. |
+| FZ-02 Metadata-only | Terminal/exception horizon with no next observation | Verified metadata receipt persists; G triggers timeline update. Entire missing full window appears without event/zero mart. Terminal with members uses existing proof path, never synthetic clock advance; partial remains non-final. |
+| FZ-03 Outbox atomic gap | Kill after capture/before commit, after commit/before export, mid-export | No advanced P without all observations or durable exception; recover same IDs/bytes, unprovable suffix remains WAITING/UNKNOWN and reset identity isolated. |
+| FZ-04 Linked cursors | Apply metadata while CHANGE or INVALIDATION cursor behind | No G advance, no publish. Verify Gold-local transaction durable with cursor/obligations/fence after both watermarks. |
+| FZ-05 Correction | Withdraw/correct settled outcomes while Business work running | Public invalidation precedes replacement, epoch bumps, old claim invisible, replay pins both metadata and Core boundaries. |
+| FZ-06 Boundaries and admission | Synthetic 60/300, duplicate/conflict/missing and exact P95, then cap+1 | Same independent oracle and canonical payload hash across permutations, explicit RESOURCE_LIMIT and no silent truncation. |
+| FZ-07 Head-of-line | RUNNING has no reservation; admissible later work | No Silver requalification for held work, bounded scan admits later work, hold age visible, no false completion; resume first when eligible. |
+| FZ-08 Global cap/drain | Saturate pending bytes and WAL allowance; admitted result ready | No repeated stream verification under closed admission, admit already reserved drain; close Core intake at durable cursors before protected reserve, resume after recovery. |
+| FZ-09 Restart reservation | Kill between claim/reservation, mid-traversal and after seal | Claims and reserves atomic by lease, stale epoch reclaimed, sealed work intact. No memory-only ownership. |
+| FZ-10 Source variants | UP-02A exact vectors 0,.5,.8,1,1.1,50,100 on four paths; UP-02B mixed geometry and partial getters | Independent raw oracle and repeated canonical/Silver/Realtime assertions. Explicit quality/unknown and method strata; P95 fixture remains separate from official metric readiness. |
+| FZ-11 Publication identities | Ambiguous write with partial/duplicate rows and changed generation | Same result ID/revision for retry, exact key/hash set, no stale pointer or second authority, observable orphan/reconcile evidence. |

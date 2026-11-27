@@ -14,4 +14,7 @@ Baseline review local và remote `e57116e5bdda9fc6c39fdf84ae83c78dcd780cbc`, bra
 Ưu tiên A-P03 để chốt lifecycle/schedule authority rồi A-P05 để chốt atomic state, migration và resource envelope. [State schema](state-schema.md) và [publication/replay](publication-recovery-design.md) là source cho implementation design, cần owner phê duyệt. Kế hoạch chưa sẵn sàng implementation khi G-ENTRY, G-COV và các design approvals còn mở. FA-01–30 đã lập kế hoạch và chưa chạy.
 ## Preparation handoff
 
-Current reviewed baseline 0ccf2062c368def10b3601402215698b4a4e84ce. Source-only SUMO and isolated sizing executed. DESIGN CLOSURE INCOMPLETE. Owner to review UP-01 schedule/lifecycle authority, UP-02 source version and queue method, isolated D-A14 amendment, SQLite/CH reader budgets and replay retention. No implementation started. [Final candidate](final-design-closure.md).
+Current reviewed baseline 0ccf2062c368def10b3601402215698b4a4e84ce. Source-only SUMO and isolated sizing executed. Historical preparation status was DESIGN CLOSURE INCOMPLETE. Owner to review UP-01 schedule/lifecycle authority, UP-02 source version and queue method, isolated D-A14 amendment, SQLite/CH reader budgets and replay retention. No implementation started. [Final candidate](final-design-closure.md).
+## Freeze handoff at 09ae5dd
+
+**PLAN FROZEN – READY FOR SCOPED IMPLEMENTATION AUTHORIZATION.** Owner selected Conditional Entry; the external amendment is pending. First request approval to apply and record [D-A14 exact amendment](conditional-entry-proposal.md). After fixture-owner sign-off, first coding task A-I01a on synthetic 60/300 slots, no SQLite/upstream implementation. Separate UP-01/02 authorizations may run in parallel where safe. [Plan](plan.md).

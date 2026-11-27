@@ -61,3 +61,6 @@ Reducer xử lý slot duplicate/conflict trước metric arithmetic theo [covera
 | Experiment pairs | CONDITIONAL, verified pinned comparability, no cross-run generalization. |
 | Trip throughput/waiting/crossing, storage/signal | DEFER optional study theo current gates, không mở thêm implementation scope. |
 | Received rows làm denominator, avg của P95 60s | REJECT, trái expected population và exact metric semantics. |
+## Owner freeze — isolated adoption
+
+Approved for isolated fixtures: weighted moving speed, stopped ratio and observed load on independent expected population, slot coverage/dispositions, exact nearest-rank P95 algorithm. Algorithm approval does not validate source method or trigger official outputs. UP-02A gates occupancy and then pressure calibration; UP-02B plus independent oracle gates source queue. Comparability gates experiment outputs. Throughput/completed-trip waiting and unsupported optional metrics remain outside required initial implementation. [Source prerequisites](up-02-implementation-plan.md).

@@ -35,4 +35,12 @@ This package turns the Phase 4B review candidate into an evidence-linked Stage A
 
 ## Final preparation candidate
 
-**DESIGN CLOSURE INCOMPLETE** at reviewed baseline 0ccf2062c368def10b3601402215698b4a4e84ce. See [executed evidence](preparation-result.md), [resource sizing](resource-sizing.md), [final technical decisions](final-design-closure.md) and [implementation dependencies](plan.md). Earlier readiness and baseline sections above describe the prior review. G-ENTRY and G-PERF stay closed.
+**Historical preparation verdict — DESIGN CLOSURE INCOMPLETE** at reviewed baseline 0ccf2062c368def10b3601402215698b4a4e84ce. See [executed evidence](preparation-result.md), [resource sizing](resource-sizing.md), [final technical decisions](final-design-closure.md) and [implementation dependencies](plan.md). Earlier readiness and baseline sections above describe the prior review. G-ENTRY and G-PERF stay closed.
+## Frozen plan at 09ae5dd
+
+**PLAN FROZEN – READY FOR SCOPED IMPLEMENTATION AUTHORIZATION. FULL INTEGRATION BLOCKED. OPERATIONAL ACCEPTANCE PENDING.** Owner architecture choices and D-A14 direction are frozen; authoritative amendment and scoped implementation approvals pending. Prior status is retained only as historical preparation evidence.
+
+- [UP-01 schedule and lifecycle handoff](up-01-implementation-plan.md)
+- [UP-02A/B occupancy and queue handoff](up-02-implementation-plan.md)
+- [D-A14 exact amendment](conditional-entry-proposal.md)
+- [Frozen decision summary](final-design-closure.md), [roadmap](plan.md), [test budgets](resource-sizing.md).

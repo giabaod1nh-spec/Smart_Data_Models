@@ -23,3 +23,8 @@ G-ENTRY hiện chặn production business implementation, gồm minimum gate unr
 ## Preparation readiness
 
 Planning candidate can be reviewed now. UP-01 and official G-COV block full coverage; UP-02 blocks affected unit/queue metrics. D-A14 authoritative amendment plus A-P03/04/05 applicable approvals gate isolated implementation. G-REV and measurable reserve/authority approval gate publication. G-PERF and operational acceptance require representative paced both-duration evidence, realtime impact, independent durable oracle and bounded drain. Retained memory stop remains ENVIRONMENT BLOCKED. [Readiness](final-design-closure.md).
+## Freeze status and unlock actions
+
+- Isolated A-I01a/A-I02/03: effective [authority amendment](conditional-entry-proposal.md), scoped owner authorization, applicable fixture/SQLite or CH/G-MART/G-REV reviews. Nothing implemented here.
+- Full integration: UP-01 metadata contract proof/A-I02 consumer hook, source metric-specific UP-02A/B and pressure/experiment gates as applicable, existing full-entry evidence. The minimum scope to start pure A-I01a does not require upstream implementation.
+- Live/operations: G-COV/G-REV, retained representative G-ENTRY and G-PERF evidence, CH consistency/reader adapter, production budgets and operational approvals still required. Concurrent replay deferred without immutable compatible source.

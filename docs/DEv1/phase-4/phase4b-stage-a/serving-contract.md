@@ -35,3 +35,6 @@ Giao diện Gold reader phân biệt Core COMPLETE, Business COMPUTED và busine
 ## Logical interface closure
 
 Candidate Gold.Query(selector, run-context, scope, duration, from/to, metric set, cursor) → rows + persisted versioned quality, exact revision IDs, epoch token hoặc typed reprocessing/stale/unavailable. Gold sở hữu fence revalidation và read-only CH/SQLite connections. Stage B adapter gọi Gold port, không implicit direct CH marts hoặc authority mirror. In-process reusable library là isolated baseline; local IPC hoặc service adapter chỉ khi deployment boundaries và credentials được duyệt. UI không gọi staged tables.
+## Freeze integration checkpoint
+
+Gold exposes a single logical query port, with exact version IDs, completeness, epochs and typed errors. SQLite remains sole publication authority. Before A-I04 integration, owners record supported CH deployment read consistency and transport adapter/credentials and prove pin/revalidate across authority failure. Stage B consumes this port; no independent pointer or unverified CH read. See [frozen publication contract](publication-recovery-design.md).

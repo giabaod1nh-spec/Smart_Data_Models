@@ -46,3 +46,6 @@ Q-01/Q-02 và B4B-10 là dependency A-P03. Gold tính finalized KPI cho full tum
 - Conditional: B4B-08 experiment data support P0 với G-EXP, candidate metadata/pair rule. B4B-09 sampled signals only if adopted. Nested 60/300 comparison chờ D-A07. UP-01 là external prerequisite cho official coverage.
 - Blocked source/calibration: B4B-06/07 pressure-dependent outputs, queue method slice trong B4B-02/03. Independent metrics có thể dùng approved fixtures sau conditional entry.
 - Deferred optional: storage, trip throughput/waiting/crossing. B4B-14/15 giữ Stage B/C. Phase 5 giữ runtime coexistence/cutover. D-A01 owner amendment nếu cần, không sửa Master Plan.
+## Frozen scope
+
+The owner freezes direction/intersection/network marts and finalized 60/300 tumbling windows with existing Core invariants, as described in [freeze closure](final-design-closure.md). Initial isolated metric set is weighted moving speed, stopped ratio, observed load, coverage/slot dispositions and exact fixture P95. Official scope and conditional metrics retain independent prerequisites. Stage B API, Stage C UI and Phase 5 activation remain separate.
