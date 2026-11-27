@@ -689,5 +689,18 @@ class CanonicalGoldSource:
             after_invalidation_sequence=after, through_invalidation_sequence=ceiling, **self.effective_limits)
         return verify_core_page(request, self.session.read_canonical_invalidations_page(request))
 
+    def observation_metadata(self, binding, run_id, generation, topology_digest, cursor):
+        from de.silver.observation_contract import ObservationMetadataRequest, VerifiedObservationMetadata
+
+        request = ObservationMetadataRequest(source_binding_id=binding, run_id=run_id,
+            run_generation=generation, topology_digest=topology_digest, cursor=cursor,
+            max_processing_ms=self.effective_limits["max_processing_ms"])
+        receipt = self.session.read_observation_metadata(request)
+        _require(type(receipt) is VerifiedObservationMetadata and receipt.contract_version == request.contract_version
+                 and (receipt.source_binding_id, receipt.run_id, receipt.run_generation, receipt.topology_digest,
+                      receipt.before) == (binding, run_id, generation, topology_digest, cursor),
+                 "Observation metadata response differs from requested Silver source and cursor")
+        return receipt
+
     def close(self):
         self.session.close()

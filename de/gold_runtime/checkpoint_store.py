@@ -680,6 +680,8 @@ class CoreStateFault(CheckpointError):
 class GoldCoreStore(GoldRuntimeStore):
     """Gold V1 metadata only. The legacy store remains available for history/tests."""
 
+    schema_version = CORE_SCHEMA_VERSION
+
     def open(self) -> None:
         if self._conn is not None:
             return
@@ -691,7 +693,7 @@ class GoldCoreStore(GoldRuntimeStore):
             populated = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' LIMIT 1").fetchone()
             if application != CORE_APPLICATION_ID and (populated or application or version):
                 raise CoreStateFault("Refusing to adopt a non-Core SQLite database")
-            if version not in (0, CORE_SCHEMA_VERSION) or (application and not version):
+            if version not in (0, CORE_SCHEMA_VERSION, self.schema_version) or (application and not version):
                 raise CoreStateFault("Unsupported Gold Core SQLite migration version")
             db.execute("PRAGMA journal_mode=WAL")
             db.execute("PRAGMA synchronous=FULL")
@@ -700,10 +702,15 @@ class GoldCoreStore(GoldRuntimeStore):
                 db.executescript(f"BEGIN IMMEDIATE; {CORE_SCHEMA}"
                                  f"PRAGMA application_id={CORE_APPLICATION_ID};"
                                  f"PRAGMA user_version={CORE_SCHEMA_VERSION}; COMMIT;")
+                version = CORE_SCHEMA_VERSION
+            self._upgrade(db, version)
             self._conn = db
         except BaseException:
             db.close()
             raise
+
+    def _upgrade(self, db, version):
+        """The active Core store has no additive migrations."""
 
     @contextmanager
     def transaction(self, namespace, token):

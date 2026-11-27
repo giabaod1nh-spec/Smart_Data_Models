@@ -560,7 +560,7 @@ class CoreWorkLedger:
         row = self.store.conn.execute("SELECT generation FROM core_window WHERE id=?", (window_id,)).fetchone()
         return None if row is None else row[0]
 
-    def finish(self, work, input_hash, count):
+    def finish(self, work, input_hash, count, *, seal=None):
         with self.store.transaction(self.namespace, self.token) as db:
             contract, schema, processor = db.execute(
                 "SELECT contract_version,schema_version,processor_version FROM core_binding").fetchone()
@@ -571,4 +571,8 @@ class CoreWorkLedger:
                 AND generation=(SELECT generation FROM core_window WHERE id=?)""", (
                 input_hash, count, time.time(), work_id, work["window_id"],
                 work["generation"], work["window_id"]))
-            return changed.rowcount == 1
+            if changed.rowcount != 1:
+                return False
+            if seal is not None:
+                seal(db, work_id)
+            return True

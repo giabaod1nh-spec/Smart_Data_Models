@@ -1,0 +1,339 @@
+"""D-A14 disposable v1→v2 rehearsal and publication failure fixtures."""
+
+from contextlib import contextmanager
+from dataclasses import replace
+import json
+from types import SimpleNamespace
+
+import pytest
+
+from de.gold_runtime.business_publication import BusinessPublisher, PhysicalRow
+from de.gold_runtime.business_metadata import BusinessMetadata
+from de.gold_runtime.business_materialization import compute_business_once, seal_business_work
+from de.gold_runtime.business_state import BusinessState, IsolatedBusinessStore
+from de.gold_runtime.checkpoint_store import CoreStateFault, GoldCoreStore
+from de.gold_runtime.instance_lock import InstanceLock
+from de.gold_runtime.processing_ledger import CoreWorkLedger
+from de.gold_runtime.silver_readers import CanonicalGoldSource
+from de.silver.incremental_contract import canonical_bytes, canonical_hash, freeze
+from de.silver.observation_contract import ObservationMetadataCursor, VerifiedObservationMetadata
+from contracts.observation_schedule import ObservationSchedule
+
+
+@contextmanager
+def opened(root, cls):
+    store = cls(root / "checkpoint.sqlite3")
+    lock = InstanceLock(root / "scope.lock", "live", store, exact_path=True)
+    lock.acquire(open_store=True)
+    try:
+        ledger = CoreWorkLedger(store, "live", lock.lease_token)
+        yield store, ledger
+    finally:
+        lock.release()
+        store.close()
+
+
+@pytest.fixture
+def staged_v1(tmp_path):
+    with opened(tmp_path, GoldCoreStore) as (store, ledger):
+        store.initialize_binding("live", ledger.token, ("binding", b"{}", "1", "v1", "gold-core-v1"))
+        with store.transaction("live", ledger.token) as db:
+            db.execute("INSERT INTO core_receipt VALUES ('receipt','CHANGE',0,1,?,0)", (b"{}",))
+            db.execute("UPDATE core_cursor SET sequence=1 WHERE kind='CHANGE'")
+            db.execute("INSERT INTO core_run(id,identity) VALUES ('r',?)", (b"{}",))
+            for key, start in (("w1", 0), ("w2", 60)):
+                db.execute("""
+                    INSERT INTO core_window(id,run_key,spec,duration,start,end,eligible,generation)
+                    VALUES (?,'r','tumbling',60,?,?,1,1)
+                """, (key, start, start + 60))
+                db.execute("""
+                    INSERT INTO core_work(window_id,generation,state,source_receipt,created_at,eligible_at)
+                    VALUES (?,1,'PENDING','receipt',0,?)
+                """, (key, start))
+    return tmp_path
+
+
+def commit_projection(state, ledger, work, *, barrier=None):
+    return state.finish(ledger, work, "proof-hash", 60, canonical_bytes({"projection": [1, 2]}),
+                        definition_set="fixture", source_semantics="fixture-source",
+                        coverage_policy="fixture-v1", population_digest="population",
+                        metadata_digest="fixture-boundary", barrier=barrier)
+
+
+def test_isolated_migration_lease_restart_and_atomic_rollback(staged_v1):
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        assert store.conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert store.cursors() == {"CHANGE": 1, "INVALIDATION": 0}
+        state = BusinessState(store, "live", ledger.token)
+        work = state.reserve_next()
+        assert work["window_id"] == "w1" and state.reserve_next() is None
+
+        def kill(_):
+            raise RuntimeError("failure after seal before commit")
+
+        with pytest.raises(RuntimeError, match="failure after seal"):
+            commit_projection(state, ledger, work, barrier=kill)
+        assert store.conn.execute("SELECT state FROM core_work WHERE window_id='w1'").fetchone()[0] == "RUNNING"
+        assert store.conn.execute("SELECT count(*) FROM business_obligation").fetchone()[0] == 0
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        assert state.recover_reservations() == 1
+        work = state.reserve_next()
+        assert commit_projection(state, ledger, work)
+        assert not commit_projection(state, ledger, work)
+        assert store.conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    with pytest.raises(CoreStateFault, match="migration version"):
+        with opened(staged_v1, GoldCoreStore):
+            pass
+    with opened(staged_v1, IsolatedBusinessStore) as (store, _):
+        joined = store.conn.execute("""
+            SELECT w.state,o.state,w.work_id=o.work_id,w.input_hash=o.input_hash
+            FROM core_work w JOIN business_obligation o ON w.window_id=o.window_id
+        """).fetchone()
+        assert tuple(joined) == ("COMPLETE", "PENDING", 1, 1)
+
+
+def test_hold_does_not_monopolize_traversal_and_stale_generation_cannot_seal(staged_v1):
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        work = state.reserve_next()
+        state.hold_unsealed(work)
+        following = state.reserve_next()
+        assert following["window_id"] == "w2"
+        assert store.conn.execute("SELECT reason FROM business_hold").fetchone()[0] == "RESOURCE_LIMIT"
+        with store.transaction("live", ledger.token) as db:
+            ledger._advance_work(db, following["window_id"], "receipt")
+        assert not commit_projection(state, ledger, following)
+        assert state.recover_reservations() == 1
+        assert state.reserve_next()["generation"] == 2
+
+
+class DisposableRows:
+    def __init__(self):
+        self.rows = {}
+        self.ambiguous = False
+
+    def read(self, result_id, *, limit):
+        return tuple(self.rows.get(result_id, [])[:limit])
+
+    def insert(self, result_id, rows):
+        if self.ambiguous:
+            self.rows.setdefault(result_id, []).append(rows[0])
+            self.ambiguous = False
+            raise TimeoutError("partial commit")
+        self.rows.setdefault(result_id, []).extend(rows)
+
+
+def result_payload():
+    return canonical_bytes({"rows": [
+        {"grain": "direction", "intersection": "A", "direction": "east", "value": 20},
+        {"grain": "intersection", "intersection": "A", "direction": None, "value": 20},
+        {"grain": "network", "intersection": None, "direction": None, "value": 20},
+    ]})
+
+
+def prepare_result(state, ledger, publisher):
+    assert commit_projection(state, ledger, state.reserve_next())
+    obligation = state.store.conn.execute(
+        "SELECT * FROM business_obligation WHERE state='PENDING' ORDER BY created_at LIMIT 1"
+    ).fetchone()
+    identifier = publisher.save_computed(obligation["id"], obligation["projection_hash"], result_payload())
+    assert identifier == publisher.save_computed(obligation["id"], obligation["projection_hash"], result_payload())
+    return identifier
+
+
+def test_retry_reuses_payload_revision_and_repairs_partial_physical_rows(staged_v1):
+    target = DisposableRows()
+    target.ambiguous = True
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        writer = BusinessPublisher(state, target, clock=lambda: 0)
+        identifier = prepare_result(state, ledger, writer)
+        assert writer.publish_once() == "PENDING"
+        assert store.conn.execute("SELECT result_id FROM business_scope").fetchone()[0] is None
+        assert len(target.rows[identifier]) == 1
+        assert writer.publish_once() == "IDLE"
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target, clock=lambda: 1)
+        assert writer.publish_once() == "PUBLISHED"
+        assert store.conn.execute("SELECT id,revision FROM business_result").fetchone()[0:2] == (identifier, 1)
+        assert len(target.rows[identifier]) == 3
+        scope = store.conn.execute("SELECT id FROM business_scope").fetchone()[0]
+        assert writer.effective_pointer(scope) == (identifier, 1)
+        with store.transaction("live", ledger.token) as db:
+            ledger._advance_work(db, "w1", "receipt")
+        assert writer.effective_pointer(scope) is None
+        assert len(target.rows[identifier]) == 3
+
+
+def test_stale_generation_and_divergent_duplicate_never_set_pointer(staged_v1):
+    target = DisposableRows()
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        writer = BusinessPublisher(state, target, clock=lambda: 0)
+        identifier = prepare_result(state, ledger, writer)
+
+        def late():
+            with store.transaction("live", ledger.token) as db:
+                ledger._advance_work(db, "w1", "receipt")
+
+        assert writer.publish_once(barrier=late) == "INVALIDATED"
+        assert len(target.rows[identifier]) == 3
+        assert store.conn.execute("SELECT result_id FROM business_scope").fetchone()[0] is None
+        second = prepare_result(state, ledger, writer)
+        target.rows[second] = [PhysicalRow("network", "wrong", b"{}")]
+        assert writer.publish_once() == "BLOCKED"
+        assert store.conn.execute("SELECT count(*) FROM business_scope WHERE result_id IS NOT NULL").fetchone()[0] == 0
+
+
+def test_metadata_requires_both_core_watermarks_and_atomically_fences_correction(staged_v1):
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        metadata = BusinessMetadata(state)
+        writer = BusinessPublisher(state, DisposableRows(), clock=lambda: 0)
+        identity = dict(run_id="isolated", run_generation=1, topology_digest="v1:sha256:" + "a" * 64,
+                        manifest_identity="b" * 64)
+        run_key = canonical_hash(identity)
+        eid = "e" * 64
+        with store.transaction("live", ledger.token) as db:
+            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(identity)))
+            db.execute("UPDATE core_window SET run_key=? WHERE id='w1'", (run_key,))
+            db.execute("INSERT INTO core_event VALUES (?,?,1,1,'transition','bundle','normal','A',1,0.01)",
+                       (eid, run_key))
+            db.execute("INSERT INTO core_transition VALUES ('CHANGE',1,?,'transition','BUNDLE_VALID','bundle',"
+                       "'receipt',?)", (eid, canonical_bytes({"source_payload_hash": "d" * 64})))
+            db.execute("INSERT INTO core_membership VALUES ('w1',?)", (eid,))
+        genesis = ObservationMetadataCursor(stream="MEASUREMENT")
+        first_cursor = replace(genesis, sequence=1, digest="1" * 64)
+        anchor = {"runId": "isolated", "generation": 1, "manifestIdentity": "b" * 64,
+                  "topologyDigest": identity["topology_digest"], "eventId": eid, "payloadHash": "d" * 64,
+                  "cycle": 1, "intersectionId": "A", "simulationTimeSeconds": 0.01}
+        first = VerifiedObservationMetadata(**identity, source_binding_id="binding", schedule_id="a" * 64,
+            archive_head_digest="c" * 64, captured_through_sequence=2, before=genesis, after=first_cursor,
+            required_change_sequence=2, required_invalidation_sequence=1, status="VERIFIED",
+            payload=freeze({"objectDigest": "f" * 64, "revision": 1, "previousDigest": None,
+                            "canonicalDisposition": "BUNDLE_VALID", "anchor": anchor, "measurements": {}}))
+
+        class PublicSilverSession:
+            def read_observation_metadata(self, request):
+                assert request.run_id == "isolated" and request.cursor == genesis
+                return first
+
+        source = CanonicalGoldSource(PublicSilverSession())
+        first = source.observation_metadata("binding", "isolated", 1, identity["topology_digest"], genesis)
+        assert metadata.apply(first) == "WAITING"
+        with store.transaction("live", ledger.token) as db:
+            db.execute("UPDATE core_cursor SET sequence=2 WHERE kind='CHANGE'")
+        assert metadata.apply(first) == "WAITING"
+        with store.transaction("live", ledger.token) as db:
+            db.execute("UPDATE core_cursor SET sequence=1 WHERE kind='INVALIDATION'")
+
+        def fail():
+            raise RuntimeError("crash before metadata commit")
+
+        with pytest.raises(RuntimeError, match="crash before metadata commit"):
+            metadata.apply(first, barrier=fail)
+        assert metadata.cursor(*identity.values(), "MEASUREMENT") == genesis
+        assert store.conn.execute("SELECT count(*) FROM business_measurement").fetchone()[0] == 0
+        assert metadata.apply(first) == "APPLIED" and metadata.apply(first) == "REUSED"
+        identifier = prepare_result(state, ledger, writer)
+        assert writer.publish_once() == "PUBLISHED"
+        scope = store.conn.execute("SELECT id FROM business_scope").fetchone()[0]
+        assert writer.effective_pointer(scope) == (identifier, 1)
+        next_cursor = replace(first_cursor, sequence=2, digest="2" * 64)
+        correction = replace(first, before=first_cursor, after=next_cursor, payload=freeze({
+            "objectDigest": "3" * 64, "revision": 2, "previousDigest": "f" * 64, "anchor": anchor,
+            "canonicalDisposition": "BUNDLE_VALID", "measurements": None}))
+        assert metadata.apply(correction) == "APPLIED"
+        assert writer.effective_pointer(scope) is None
+        assert store.conn.execute("SELECT generation FROM core_window WHERE id='w1'").fetchone()[0] == 1
+        assert store.conn.execute("SELECT window_id FROM business_metadata_dirty").fetchone()[0] == "w1"
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        metadata = BusinessMetadata(BusinessState(store, "live", ledger.token))
+        assert metadata.cursor(*identity.values(), "MEASUREMENT") == next_cursor
+        assert metadata.apply(correction) == "REUSED"
+
+
+def test_verified_schedule_wakes_isolated_work_and_materializes_same_core_proof(staged_v1):
+    schedule = ObservationSchedule("isolated", 1, "b" * 64, "c" * 64, "v1:sha256:" + "a" * 64,
+                                  (("A", ("East",)),), 10_000, 1_000_000, 10_000, 1)
+    identity = dict(run_id=schedule.run_id, run_generation=1, topology_digest=schedule.topology_digest,
+                    manifest_identity=schedule.manifest_digest)
+    run_key = canonical_hash(identity)
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        metadata = BusinessMetadata(state)
+        eid = schedule.event_ids(0)[0]
+        with store.transaction("live", ledger.token) as db:
+            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(identity)))
+            db.execute("UPDATE core_window SET run_key=? WHERE id='w1'", (run_key,))
+            db.execute("INSERT INTO core_event VALUES (?,?,1,1,'transition','bundle','normal','A',1,0.01)",
+                       (eid, run_key))
+            db.execute("INSERT INTO core_transition VALUES ('CHANGE',1,?,'transition','BUNDLE_VALID','bundle',"
+                       "'receipt',?)", (eid, canonical_bytes({"source_payload_hash": "d" * 64})))
+            db.execute("INSERT INTO core_membership VALUES ('w1',?)", (eid,))
+        work = state.reserve_next()
+        assert seal_business_work(state, ledger, work, lambda _: pytest.fail("unverified schedule traversal")) == "UNSUPPORTED_SCHEDULE"
+        cursor = ObservationMetadataCursor(stream="SCHEDULE")
+        for sequence, first in enumerate(range(0, 60, 15), 1):
+            slots = [{"ordinal": i, "outcome": "DELIVERED", "events": [{"eventId": schedule.event_ids(i)[0],
+                      "disposition": "BUNDLE_VALID"}]} for i in range(first, first + 15)]
+            after = replace(cursor, sequence=sequence, digest=str(sequence) * 64, settled_ordinal=first + 14)
+            receipt = VerifiedObservationMetadata(**identity, source_binding_id="binding", schedule_id=schedule.schedule_id,
+                archive_head_digest="e" * 64, captured_through_sequence=4, before=cursor, after=after,
+                required_change_sequence=1, required_invalidation_sequence=0, status="VERIFIED", payload=freeze({
+                    "schedule": json.loads(schedule.canonical_bytes()), "slots": slots,
+                    "lifecycle": "RUNNING", "lifecycleTick": 0, "terminalCutoffTick": None}))
+            assert metadata.apply(receipt) == "APPLIED"
+            cursor = after
+            assert state.recheck_waiting_schedule() == int(sequence == 4)
+
+        class VerifiedStream:
+            input_hash = "same-core-proof"
+            count = 60
+
+            def __iter__(self):
+                for ordinal in range(60):
+                    yield SimpleNamespace(event_id=schedule.event_ids(ordinal)[0],
+                        intersection={"intersection_id": "A", "simulation_time_seconds": ordinal + 0.01},
+                        traffic=({"source_direction": "East", "vehicle_count": 2, "waiting_vehicle_count": 1,
+                                  "average_speed_kmh": 20.0, "queue_length_m": 999.0},))
+
+        work = state.reserve_next()
+        assert work["window_id"] == "w1"
+        assert seal_business_work(state, ledger, work, lambda _: VerifiedStream()) == "SEALED"
+        proof = store.conn.execute("SELECT input_hash FROM core_work WHERE window_id='w1'").fetchone()[0]
+        assert proof == "same-core-proof"
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        target = DisposableRows()
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target, clock=lambda: 0)
+        result_id = compute_business_once(writer)
+        assert result_id and compute_business_once(writer) is None and writer.publish_once() == "PUBLISHED"
+        network = next(json.loads(r.payload) for r in target.rows[result_id] if r.grain == "network")
+        assert network["moving_speed"]["value"] == 20
+        assert network["stopped_ratio"]["value"] == 50
+        assert network["observed_load"]["value"] == 2
+        assert network["queue_p95"]["value"] is None  # No Silver-qualified corrected queue for these events.
+        scope = store.conn.execute("SELECT id FROM business_scope").fetchone()[0]
+        assert writer.effective_pointer(scope) == (result_id, 1)
+        metadata = BusinessMetadata(writer.state)
+        cursor = ObservationMetadataCursor(stream="MEASUREMENT")
+        receipt = VerifiedObservationMetadata(**identity, source_binding_id="binding", schedule_id=schedule.schedule_id,
+            archive_head_digest="e" * 64, before=cursor, after=replace(cursor, sequence=1, digest="c" * 64),
+            captured_through_sequence=1, required_change_sequence=1, required_invalidation_sequence=0,
+            status="VERIFIED", payload=freeze({"anchor": {
+                "eventId": eid, "payloadHash": "d" * 64, "runId": "isolated", "generation": 1,
+                "manifestIdentity": schedule.manifest_digest, "topologyDigest": schedule.topology_digest,
+                "cycle": 1, "intersectionId": "A", "simulationTimeSeconds": 0.01},
+                "previousDigest": None, "objectDigest": "a" * 64, "revision": 1, "canonicalDisposition": "BUNDLE_VALID",
+                "measurements": {"directions": {"East": {"queue": {"method": "route_stopped_length_v1",
+                    "scopeDigest": "b" * 64, "value": 4}}}}}))
+        assert metadata.apply(receipt) == "APPLIED" and writer.effective_pointer(scope) is None
+        writer.state.hold_unsealed(writer.state.reserve_next(), reason="UNSUPPORTED_SCHEDULE")  # w2 has no schedule.
+        next_work = writer.state.reserve_next()
+        assert (next_work["window_id"], next_work["state"]) == ("w1", "COMPLETE")
+        assert seal_business_work(writer.state, ledger, next_work, lambda _: VerifiedStream()) == "SEALED"
+        revision = compute_business_once(writer)
+        assert revision != result_id and writer.publish_once() == "PUBLISHED"
+        assert writer.effective_pointer(scope) == (revision, 3)
+        assert store.conn.execute("SELECT input_hash,generation FROM core_work WHERE window_id='w1'").fetchone()[:] == (proof, 1)
