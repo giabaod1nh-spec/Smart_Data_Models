@@ -245,8 +245,10 @@ def deliver(store, args, deadline):
     from integration.kafka.outbox_worker import OutboxDeliveryWorker
 
     guard(store.db_path.parent, deadline)
-    if bind_run_registry(store) != "COMPLETE":
+    if store.source_status() != "COMPLETE":
         raise ValueError("A complete source capture is required for Stage A delivery")
+    export_all(store, deadline)
+    bind_run_registry(store)
     producer = Producer({"bootstrap.servers": args.bootstrap, "client.id": "stage-a-source",
         "allow.auto.create.topics": False, "acks": "all", "enable.idempotence": True,
         "delivery.timeout.ms": 10_000})

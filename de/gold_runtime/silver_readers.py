@@ -668,8 +668,10 @@ class CanonicalGoldSource:
         self.limits = dict(max_entries=max_entries, max_encoded_bytes=max_encoded_bytes,
                            max_processing_ms=max_processing_ms, max_entry_processing_ms=max_entry_processing_ms)
         self.effective_limits = self.limits.copy()
+        self.request_counts = dict(discovery=0, change=0, invalidation=0, schedule=0, measurement=0)
 
     def discover(self, expected):
+        self.request_counts["discovery"] += 1
         request = SourceDiscoveryRequest("live", expected)
         result = verify_discovery(request, self.session.discover_canonical_source(request))
         self.effective_limits = {key: min(value, getattr(result, key + "_cap"))
@@ -677,6 +679,7 @@ class CanonicalGoldSource:
         return result
 
     def changes(self, binding, after, *, entries=None):
+        self.request_counts["change"] += 1
         options = self.effective_limits.copy()
         if entries is not None:
             options["max_entries"] = min(options["max_entries"], entries)
@@ -685,6 +688,7 @@ class CanonicalGoldSource:
         return verify_core_page(request, self.session.read_canonical_changes_page(request))
 
     def invalidations(self, binding, after, ceiling):
+        self.request_counts["invalidation"] += 1
         request = CanonicalInvalidationPageRequest(namespace="live", expected_source_binding_id=binding,
             after_invalidation_sequence=after, through_invalidation_sequence=ceiling, **self.effective_limits)
         return verify_core_page(request, self.session.read_canonical_invalidations_page(request))
@@ -695,6 +699,7 @@ class CanonicalGoldSource:
         request = ObservationMetadataRequest(source_binding_id=binding, run_id=run_id,
             run_generation=generation, topology_digest=topology_digest, cursor=cursor,
             max_processing_ms=self.effective_limits["max_processing_ms"])
+        self.request_counts[cursor.stream.lower()] += 1
         receipt = self.session.read_observation_metadata(request)
         _require(type(receipt) is VerifiedObservationMetadata and receipt.contract_version == request.contract_version
                  and (receipt.source_binding_id, receipt.run_id, receipt.run_generation, receipt.topology_digest,

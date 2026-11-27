@@ -1,6 +1,9 @@
 """Stage A bounded proof, terminal eligibility, and Reader regression cases."""
 
 from dataclasses import replace
+from contextlib import closing
+import json
+import sqlite3
 import time
 
 import pytest
@@ -18,6 +21,7 @@ from de.gold_runtime.processing_ledger import canonical_run_identity
 from de.gold_runtime.processor import CoreInputStream, CoreWorkChanged
 from de.gold_runtime.replay import CoreReplayManifest
 from de.gold_runtime.stage_a import BatchedStageAInput, StageABusinessProcessor
+from de.gold_runtime.stage_a_oracle import verify_source_lineage
 from de.silver.config import SilverSettings
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
 from de.silver.observation_contract import ObservationMetadataCursor
@@ -161,6 +165,14 @@ def test_disposable_coordinator_drains_terminal_window_and_restores_published_re
     live_checkpoint = IsolatedBusinessStore.allocate_checkpoint(tmp_path)
     replay_checkpoint = IsolatedBusinessStore.allocate_checkpoint(tmp_path)
     replay = CoreReplayManifest(source.binding_id, (60, 0, 60, 0), *coords, 0, 60)
+    retained = tmp_path / "source.sqlite3"
+    with closing(sqlite3.connect(retained)) as db:
+        db.execute("CREATE TABLE kafka_outbox(event_id,payload_hash,payload_json)")
+        db.executemany("INSERT INTO kafka_outbox VALUES (?,?,?)", [
+            (entry.event_id, entry.canonical_bundle.intersection["source_payload_hash"],
+             json.dumps({"simulationTimeSeconds": entry.canonical_bundle.intersection["simulation_time_seconds"]}))
+            for entry in source.changes])
+        db.commit()
     live_result = None
     for checkpoint, execution in ((live_checkpoint, None), (live_checkpoint, None), (replay_checkpoint, replay)):
         namespace = execution.namespace if execution else "live"
@@ -180,6 +192,8 @@ def test_disposable_coordinator_drains_terminal_window_and_restores_published_re
             assert processor.status()["verified_members"] == 60
             assert processor.status()["published_rows"] == 3
             assert processor.confirm_archive() == "e" * 64
+            assert verify_source_lineage(retained, checkpoint, processor.run_key) == dict(
+                events=60, verified_members_by_duration={60: 60})
             window = GoldReader(checkpoint, target, namespace=namespace).windows(processor.run_key, 60)["windows"][0]
             assert window["lineage"]["revision"] == 1
             if execution:

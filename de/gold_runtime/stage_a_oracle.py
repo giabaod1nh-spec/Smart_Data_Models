@@ -210,13 +210,47 @@ def verify_selection(expected, selection, duration):
                     raise ValueError(f"Gold {duration}s window at {start} differs for {scope} {name}")
 
 
+def verify_source_lineage(outbox, checkpoint, run_key):
+    """Reconcile the exact source event/payload identities retained by the Gold Core proof."""
+    source_path = Path(outbox).resolve(strict=True)
+    with closing(sqlite3.connect(source_path.as_uri() + "?mode=ro", uri=True)) as source:
+        records = source.execute("SELECT event_id,payload_hash,payload_json FROM kafka_outbox LIMIT 3001").fetchall()
+    expected = {event_id: payload_hash for event_id, payload_hash, _ in records}
+    clocks = {event_id: seconds_to_ticks(json.loads(payload)["simulationTimeSeconds"])
+              for event_id, _, payload in records}
+    gold_path = Path(checkpoint).resolve(strict=True)
+    with closing(sqlite3.connect(gold_path.as_uri() + "?mode=ro", uri=True)) as gold:
+        gold.execute("BEGIN")
+        observed = dict((event_id, json.loads(provenance)["source_payload_hash"])
+                        for event_id, provenance in gold.execute("""
+                            SELECT c.id,t.provenance FROM core_event c JOIN core_transition t
+                              ON t.kind='CHANGE' AND t.sequence=c.change_sequence AND t.event_id=c.id
+                            WHERE c.run_key=? LIMIT 3001
+                        """, (run_key,)))
+        if len(expected) > 3000 or observed != expected:
+            raise ValueError("Gold Core event IDs or original payload hashes disagree with the retained Outbox")
+        membership = defaultdict(set)
+        for start, duration, event_id in gold.execute("""SELECT w.start,w.duration,m.event_id FROM core_window w
+            JOIN core_work c ON c.window_id=w.id AND c.generation=w.generation AND c.state='COMPLETE'
+            JOIN core_membership m ON m.window_id=w.id
+            WHERE w.run_key=? LIMIT 6001""", (run_key,)):
+            membership[start, duration].add(event_id)
+        counts = Counter()
+        for (start, duration), event_ids in membership.items():
+            begin, end = start * TICKS_PER_SECOND, (start + duration) * TICKS_PER_SECOND
+            if event_ids != {event_id for event_id, tick in clocks.items() if begin <= tick < end}:
+                raise ValueError(f"Gold Core {duration}s window at {start} differs from the source membership")
+            counts[duration] += len(event_ids)
+    return dict(events=len(expected), verified_members_by_duration=dict(counts))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("outbox", type=Path)
     parser.add_argument("--checkpoint", type=Path)
     args = parser.parse_args()
     schedule, cutoff, samples, counts = read_source(args.outbox)
-    comparisons = {}
+    comparisons, lineage = {}, None
     for duration in (60, 300):
         windows = list(expected_windows(schedule, cutoff, samples, duration))
         directions = [metrics for _, rows in windows for (grain, _, _), metrics in rows.items()
@@ -238,13 +272,15 @@ def main():
             check_guards(args.checkpoint.resolve(strict=True).parent)
             run_key = canonical_hash(canonical_run_identity(schedule.run_id, schedule.generation,
                                                            schedule.topology_digest, schedule.manifest_digest))
+            if lineage is None:
+                lineage = verify_source_lineage(args.outbox, args.checkpoint, run_key)
             target = open_clickhouse_target()
             try:
                 reader = GoldReader(args.checkpoint, target)
                 verify_selection(windows, reader.windows(run_key, duration, 0, windows[-1][0] + duration), duration)
             finally:
                 target.client.close()
-    print(json.dumps(dict(run_id=schedule.run_id, source=counts, windows=comparisons,
+    print(json.dumps(dict(run_id=schedule.run_id, source=counts, windows=comparisons, lineage=lineage,
                           physical_verified=args.checkpoint is not None), sort_keys=True))
     return 0
 

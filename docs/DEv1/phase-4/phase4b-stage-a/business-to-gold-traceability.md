@@ -59,3 +59,9 @@ The current evidence consists of the A-I01a independent arithmetic and slot fixt
 | AC-36, AC-37, AC-38 | D-05 above. Optional trajectory truth, waiting and mixed-version tests apply on adoption. Existing V1 compatibility was exercised independently. |
 | AC-39 | The isolated pointer rejects stale generation. Bounded multi-read fence and stale response handling open. |
 | AC-40 | Isolated source and Realtime measurements only. Full-entry performance gate and PA-01–12 evidence remain open. |
+# Functional checkpoint evidence
+
+- M-01/02/03/04/07 and O-01/02/05 have an isolated runnable aggregation and Reader path. Weighted speed, stopped ratio and observed load preserve sufficient statistics. Per-direction queue and occupancy use only verified measurement evidence with method and coverage. Network and intersection queue P95 use the worst direction. The independent oracle supplies expected values for five 60-second windows and one 300-second window from the retained real SUMO capture. Physical value and lineage comparison remains open.
+- O-03/04/06 expose queue diagnostics, pinned windows and pressure availability. Official ranking, heatmap values, bottleneck persistence and the high-pressure KPI require G-CAL. M-08 has adjacent-window change for published physical metrics with gap handling.
+- Experiments use pinned run manifests and compare matched effective Gold windows after qualification. The actual Fixed-Time capture has no qualified Adaptive counterpart. G-EXP and physical replay remain open.
+- The [execution status](execution-status.md) records the implementation, disposable verification commands, physical blockers and deferred performance requirements.

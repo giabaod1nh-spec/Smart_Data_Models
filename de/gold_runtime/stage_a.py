@@ -84,6 +84,7 @@ class StageABusinessProcessor(GoldCoreProcessor):
         self._proof_started = 0.0
         self.archive_head = archive_head
         self._verified_heads = {}
+        self._last_discovery = float("-inf")
 
     def _bootstrap(self):
         if self.store.conn.execute("SELECT 1 FROM core_run WHERE id<>? LIMIT 1", (self.run_key,)).fetchone():
@@ -105,7 +106,6 @@ class StageABusinessProcessor(GoldCoreProcessor):
             return "EMPTY"
         run_id, generation, topology, manifest = self.run_coordinates
         previous = self.metadata.cursor(*self.run_coordinates, stream)
-        self.add_count("canonical_" + stream.lower() + "_requests", 1)
         receipt = self.source.observation_metadata(self.binding_id, run_id, generation, topology, previous)
         if receipt.manifest_identity != manifest:
             raise CoreStateFault("Stage A metadata manifest differs from the requested run")
@@ -128,6 +128,10 @@ class StageABusinessProcessor(GoldCoreProcessor):
         if tuple(self._read_metadata(stream) for stream in ("SCHEDULE", "MEASUREMENT")) != ("EMPTY", "EMPTY"):
             self._metadata_at_tail = False
             return None
+        source = discovery_boundary(self.discover())
+        cursors = self.store.cursors()
+        if source != (cursors["CHANGE"], cursors["INVALIDATION"]) * 2:
+            return None
         heads = set(self._verified_heads.values())
         return heads.pop() if len(heads) == 1 else None
 
@@ -147,6 +151,19 @@ class StageABusinessProcessor(GoldCoreProcessor):
         if self.pending_change is None and self.store.cursors()["CHANGE"] >= self.latest.verified_change_prefix:
             return False
         return super()._changes()
+
+    def discover(self):
+        current = super().discover()
+        self._last_discovery = time.monotonic()
+        return current
+
+    def _lane(self, lane, call):
+        # Core proof start/end still call fresh discovery directly. Polling on
+        # every scheduler slice would re-read unchanged authorities in between.
+        if (lane == "discovery" and lane not in self._faults
+                and time.monotonic() - self._last_discovery < 0.25):
+            return False
+        return super()._lane(lane, call)
 
     def materialize(self, work):
         return BatchedStageAInput(self, work)
@@ -236,8 +253,9 @@ class StageABusinessProcessor(GoldCoreProcessor):
                     holds=holds, pending_core=pending, pending_business=pending_business, publication=publication,
                     oldest_pending_seconds=max(0, time.time() - oldest) if oldest is not None else None,
                     published_rows=published_rows, verified_members=members, materialization_seconds=timings,
+                    canonical_requests=dict(self.source.request_counts) if self.source else {},
                     canonical_work_counts={name: count for name, count in self._counts.items()
-                        if name.startswith(("canonical_", "materialization_", "change_acknowledged",
+                        if name.startswith(("materialization_", "change_acknowledged",
                                             "invalidation_acknowledged"))},
                     faults=dict(self._faults))
 
