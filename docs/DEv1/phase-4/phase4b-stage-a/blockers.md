@@ -20,3 +20,6 @@ G-ENTRY hiện chặn production business implementation, gồm minimum gate unr
 - R02: cần authoritative lifecycle/schedule/slot linkage được verify qua public Silver. No eligible official KPI nếu historical runs thiếu evidence.
 - R01/R04/R06/R09: numeric bounds và protected reserve, upstream retention, v2 schema rehearsal, CPU/I/O coexistence và durable payload sizing chờ owner cùng benchmark.
 - R07/R08: approve SQLite writer/serving adapter, CH read consistency, cleanup grace và frozen replay source nếu cần historical concurrent with live. Không hạ replay boundary checks để mở gate.
+## Preparation readiness
+
+Planning candidate can be reviewed now. UP-01 and official G-COV block full coverage; UP-02 blocks affected unit/queue metrics. D-A14 authoritative amendment plus A-P03/04/05 applicable approvals gate isolated implementation. G-REV and measurable reserve/authority approval gate publication. G-PERF and operational acceptance require representative paced both-duration evidence, realtime impact, independent durable oracle and bounded drain. Retained memory stop remains ENVIRONMENT BLOCKED. [Readiness](final-design-closure.md).

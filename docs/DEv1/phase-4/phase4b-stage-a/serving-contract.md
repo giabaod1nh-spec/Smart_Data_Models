@@ -32,3 +32,6 @@ Experiment catalog ghi pair ID, baseline/candidate roles, planned offered-demand
 ## Publication authority và readiness
 
 Giao diện Gold reader phân biệt Core COMPLETE, Business COMPUTED và business PUBLISHED. Chỉ status cuối với exact pointer/epoch còn hiệu lực mới expose result. Reader không giữ SQLite transaction trong CH I/O. Pin một snapshot cho cả range/comparison sides, rồi revalidate epoch và selector tại lần đọc authority cuối. Short cache/cursor cũng phải revalidate. Khi hết retry budget trả REPROCESSING hoặc STALE_CURSOR. Authority lỗi trả UNAVAILABLE. Không mở serving access trực tiếp từ dashboard vào staged CH tables. Replay publication dùng namespace riêng và không nằm trong live selector.
+## Logical interface closure
+
+Candidate Gold.Query(selector, run-context, scope, duration, from/to, metric set, cursor) → rows + persisted versioned quality, exact revision IDs, epoch token hoặc typed reprocessing/stale/unavailable. Gold sở hữu fence revalidation và read-only CH/SQLite connections. Stage B adapter gọi Gold port, không implicit direct CH marts hoặc authority mirror. In-process reusable library là isolated baseline; local IPC hoặc service adapter chỉ khi deployment boundaries và credentials được duyệt. UI không gọi staged tables.

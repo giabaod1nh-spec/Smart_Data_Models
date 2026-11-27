@@ -33,3 +33,18 @@ ID ổn định A-I01…07 tương ứng P4B-A08, A09 phần Core, A09 phần pu
 | A-I07 acceptance | Stage fixtures + workload envelopes → independent correctness and performance verdicts | A-I01…06, G-PERF và operational approvals. FA-01…30 theo scope, prior PA gate còn hiệu lực |
 
 Dependency chính là authoritative population → state/atomic contract + projection design → separately authorized implementation → publication/reader/replay → integration acceptance. Benchmarked numeric limits cần setup diagnostics được duyệt. Chúng không tự thay thế G-ENTRY, cũng không dùng kết quả tương lai làm điều kiện để duyệt read-only design.
+## Final candidate implementation entry and exit
+
+Existing A-I paths are proposals. UP-01 and UP-02 are separately owner-authorized external prerequisites, never hidden in A-I tasks. Keep per-window traversal. OPT-01/02 stay deferred.
+
+| Work | Entry / dependency | Mechanism, durability and resource envelope | Exit, rollback, exclusions |
+|---|---|---|---|
+| A-I01 metric engine | A-P03/04/05 proposed contract accepted, G-ENTRY or written isolated branch scope. Synthetic authoritative slots allowed only as fixture data | From verified projected slots emit deterministic payload, no state on slot conflict except bounded reason. Cap projected slots and exact queue samples; use approved registry | FA-01…07, AC definitions, E-03 reference. Disable feature before durable integration. No upstream correction/API |
+| A-I02 atomic integration | A-I01 reducer + reviewed state design; schema rehearsal can start independently under conditional scope | Core processor/ledger/checkpoint store reserve both BLOBs, upgrade scratch schema, seal proof+obligation+projection atomically, release stale token on rollback. Short writer transaction | FA-08…14/21/25; recover migrated DB and unchanged cursors. Disable Business with schema-aware binary; owner-approved restoration only. No production migration under conditional |
+| A-I03 result/publication | A-I02, G-REV and G-MART, approved CH scratch access | Compute durable result/manifest then bounded CH writer/reconcile, exact verification, pointer CAS; no rerun on ambiguous write. Retain orphan evidence | FA-13/15…19/22/24, exact row oracle and WAL/queue metrics. Disable writes and retain fence/durable results. No live publication |
+| A-I04 serving | A-I03, approved read contract/deployment design | Gold reader pin/revalidate exact revision set, capped range and retries. Fail closed on authority loss | FA-20/29 and serving AC. Disable adapter. No Spring API or UI |
+| A-I05 experiment pairs | A-I04 and G-EXP with pinned controller/source metadata | Compare matched eligible ranges/definitions/demand controls; limit pair/range reads | AC-33…35, SUPPORTED and incompatible cases. Disable comparisons only. No pressure/crossover inference beyond approved methods |
+| A-I06 replay/recovery | A-I02…04 and approved retention/frozen source scope | Partial restart by durable stage, immutable replay namespace/expected set, live-first quota | FA-23/25…28/30 and both windows. Pause scope and preserve evidence. Concurrent replay deferred without frozen source |
+| A-I07 acceptance | A-I01…06 applicable slices, owner-approved operating budget and authority | L4 measured integrated comparison, L5 operational retention/restore, both durations and independent durable oracle | Remain blocked until gate evidence. Halt at guards and retain raw evidence. No cutover or relaxing Phase 4A gates |
+
+Isolated-ready after conditional amendment and work-specific approvals: A-I01, A-I02 and bounded failure-path A-I03 slices only. Full paths still blocked by UP-01/G-COV, affected UP-02 and performance evidence. See [final closure](final-design-closure.md).

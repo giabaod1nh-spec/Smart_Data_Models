@@ -33,3 +33,6 @@ This package turns the Phase 4B review candidate into an evidence-linked Stage A
 
 **READY FOR OWNER DESIGN REVIEW. SOURCE FEASIBILITY REQUIRED. IMPLEMENTATION ENTRY BLOCKED.** Xem [ma trận RV và SR](review-resolution.md). G-ENTRY và G-PERF có mục đích riêng. Gate hiện hành giữ nguyên.
 
+## Final preparation candidate
+
+**DESIGN CLOSURE INCOMPLETE** at reviewed baseline 0ccf2062c368def10b3601402215698b4a4e84ce. See [executed evidence](preparation-result.md), [resource sizing](resource-sizing.md), [final technical decisions](final-design-closure.md) and [implementation dependencies](plan.md). Earlier readiness and baseline sections above describe the prior review. G-ENTRY and G-PERF stay closed.

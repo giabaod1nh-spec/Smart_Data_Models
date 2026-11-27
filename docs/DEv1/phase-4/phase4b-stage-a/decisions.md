@@ -31,3 +31,6 @@ Owner có thể chốt D-A01 và D-A07 (duration switch, nested view nếu gover
 - D-A05 giữ strict coverage. Owner source phê duyệt A-P03 về authoritative metadata và minimal public contract extension nếu SF-07 xác nhận gap. Core clock/key/cursor giữ nguyên.
 - D-A14 và G-PERF cần evidence với official fidelity, realtime co-tenancy, overload/recovery. Chọn quotas, watermarks, retry/backfill/replay limits và protected retention horizon. Có thể pause replay khi live pressure; muốn stable concurrent replay cần approved frozen public source. G-ENTRY/G-PERF chưa được mở.
 - D-A10/11 chốt CH schema, exact row verification, consistency mode và Gold serving adapter trước publish. Không expose CH staging như official mart.
+## Decision closure evidence
+
+Owner review [final candidate decisions](final-design-closure.md) with E-01…03. D-A05 candidate B+C, D-A03/04 source prerequisite, D-A11/15 same-store reservation and payload, D-A14 strict currently effective with narrower isolated proposal. Existing owner approvals unchanged. Numeric production thresholds unresolved.

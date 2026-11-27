@@ -51,3 +51,13 @@ Stream theo event ID. Buffer bounded context theo (slot ordinal, actual timestam
 ## State trước khi fold
 
 Reducer xử lý slot duplicate/conflict trước metric arithmetic theo [coverage contract](coverage-contract.md). Sau verified seal, compute worker fold chỉ slot UNIQUE hợp lệ theo deterministic order. Conflict invalidate cả slot dù một claim đến cuối stream. Store bounded computed payload theo [state schema](state-schema.md) để publication retry dùng lại kết quả.
+## A-P04 disposition sau oracle
+
+| Scope | Disposition và evidence |
+|---|---|
+| Moving speed, stopped ratio, observed load | ADOPT candidate formulas; E-01 checked population and E-03 independent weighted/counts math. Official result chờ full slot/quality contract. |
+| Exact queue statistics | CONDITIONAL method-qualified. E-02 chứng minh branch khác nhau, synthetic P95 oracle 18m verified. Sensing geometry/method demand owner sign-off. Waterfall không dùng approximate P95. |
+| Occupancy, pressure, high pressure count | BLOCKED. UP-02 versioned correction rồi calibration independent. Không back-correct historical values hoặc suppress unrelated metrics. |
+| Experiment pairs | CONDITIONAL, verified pinned comparability, no cross-run generalization. |
+| Trip throughput/waiting/crossing, storage/signal | DEFER optional study theo current gates, không mở thêm implementation scope. |
+| Received rows làm denominator, avg của P95 60s | REJECT, trái expected population và exact metric semantics. |

@@ -42,3 +42,6 @@ Truy vết D-A06 → A-I02/SA-01, G-COV → slot ledger/metrics/timeline, G-REV 
 | R09 | Unbounded backlog from mismatch or dependency failure | current min_free_bytes guard and PA records | Per-stage accounting, protective reserve, no TTL pending, controlled stop/resume | architecture-design scheduler, performance-design and state-schema retention | FA-21…25/29/30 | Resolved in plan, benchmark/retention approval required |
 
 Cross-review: thay đường V2 ghi payload tùy chọn bằng handoff projection bắt buộc, compute lại chỉ trước durable result hoặc recovery có quản trị. Đồng bộ pointer CAS, lifecycle/coverage, lane pause, controlled stop và replay DONE predicates. R02 và frozen replay source vẫn là external dependencies. Tất cả FA cases chưa chạy.
+## Preparation cross-check
+
+R02/R05 now have measured drift and topology/metric fixtures plus an explicit producer range-and-exception proposal, not approved authority. R01/R06/R09 measured synthetic storage floor only. R03/R04/R07/R08 invariants remain proposed, with failure acceptance unchanged. Checked schedule vs actual Core membership, duplicate slots vs expected denominator, WAL reserve vs drain admission, SQLite epoch vs CH visibility, replay frozen boundary and G-ENTRY/G-PERF. No FA runtime cases marked PASS. [Evidence](preparation-result.md).

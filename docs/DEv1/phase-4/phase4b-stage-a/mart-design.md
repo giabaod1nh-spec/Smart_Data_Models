@@ -56,3 +56,6 @@ Ví dụ logical select: WHERE namespace = :ns AND run_id = :run AND duration_s 
 ## Liên kết với durable state và publication
 
 SQLite giữ sealed projection, computed payload bounded, row manifest và current authority theo [state schema](state-schema.md). ClickHouse là analytical storage cho immutable result rows. Writer retry đọc payload SQLite và reconcile đúng result ID. Views chỉ làm projection sau khi reader pin IDs được quyền đọc. Current resolved revision phải được xác minh ở SQLite. State migration và mart DDL là hai bước riêng cùng approval, cleanup xét fences và replay references.
+## Payload sizing và field disposition
+
+E-03 đo 23 synthetic result rows/window. Numeric sizes chưa gồm full lineage/identity, coverage status, optional context hoặc per-version fields. Giữ metric method/source provenance columns, nullable queue/occupancy khi conditional; không đưa research metrics vào required row manifest. Batch count/byte limits còn phải đo trên CH disposable scope. [Sizing](resource-sizing.md).

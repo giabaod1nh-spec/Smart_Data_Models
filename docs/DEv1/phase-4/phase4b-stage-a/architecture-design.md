@@ -45,3 +45,6 @@ Một coordinator giữ Core lease và là SQLite writer duy nhất trong mỗi 
 6. Core ACK còn tăng Core state dù Business bị pause. Trước khi đụng protected Core/WAL reserve, drain hoặc stop intake/work có kiểm soát ở durable cursor, báo degraded/fault. Resume khi dependency khỏe, outstanding age/bytes giảm qua low watermark theo window quan sát và có đủ reserve. Không skip prefix, drop pending work, hoặc giữ intake vô hạn khi disk cạn.
 
 Hard constraints là single writer, bounded allocations, admission trước durability, no loss, fence checks và no false COMPLETE. Các con số budgets, watermarks, quanta, retry limits và minimum Core/realtime service chưa duyệt. Production topology/cadence và concurrent workload là input của benchmark, không lấy threshold từ diagnostic fixture. [Performance và overload](performance-design.md).
+## Preparation closure
+
+E-01/E-02 xác nhận cần slot authority và method version; E-03 hỗ trợ kích thước fixture, chưa sizing worst-case. Giữ per-window verified traversal, atomic seal, một coordinator writer, compute/publish bounded, result reuse. Thiết kế không đoán fixed queue threshold. Transcript scope ở [preparation result](preparation-result.md). OPT-01/02 deferred riêng. [Final decisions](final-design-closure.md).

@@ -40,3 +40,9 @@ B4B-04 đề xuất duration switch 60/300. Nếu owner xác nhận nested compa
 ## R02/R05: eligibility và identity
 
 Q-01/Q-02 và B4B-10 là dependency A-P03. Gold tính finalized KPI cho full tumbling windows có authoritative horizon và strict applicable coverage. Partial first/last, missing toàn window và unsupported schedule trả trạng thái. Traffic zero đo được giữ numeric meaning của từng metric. Window identity Core giữ scenario-neutral, source sequence là proof coordinate và replay/order boundary. Business result identity gắn Core proof/generation cùng source semantics, schedule/population, definition và revision. B4B-12/13 áp dụng fence chung cho publication và serving.
+## A-P01 scope disposition
+
+- Required core candidate: B4B-01/02/03 direction/intersection/network, B4B-04 60/300 switch, B4B-05 historical gaps/trends, B4B-10 per metric quality, B4B-11/12/13 mart/revision/Gold reader. Required design includes deterministic recovery and rebuild.
+- Conditional: B4B-08 experiment data support P0 với G-EXP, candidate metadata/pair rule. B4B-09 sampled signals only if adopted. Nested 60/300 comparison chờ D-A07. UP-01 là external prerequisite cho official coverage.
+- Blocked source/calibration: B4B-06/07 pressure-dependent outputs, queue method slice trong B4B-02/03. Independent metrics có thể dùng approved fixtures sau conditional entry.
+- Deferred optional: storage, trip throughput/waiting/crossing. B4B-14/15 giữ Stage B/C. Phase 5 giữ runtime coexistence/cutover. D-A01 owner amendment nếu cần, không sửa Master Plan.

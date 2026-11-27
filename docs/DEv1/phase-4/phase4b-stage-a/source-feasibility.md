@@ -64,3 +64,6 @@ Dựng 17-approach matrix từ archived topology, lane bindings và XML, chạy 
 ## Evidence để chốt R02 và sizing
 
 SF-07 cần raw run lifecycle cho start/pause/resume/reset/end, cardinality theo archived topology/config, actual step/cycle/time, source capture failures, checked watermark và bounded public metadata plan. Capture fidelity official và diagnostic tách riêng. Bằng chứng SF-07 vẫn cần cho A-P03. Không derive slot population từ received rows.
+## Executed evidence và disposition
+
+Xem [E-01 và E-02](preparation-result.md). SF-07 quan sát float drift trên 0.01s SUMO run, không chứng minh producer lifecycle. SF-01 thực sự thấy raw occupancy dưới 1 và fixture xác nhận lỗi threshold E2. Lane raw unit dựa trên installed Python docs và raw probe; canonical/Silver output verification là UP-02 exit. SF-02/Q thấy 17/17 configured approaches đi fallback vì mixed lanes; đề xuất qualify estimate scope và explicit method provenance. Không bỏ method branch hay thay historical value trong preparation. Moving speed/H/V oracle có 85 sample matches; official scope vẫn cần missing getter, duplicate exposure và coverage evidence.
