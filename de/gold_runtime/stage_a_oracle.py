@@ -7,6 +7,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from contextlib import closing
 from hashlib import sha256
+from decimal import Decimal
 from pathlib import Path
 
 from contracts.observation_schedule import ObservationSchedule, TICKS_PER_SECOND, seconds_to_ticks
@@ -18,7 +19,7 @@ def _raw_values(evidence):
         samples = occupancy["percent"]
         result["occupancy"] = (round(math.fsum(samples) / len(samples), 1), occupancy["method"], None)
     if (queue := evidence.get("queue")) is not None:
-        route = queue["method"] == "route_stopped_length_v1"
+        route = queue["method"] in ("route_stopped_length_v1", "route_stopped_length_v2")
         groups = defaultdict(list)
         for turn, length, *remainder in queue["samples"]:
             if route and remainder[0] >= queue["haltingThreshold"]:
@@ -35,6 +36,86 @@ def _same(left, right):
     return left == right
 
 
+def _measurement_values(record, directions):
+    evidence, saved = record["evidence"], record["measurements"]
+    if evidence is None:
+        if saved is not None:
+            raise ValueError("Withdrawn measurement has effective values")
+        return {}, False
+    if (set(evidence["directions"]) != set(saved["directions"])
+            or set(evidence["directions"]) - set(directions)):
+        raise ValueError("Measurement directions disagree with the scheduled evidence")
+    values = {}
+    for direction, collected in evidence["directions"].items():
+        values[direction] = _raw_values(collected)
+        cached = saved["directions"][direction]
+        if not collected or set(cached) != set(collected) or set(values[direction]) != set(collected):
+            raise ValueError("Saved metrics disagree with the raw measurement population")
+        for metric, (value, method, scope) in values[direction].items():
+            item = cached[metric]
+            if (method, scope) != (item["method"], item["scopeDigest"]) or not _same(value, item["value"]):
+                raise ValueError(f"Independent {metric} differs from saved source measurement")
+    spillback = evidence["spillback"]
+    if spillback is None:
+        if saved["spillback"] is not None:
+            raise ValueError("Saved Spillback has no raw evidence")
+    else:
+        groups = spillback["percentGroups"]
+        if spillback["method"] == "e2_ratio_v2":
+            raw_samples = [item for group in groups for item in group]
+            ratio = math.fsum(raw_samples) / (100 * len(raw_samples))
+            maximum = max(raw_samples) / 100
+        elif spillback["method"] == "lane_ratio_v2":
+            ratio = maximum = max(math.fsum(group) / (100 * len(group)) for group in groups)
+        else:
+            raise ValueError("Unknown Spillback measurement method")
+        pressure = round(ratio, 3)
+        full = maximum >= spillback["threshold"]
+        if saved["spillback"]["value"] != {
+                "pressure": pressure, "downstreamFull": full,
+                "detected": full or pressure >= spillback["threshold"]}:
+            raise ValueError("Independent spillback differs from saved source measurement")
+    return values, spillback is not None
+
+
+def _read_revisions(db, schedule, anchors, counts):
+    effective = {}
+    previous_index = None
+    schedule_id = schedule.schedule_id
+    participants = dict(schedule.participants)
+    rows = db.execute("""SELECT sequence,event_id,revision,digest,content,index_digest,index_bytes
+        FROM observation_measurement_revision ORDER BY sequence LIMIT 4097""")
+    for expected, row in enumerate(rows, 1):
+        sequence, event_id, revision, object_digest, content, index_digest, index_bytes = row
+        if expected > 4096:
+            raise ValueError("Oracle measurement history exceeds the disposable receipt cap")
+        if event_id not in anchors:
+            raise ValueError("Measurement does not link to a retained V1 event")
+        position, anchor = anchors[event_id]
+        prior = effective.get(position)
+        record = json.loads(content)
+        index = json.loads(index_bytes)
+        if (sequence != expected or sha256(index_bytes).hexdigest() != index_digest
+                or index != dict(sequence=sequence, scheduleId=schedule_id,
+                                 previousIndexDigest=previous_index, objectDigest=object_digest)
+                or sha256(content).hexdigest() != object_digest or record["anchor"] != anchor):
+            raise ValueError("Raw measurement object or archive index does not match its original event")
+        predecessor = (prior[0] + 1, prior[1]) if prior else (1, None)
+        withdrawn = record["evidence"] is None
+        if ((revision, record["previousDigest"]) != predecessor or record["revision"] != revision
+                or (prior is not None and prior[4]) or (withdrawn and prior is None)):
+            raise ValueError("Raw measurement revision is not a contiguous correction or withdrawal")
+        values, spillback = _measurement_values(record, participants[position[0]])
+        effective[position] = (revision, object_digest, values, spillback, withdrawn)
+        previous_index = index_digest
+        counts["measurement_objects"] += 1
+        if withdrawn:
+            counts["withdrawals"] += 1
+        elif revision > 1:
+            counts["replacements"] += 1
+    return effective
+
+
 def read_source(outbox):
     """Read the original disposable Outbox and verify sidecar arithmetic before any Gold reads."""
     path = Path(outbox).resolve(strict=True)
@@ -48,20 +129,18 @@ def read_source(outbox):
         schedule = ObservationSchedule.decode(document, identity)
         if schedule.due_tick(settled) >= cutoff or schedule.due_tick(settled + 1) < cutoff:
             raise ValueError("Producer terminal cutoff disagrees with the retained schedule")
-        samples, counts = {}, Counter()
+        samples, counts, anchors = {}, Counter(), {}
+        participants = dict(schedule.participants)
         rows = db.execute("""
-            SELECT k.payload_json,k.payload_hash,k.event_id,r.content,r.digest
-            FROM kafka_outbox k LEFT JOIN observation_measurement_revision r
-                ON r.event_id=k.event_id AND r.revision=1
-            ORDER BY k.outbox_sequence LIMIT 3001
-        """).fetchall()
-        if len(rows) > 3000:
-            raise ValueError("Oracle source exceeds disposable observation cap")
-        for raw, payload_hash, event_id, sidecar, digest in rows:
+            SELECT payload_json,payload_hash,event_id FROM kafka_outbox ORDER BY outbox_sequence LIMIT 3001
+        """)
+        for number, (raw, payload_hash, event_id) in enumerate(rows, 1):
+            if number > 3000:
+                raise ValueError("Oracle source exceeds disposable observation cap")
             event = json.loads(raw)
             ordinal = event["cycleSequence"] - schedule.cycle_base
             node = event["intersectionId"]
-            approaches = dict(schedule.participants).get(node)
+            approaches = participants.get(node)
             clock = seconds_to_ticks(event["simulationTimeSeconds"])
             position = (node, ordinal)
             if (position in samples or not 0 <= ordinal <= settled or approaches is None
@@ -71,46 +150,22 @@ def read_source(outbox):
                     or event["simulationStep"] * schedule.step_ticks != clock
                     or set(event["payload"]["directions"]) != set(approaches)):
                 raise ValueError("Frozen V1 event disagrees with its scheduled observation")
-            values = {}
-            if sidecar is not None:
-                record = json.loads(sidecar)
-                anchor = record["anchor"]
-                if (sha256(sidecar).hexdigest() != digest or (anchor["eventId"], anchor["payloadHash"],
-                        anchor["runId"], anchor["generation"], anchor["manifestIdentity"],
-                        anchor["topologyDigest"], anchor["intersectionId"], anchor["cycle"],
-                        anchor["simulationStep"], anchor["simulationTimeSeconds"])
-                        != (event_id, payload_hash, schedule.run_id, schedule.generation, schedule.manifest_digest,
-                            schedule.topology_digest, node, event["cycleSequence"], event["simulationStep"],
-                            event["simulationTimeSeconds"])):
-                    raise ValueError("Raw measurement object does not match its original event")
-                for direction, collected in record["evidence"]["directions"].items():
-                    values[direction] = _raw_values(collected)
-                    for metric, (value, method, scope) in values[direction].items():
-                        saved = record["measurements"]["directions"][direction][metric]
-                        if (method, scope) != (saved["method"], saved["scopeDigest"]) or not _same(value, saved["value"]):
-                            raise ValueError(f"Independent {metric} differs from saved source measurement")
-                        counts[metric + "_samples"] += 1
-                        if value == 0:
-                            counts[metric + "_zeros"] += 1
-                spillback = record["evidence"]["spillback"]
-                if spillback is not None:
-                    groups = spillback["percentGroups"]
-                    if spillback["method"] == "e2_ratio_v2":
-                        raw_samples = [item for group in groups for item in group]
-                        ratio = math.fsum(raw_samples) / (100 * len(raw_samples))
-                        maximum = max(raw_samples) / 100
-                    else:
-                        ratio = maximum = max(math.fsum(group) / (100 * len(group)) for group in groups)
-                    pressure = round(ratio, 3)
-                    full = maximum >= spillback["threshold"]
-                    if record["measurements"]["spillback"]["value"] != {
-                            "pressure": pressure, "downstreamFull": full,
-                            "detected": full or pressure >= spillback["threshold"]}:
-                        raise ValueError("Independent spillback differs from saved source measurement")
-                    counts["spillback_samples"] += 1
-                counts["measurement_objects"] += 1
-            samples[position] = (event["payload"]["directions"], values)
+            anchor = dict(eventId=event_id, payloadHash=payload_hash, runId=schedule.run_id,
+                          generation=schedule.generation, manifestIdentity=schedule.manifest_digest,
+                          topologyDigest=schedule.topology_digest, intersectionId=node, cycle=event["cycleSequence"],
+                          simulationStep=event["simulationStep"], simulationTimeSeconds=event["simulationTimeSeconds"])
+            anchors[event_id] = position, anchor
+            samples[position] = event["payload"]["directions"], {}
             counts["events"] += 1
+        for position, (_, _, values, spillback, _) in _read_revisions(db, schedule, anchors, counts).items():
+            samples[position] = samples[position][0], values
+            for direction in values.values():
+                for metric, (value, _, _) in direction.items():
+                    counts[metric + "_samples"] += 1
+                    if value == 0:
+                        counts[metric + "_zeros"] += 1
+            if spillback:
+                counts["spillback_samples"] += 1
         failures = {row[0] for row in db.execute("SELECT ordinal FROM observation_schedule_failure")}
         for ordinal in range(settled + 1):
             observed = sum((node, ordinal) in samples for node, _ in schedule.participants)
@@ -210,6 +265,46 @@ def verify_selection(expected, selection, duration):
                     raise ValueError(f"Gold {duration}s window at {start} differs for {scope} {name}")
 
 
+def pressure_expectations(windows, definition):
+    """Independently reconcile pressure, severity, strict rollup and headline count."""
+    for start, rows in windows:
+        by_node = defaultdict(list)
+        for (grain, node, direction), metrics in rows.items():
+            if grain != "direction":
+                continue
+            o, r, load = (metrics[name]["value"] for name in ("occupancy_mean", "stopped_ratio", "observed_load"))
+            score = None
+            if o is not None and r is not None:
+                score = (Decimal(str(o)) * definition.occupancy_weight_pct
+                         + Decimal(str(r)) * (100-definition.occupancy_weight_pct)) / 100
+            elif o == load == 0 and metrics["stopped_ratio"]["status"] == "NOT_APPLICABLE":
+                score = Decimal(0) if definition.empty_policy == "MEASURED_ZERO" else None
+            by_node[node].append((score, direction))
+            metrics["_pressure_value"] = score
+        high, complete = [], True
+        for node, directions in by_node.items():
+            score = winner = None
+            if all(value is not None for value, _ in directions):
+                score, winner = sorted(directions, key=lambda item: (-item[0], item[1]))[0]
+            else:
+                complete = False
+            metrics = rows["intersection", node, None]
+            metrics["_pressure_value"] = score
+            metrics["worst_pressure_direction"] = [node, winner] if winner else None
+            if score is not None and score >= Decimal(str(definition.high_threshold)):
+                high.append(node)
+        for metrics in rows.values():
+            if "_pressure_value" not in metrics:
+                continue
+            score = metrics.pop("_pressure_value")
+            severity = ("HIGH" if score >= Decimal(str(definition.high_threshold)) else
+                        "MODERATE" if score >= Decimal(str(definition.moderate_threshold)) else "LOW") if score is not None else None
+            metrics["pressure_score"] = dict(value=float(score) if score is not None else None, severity=severity)
+        if rows:
+            rows["network", None, None]["high_pressure_count"] = dict(value=len(high) if complete else None,
+                high_intersections=sorted(high) if complete else None, expected=len(by_node))
+
+
 def verify_source_lineage(outbox, checkpoint, run_key):
     """Reconcile the exact source event/payload identities retained by the Gold Core proof."""
     source_path = Path(outbox).resolve(strict=True)
@@ -248,11 +343,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("outbox", type=Path)
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--pressure-definition", type=Path)
+    parser.add_argument("--pressure-holdout", type=Path)
     args = parser.parse_args()
+    from de.gold_runtime.stage_a import load_pressure_definition
+
+    definition = load_pressure_definition(args.pressure_definition, args.pressure_holdout)
     schedule, cutoff, samples, counts = read_source(args.outbox)
     comparisons, lineage = {}, None
     for duration in (60, 300):
         windows = list(expected_windows(schedule, cutoff, samples, duration))
+        if definition is not None:
+            pressure_expectations(windows, definition)
         directions = [metrics for _, rows in windows for (grain, _, _), metrics in rows.items()
                       if grain == "direction"]
         pressure_pairs = [(row["occupancy_mean"]["value"], row["stopped_ratio"]["value"]) for row in directions
@@ -277,7 +379,11 @@ def main():
             target = open_clickhouse_target()
             try:
                 reader = GoldReader(args.checkpoint, target)
-                verify_selection(windows, reader.windows(run_key, duration, 0, windows[-1][0] + duration), duration)
+                selection = reader.windows(run_key, duration, 0, windows[-1][0] + duration)
+                verify_selection(windows, selection, duration)
+                comparisons[duration]["typed_physical_rows"] = sum(
+                    target.verify_typed(window["lineage"]["result_id"]) for window in selection["windows"]
+                    if window["state"] == "PUBLISHED")
             finally:
                 target.client.close()
     print(json.dumps(dict(run_id=schedule.run_id, source=counts, windows=comparisons, lineage=lineage,

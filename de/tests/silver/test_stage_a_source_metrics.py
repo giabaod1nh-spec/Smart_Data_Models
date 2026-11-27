@@ -185,3 +185,29 @@ def test_raw_evidence_materializes_corrected_values_without_changing_v1_facts():
     assert values["spillback"]["value"] == {"pressure": 0.008, "downstreamFull": False, "detected": False}
     with pytest.raises(ValueError, match="no direct source measurement evidence"):
         encode_measurements(result["anchor"], context.directions[node], {"directions": {}, "spillback": None})
+
+
+def test_qualified_geometry_classifies_network_uturn_and_upstream_routes(source):
+    from observation.analytics_profile import AnalyticsProfile
+    from configuration import config as cfg
+
+    root = Path(__file__).resolve().parents[3] / "Visualize" / "Visualize"
+    profile = AnalyticsProfile(root / "intersection.net.xml", root / "detectors.add.xml")
+    assert profile.identity["detector_count"] == 69
+
+    def prove(node, direction, lane, route, *, actual=None, position=1):
+        edge = lane.rsplit("_", 1)[0]
+        traci = SimpleNamespace(vehicle=SimpleNamespace(
+            getLaneID=lambda _: lane, getLanePosition=lambda _: position, getRoadID=lambda _: actual or edge,
+            getRoute=lambda _: route, getRouteIndex=lambda _: 0))
+        return profile.stopped_movement(traci, "vehicle", cfg.NODE_TO_TLS[node], direction)
+
+    assert prove("A", "West", "35114553#3_0", ["35114553#3", "-35114553#3"]) == "uturn"
+    assert prove("B", "South", "-1179966753#0_0", ["-1179966753#0", "1179966753#0"]) == "uturn"
+    tls = cfg.NODE_TO_TLS["C"]
+    start, final = cfg.SENSING_EDGES[tls]["South"]
+    downstream = sorted({out for edge, out, _ in profile.connections if edge == final})[0]
+    assert prove("C", "South", start + "_0", [start, final, downstream]) in {"left", "right", "straight", "uturn"}
+    assert prove("C", "South", start + "_0", [start, downstream]) is None
+    assert prove("C", "South", start + "_0", [start, final, downstream], position=-1) is None
+    assert prove("C", "South", "35114553#3_0", ["35114553#3", "-35114553#3"]) == "outside"

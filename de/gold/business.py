@@ -7,6 +7,7 @@ does not interpret Silver receipts or authorize an official publication.
 from dataclasses import asdict, dataclass
 from math import fsum, isfinite
 
+from de.gold.pressure import add_pressure
 from de.silver.incremental_contract import canonical_bytes
 
 _US = 1_000_000
@@ -78,6 +79,7 @@ class Row:
     queue_sum: float | None
     occupancy_mean: Metric | None = None
     occupancy_sum: float | None = None
+    pressure_joint_count: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,8 +90,11 @@ class WindowResult:
     rows: tuple[Row, ...]
     definition_set: str = "stage_a_fixture_v1"
 
-    def encode(self, *, context=None, measurement_methods=None) -> bytes:
+    def encode(self, *, context=None, measurement_methods=None, pressure_definition=None) -> bytes:
         document = asdict(self)
+        if pressure_definition is None:
+            for row in document["rows"]:
+                del row["pressure_joint_count"]
         if self.definition_set != VERIFIED_DEFINITION:
             for row in document["rows"]:
                 del row["occupancy_mean"], row["occupancy_sum"]
@@ -100,6 +105,8 @@ class WindowResult:
                     row["traffic_context"] = context.get(row["intersection"], {})
                 if row["grain"] == "direction" and measurement_methods is not None:
                     row["measurement_methods"] = methods.get((row["intersection"], row["direction"]), {})
+            if pressure_definition is not None:
+                add_pressure(document["rows"], pressure_definition)
         payload = canonical_bytes(dict(document, codec_version=1))
         if len(payload) > 32 * 1024:
             raise ResourceLimit("computed payload exceeds the fixture limit")
@@ -239,10 +246,11 @@ class _Stats:
     queue_p95: float | None
     occupancy_count: int
     occupancy_sum: float
+    joint_count: int
 
 
 def _direction_stats(samples):
-    load_valid = ratio_valid = speed_valid = vehicles = ratio_vehicles = stopped = moving = 0
+    load_valid = ratio_valid = speed_valid = vehicles = ratio_vehicles = stopped = moving = joint_count = 0
     weighted = []
     queues = []
     occupancy = []
@@ -258,6 +266,7 @@ def _direction_stats(samples):
         if row.stopped is None or row.stopped > row.vehicles:
             continue
         ratio_valid += 1
+        joint_count += int(row.occupancy_pct is not None)
         ratio_vehicles += row.vehicles
         stopped += row.stopped
         n_move = row.vehicles - row.stopped
@@ -273,7 +282,7 @@ def _direction_stats(samples):
                   stopped, moving, fsum(weighted), count, fsum(queues),
                   queues[-1] if count else None,
                   queues[(95 * count + 99) // 100 - 1] if count else None,
-                  len(occupancy), fsum(occupancy))
+                  len(occupancy), fsum(occupancy), joint_count)
 
 
 def _metric(numerator, denominator, expected, valid):
@@ -319,7 +328,7 @@ def _make_row(grain, intersection, direction, items, time_slots, *, measure_occu
         occupancy_mean = _metric(occupancy_sum, time_slots, time_slots, stat.occupancy_count)
     return Row(grain, intersection, direction, speed, ratio, load, q_mean, q_max, p95,
                worst, weighted, moving, stopped, ratio_vehicles, load_vehicles, time_slots, q_sum,
-               occupancy_mean, occupancy_sum)
+               occupancy_mean, occupancy_sum, group[0].joint_count if direction is not None and measure_occupancy else None)
 
 
 def compute_fixture_window(spec: WindowSpec, members, *, definition_set="stage_a_fixture_v1") -> WindowResult:

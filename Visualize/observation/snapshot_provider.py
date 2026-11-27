@@ -63,11 +63,14 @@ def greenshields_speed_kmh(v_free_kmh: float, density_pcu_per_km: float) -> floa
 
 class SumoSnapshotProvider:
     def __init__(self, tls_id: str = "411926415", node_id: str = "A", *,
-                 stage_a_measurements: bool = False):
+                 stage_a_measurements: bool = False, analytics_profile=None):
         self.tls_id = tls_id
         self.node_id = node_id
         self.directions = cfg.directions_for_node(node_id)
         self.stage_a_measurements = stage_a_measurements
+        if analytics_profile is not None and not stage_a_measurements:
+            raise ValueError("Qualified detector profile requires isolated Analytics capture")
+        self.analytics_profile = analytics_profile
         self.detectors = DetectorManager(tls_id, stage_a_measurements=stage_a_measurements)
         self._queue_scope_digests: dict[str, tuple[tuple, str]] = {}
         self._prev_ids: Dict[str, Set[str]] = {d: set() for d in self.directions}
@@ -240,10 +243,15 @@ class SumoSnapshotProvider:
                         queue_by_movement[movement] = queue_by_movement.get(movement, 0.0) + length + 1.5
                     else:
                         try:
+                            if self.analytics_profile is not None:
+                                movement = self.analytics_profile.stopped_movement(traci_module, vid, self.tls_id, direction)
+                                if movement == "outside":
+                                    continue
                             length = float(traci_module.vehicle.getLength(vid))
-                            if movement_errors or not math.isfinite(length) or length <= 0:
+                            if ((movement_errors if self.analytics_profile is None else movement is None)
+                                    or not math.isfinite(length) or length <= 0):
                                 raise ValueError("stopped vehicle lacks a valid route movement or length")
-                            queue_by_movement[movement] += length + 1.5
+                            queue_by_movement[movement] = queue_by_movement.get(movement, 0.0) + length + 1.5
                             route_queue_samples.append([movement, length, speed_ms])
                         except Exception:
                             failed_queue_length = True
@@ -280,6 +288,8 @@ class SumoSnapshotProvider:
                 cfg.movement_for_lane(approach_edge, index) in ("straight", "left", "right")
                 for index, _ in enumerate(configured_lanes)
             )
+            if self.analytics_profile is not None:
+                use_e2 = use_e2 and self.analytics_profile.e2_queue_matches_approach(self.tls_id, direction)
             if use_e2:
                 queue_method = "e2_jam_movement_v1"
                 queue_quality = quality if quality is not None else {}
@@ -290,7 +300,7 @@ class SumoSnapshotProvider:
                 # A complete zero is an E2 measurement in its own right.
                 queue_by_movement = {k: round(float(e2_q.get(k, 0.0)), 1) for k in queue_by_movement}
             else:
-                queue_method = "route_stopped_length_v1"
+                queue_method = "route_stopped_length_v2" if self.analytics_profile else "route_stopped_length_v1"
                 queue_valid = bool(lane_ids) and not (failed_lanes or failed_queue_length)
                 queue_samples = route_queue_samples
                 queue_by_movement = {k: round(v, 1) for k, v in queue_by_movement.items()}
@@ -419,7 +429,7 @@ class SumoSnapshotProvider:
                     "method": queue_method, "scopeDigest": result["queue_measurement"]["scope_digest"],
                     "samples": queue_samples,
                 }
-                if queue_method == "route_stopped_length_v1":
+                if queue_method.startswith("route_stopped_length_"):
                     evidence["queue"]["haltingThreshold"] = cfg.HALTING_SPEED_MS
             if evidence:
                 result["analytics_measurement_evidence"] = evidence
@@ -454,6 +464,8 @@ class SumoSnapshotProvider:
         # The event also pins the archived run manifest and topology. This
         # digest distinguishes the provider's measurement population/method.
         key = (direction, method, tuple(sorted(lanes)), tuple(configured_lanes), cfg.HALTING_SPEED_MS)
+        if self.analytics_profile is not None:
+            key += (self.analytics_profile.digest,)
         cached = self._queue_scope_digests.get(direction)
         if cached is None or cached[0] != key:
             material = json.dumps([self.tls_id, *key], separators=(",", ":"), ensure_ascii=False)

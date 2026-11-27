@@ -4,6 +4,7 @@ import json
 from math import fsum
 
 from contracts.observation_measurements import digest
+from contracts.observation_schedule import TICKS_PER_SECOND
 from de.gold_runtime.business_reader import StaleGoldSelection
 from de.silver.archive_resolver import manifest_identity
 
@@ -11,7 +12,7 @@ _COMPARABLE = ("topologyDigest", "participatingIntersectionIds", "network_hash",
                "sumocfg_hash", "config_hash", "demand_profile_id", "demand_seed", "sumo_seed",
                "detector_profile_id", "detector_geometry_version")
 _CONTEXT = ("offered_demand_digest", "initial_conditions_digest", "scenario_schedule_digest",
-            "measurement_scope_digest", "warmup_seconds", "step_ticks", "period_ticks")
+            "measurement_scope_digest", "warmup_seconds", "evaluation_end_seconds", "step_ticks", "period_ticks")
 
 
 def validate_pair(baseline, adaptive):
@@ -62,16 +63,49 @@ def _deltas(left, right):
             for name, base in left.items() for compared in (right[name],)}
 
 
+def validate_treatment(manifest, evidence):
+    if evidence is None:
+        return "UNKNOWN"
+    mode = manifest["control_mode"]
+    end = manifest["evaluation_end_seconds"] * TICKS_PER_SECOND
+    if (evidence.get("mode"), evidence.get("manifest"), evidence.get("run_id"), evidence.get("end_tick"),
+            evidence.get("controller_config_digest")) != (mode, manifest_identity(manifest),
+            manifest["simulationRunId"], end, manifest.get("controller_config_digest")):
+        return "FAIL"
+    decisions = evidence.get("decisions")
+    if mode == "FIXED":
+        return "PASS" if decisions == [] else "FAIL"
+    interval = manifest.get("decision_interval_ticks")
+    if type(interval) is not int or not 0 < interval < end or not isinstance(decisions, list):
+        return "FAIL"
+    expected = range(interval, end, interval)
+    if len(decisions) != len(expected):
+        return "FAIL"
+    nodes = set(manifest["participatingIntersectionIds"])
+    for record, tick in zip(decisions, expected):
+        if (not isinstance(record, list) or len(record) != 2 or record[0] != tick
+                or not isinstance(record[1], dict) or record[1].keys() != nodes
+                or any(type(action) is not int or action < 0 for action in record[1].values())):
+            return "FAIL"
+    return "PASS"
+
+
 def compare(baseline_reader, adaptive_reader, baseline_manifest, adaptive_manifest, *,
-            baseline_run_key, adaptive_run_key, duration, start, end):
+            baseline_run_key, adaptive_run_key, duration, start, end, treatment=(None, None)):
     qualification = validate_pair(baseline_manifest, adaptive_manifest)
     if qualification["status"] != "PASS":
         return qualification
+    statuses = [validate_treatment(manifest, proof)
+                for manifest, proof in zip((baseline_manifest, adaptive_manifest), treatment)]
+    qualifier = qualification["checks"]
+    qualifier.update(fixed_treatment=statuses[0], adaptive_treatment=statuses[1])
+    if statuses != ["PASS", "PASS"]:
+        return dict(qualification, status="INCOMPATIBLE" if "FAIL" in statuses else "UNKNOWN")
     if baseline_manifest["simulationRunId"] == adaptive_manifest["simulationRunId"]:
         return dict(qualification, status="INCOMPATIBLE", reason="SAME_RUN")
     warmup = baseline_manifest["warmup_seconds"]
-    if type(warmup) is not int or type(start) is not int or start < warmup:
-        return dict(qualification, status="INCOMPATIBLE", reason="BEFORE_WARMUP")
+    if type(warmup) is not int or type(start) is not int or start < warmup or end > baseline_manifest["evaluation_end_seconds"]:
+        return dict(qualification, status="INCOMPATIBLE", reason="OUTSIDE_EVALUATION_RANGE")
     readers = (baseline_reader, adaptive_reader)
     keys = (baseline_run_key, adaptive_run_key)
     manifests = (baseline_manifest, adaptive_manifest)

@@ -77,12 +77,26 @@ class GoldReader:
             if run is None:
                 raise ValueError("Unknown historical Gold run")
             rows = self._select(db, run_key, duration, start, end, latest=latest)
+            latest_reprocessing = None
+            if latest:
+                unpublished = db.execute("""SELECT w.start FROM business_obligation o
+                    JOIN core_window w ON w.id=o.window_id
+                    JOIN business_result r ON r.obligation_id=o.id
+                    JOIN business_publication p ON p.result_id=r.id AND p.state='PUBLISHED'
+                    JOIN core_binding b ON b.binding_id=o.binding_id AND b.namespace=?
+                    WHERE w.run_key=? AND w.duration=? AND o.state='SUPERSEDED'
+                    ORDER BY w.start DESC LIMIT 1""", (self.namespace, run_key, duration)).fetchone()
+                if unpublished and (not rows or unpublished[0] > rows[0]["start"]):
+                    latest_reprocessing = unpublished[0]
+                    rows = ()
             if len(rows) > (1 if latest else (end - start) // duration):
                 raise DivergentResult("Multiple effective Gold revisions for one window selector")
             selected_starts = {row["start"] for row in rows}
             if len(selected_starts) != len(rows):
                 raise DivergentResult("Multiple effective results for the same simulation window")
             gaps = {}
+            if latest_reprocessing is not None:
+                gaps[latest_reprocessing] = "REPROCESSING"
             if not latest:
                 state = SimpleNamespace(store=SimpleNamespace(conn=db))
                 for tick in range(start, end, duration):
@@ -98,9 +112,12 @@ class GoldReader:
                                   "WHERE run_key=?", (run_key,)).fetchone()
             cursor = db.execute("SELECT sequence,digest,settled_ordinal,pending_digest FROM business_metadata_cursor "
                                 "WHERE run_key=? AND stream='SCHEDULE'", (run_key,)).fetchone()
-            fence = canonical_hash([self._fence(rows), sorted(gaps.items()),
+            participants = db.execute("SELECT schedule FROM business_observation_schedule WHERE run_key=?",
+                                      (run_key,)).fetchone()
+            nodes = [item["intersectionId"] for item in json.loads(participants[0])["participants"]] if participants else []
+            fence = canonical_hash([self._fence(rows), sorted(gaps.items()), nodes,
                                     tuple(schedule) if schedule else None, tuple(cursor) if cursor else None])
-            return json.loads(run[0]), rows, gaps, fence
+            return json.loads(run[0]), rows, gaps, fence, nodes
 
     def _physical_window(self, row):
         if (_verify_canonical(row["payload"], _RESULT_LIMIT) != row["payload_hash"]
@@ -146,7 +163,7 @@ class GoldReader:
                 or start % duration or end % duration or (end - start) // duration > _MAX_WINDOWS):
             raise ValueError("Expected a bounded aligned range of up to 12 Gold windows")
         for _ in range(2):
-            run, selected, gaps, fence = self._pin(run_key, duration, start, end, latest=latest)
+            run, selected, gaps, fence, participants = self._pin(run_key, duration, start, end, latest=latest)
             try:
                 windows = [self._physical_window(row) for row in selected]
             except DivergentResult:
@@ -157,7 +174,9 @@ class GoldReader:
                 windows.extend(dict(start=tick, duration=duration, state=reason, rows=[]) for tick, reason in gaps.items())
                 windows.sort(key=lambda window: window["start"])
                 return dict(run=run, run_key=run_key, duration=duration, fence=fence, windows=windows,
-                            state="AVAILABLE" if selected else "NO_PUBLISHED_RESULT")
+                            participants=participants,
+                            state=("AVAILABLE" if selected else "REPROCESSING"
+                                   if latest and gaps else "NO_PUBLISHED_RESULT"))
         raise StaleGoldSelection("Gold revisions changed before selection could be confirmed")
 
 
@@ -168,7 +187,7 @@ _PRESSURE = frozenset(("pressure_score", "high_pressure_count"))
 
 def metric_status(row, name):
     if name in _PRESSURE:
-        return dict(value=None, status="CALIBRATION_REQUIRED")
+        return row.get(name) or dict(value=None, status="CALIBRATION_REQUIRED")
     return row.get(name) or dict(value=None, status="NOT_APPLICABLE")
 
 
@@ -177,11 +196,14 @@ def compare_adjacent(points, duration):
     changes = []
     for left, right in zip(points, points[1:]):
         a, b = left["value"], right["value"]
+        definition_changed = left.get("definition") != right.get("definition")
+        context_changed = left.get("context_key") != right.get("context_key")
         available = (left["status"] == right["status"] == "OK" and a is not None and b is not None
-                     and right["start"] - left["start"] == duration)
+                     and right["start"] - left["start"] == duration and not definition_changed and not context_changed)
         changes.append(dict(start=right["start"], absolute=b-a if available else None,
                            relative_pct=100*(b-a)/a if available and a else None,
-                           status="OK" if available else "UNAVAILABLE"))
+                           status=("OK" if available else "INCOMPATIBLE_DEFINITION" if definition_changed
+                                   else "CONTEXT_CHANGED" if context_changed else "UNAVAILABLE")))
     return changes
 
 
@@ -201,28 +223,120 @@ def historical_trend(selection, *, metric, grain="network", intersection=None, d
     return points
 
 
-def overview(selection):
+def overview(selection, *, selected_start=None):
     """Use the same pinned selection for KPI cards, ranking, heatmap and trends."""
     published = [window for window in selection["windows"] if window["state"] == "PUBLISHED"]
-    newest = published[-1] if published else None
+    if selected_start is not None:
+        selected = next((item for item in selection["windows"] if item["start"] == selected_start), None)
+        if selected is None:
+            raise ValueError("Selected Overview window lies outside the pinned range")
+    else:
+        selected = published[-1] if published else (
+            selection["windows"][0] if selection.get("state") == "REPROCESSING" else None)
+    newest = selected if selected and selected["state"] == "PUBLISHED" else None
     network = next(row for row in newest["rows"] if row["grain"] == "network") if newest else {}
     intersections = [row for row in newest["rows"] if row["grain"] == "intersection"] if newest else []
     queue_order = sorted((row for row in intersections if row["queue_p95"]["status"] == "OK"),
                          key=lambda row: (-row["queue_p95"]["value"], row["intersection"]))
     trends = {metric: historical_trend(selection, metric=metric) for metric in
               ("moving_speed", "stopped_ratio", "observed_load", "queue_p95", "high_pressure_count")}
-    return dict(selected_start=newest["start"] if newest else None,
-        kpis={name: metric_status(network, name) for name in
-              ("moving_speed", "stopped_ratio", "queue_p95", "high_pressure_count")},
+    calibrated = any(row.get("pressure_definition_digest") for window in published for row in window["rows"])
+    participants = selection.get("participants") or sorted({row["intersection"] for window in published
+        for row in window["rows"] if row["grain"] == "intersection"})
+    intersection_trends = {node: {metric: [dict(point, end=point["start"] + selection["duration"])
+        for point in historical_trend(selection, metric=metric, grain="intersection", intersection=node)] for metric in
+        ("moving_speed", "stopped_ratio", "observed_load", "queue_p95")} for node in participants}
+    heatmap = []
+    markers = []
+    previous = {}
+    for window in selection["windows"]:
+        rows = {row["intersection"]: row for row in window["rows"] if row["grain"] == "intersection"}
+        for node in participants:
+            row = rows.get(node)
+            context = row.get("traffic_context") or {} if row else {}
+            context_key = (tuple(sorted(context.get("scenario_samples", {}))),
+                           tuple(sorted(context.get("control_samples", {}))))
+            prior = previous.get(node)
+            if row and prior and prior[0] + selection["duration"] == window["start"] and prior[1] != context_key:
+                markers.append(dict(intersection=node, state="OBSERVED_WINDOW_CHANGE", start=window["start"],
+                                    end=window["start"] + selection["duration"], before=prior[1], after=context_key))
+            if row:
+                previous[node] = window["start"], context_key
+            value = (metric_status(row, "pressure_score") if row else
+                     dict(value=None, status=window["state"] if window["state"] != "PUBLISHED" else "NO_ENTITY"))
+            heatmap.append(dict(start=window["start"], intersection=node, **value,
+                end=window["start"] + selection["duration"], publication=window.get("lineage"),
+                definition=row.get("pressure_definition_digest") if row else None,
+                worst_pressure_direction=row.get("worst_pressure_direction") if row else None,
+                context_key=context_key, traffic_context=context))
+    ranking = []
+    direction_rows = {(row["intersection"], row["direction"]): row for row in newest["rows"]
+                      if row["grain"] == "direction"} if newest else {}
+    for row in intersections:
+        score = metric_status(row, "pressure_score")
+        pressure_direction = row.get("worst_pressure_direction")
+        diagnostic = direction_rows.get(tuple(pressure_direction)) if pressure_direction else None
+        ranking.append(dict(intersection=row["intersection"], score=score,
+            worst_pressure_direction=pressure_direction, worst_queue_direction=row["worst_queue_direction"],
+            worst_pressure_metrics={name: metric_status(diagnostic, name) for name in
+                                    ("moving_speed", "stopped_ratio", "queue_p95", "occupancy_mean")} if diagnostic else None,
+            traffic_context=row.get("traffic_context")))
+    ranking.sort(key=lambda item: (item["score"]["value"] is None, -(item["score"]["value"] or 0),
+                                   item["intersection"]))
+    persistence = {node: summarize_persistence([cell for cell in heatmap if cell["intersection"] == node],
+                                             selection["duration"]) for node in participants} if calibrated else {}
+    for index, item in enumerate(ranking, 1):
+        item["rank"] = index if item["score"]["status"] == "OK" else None
+        node = item["intersection"]
+        through_selected = [cell for cell in heatmap if cell["intersection"] == node and cell["start"] <= newest["start"]]
+        if calibrated:
+            item["current_high_streak"] = summarize_persistence(through_selected, selection["duration"]).get("current_streak")
+            item["pressure_delta"] = next((point for point in reversed(compare_adjacent(through_selected,
+                selection["duration"])) if point["start"] == newest["start"]), None)
+    cards = {name: metric_status(network, name) for name in
+             ("moving_speed", "stopped_ratio", "queue_p95", "high_pressure_count")}
+    cards["queue_p95"] = dict(cards["queue_p95"], worst_queue_direction=network.get("worst_queue_direction"))
+    return dict(selected_start=selected["start"] if selected else None,
+        selected_state=selected["state"] if selected else "NO_PUBLISHED_RESULT",
+        publication=newest.get("lineage") if newest else None, kpis=cards,
         queue_diagnosis=[dict(intersection=row["intersection"], p95=row["queue_p95"],
                               worst_direction=row["worst_queue_direction"]) for row in queue_order],
-        pressure_ranking=dict(state="CALIBRATION_REQUIRED", rows=[]),
-        bottleneck_persistence=dict(status="CALIBRATION_REQUIRED"),
-        pressure_heatmap=[dict(start=window["start"], intersection=row["intersection"],
-            **metric_status(row, "pressure_score")) for window in published
-            for row in window["rows"] if row["grain"] == "intersection"],
-        trends=trends, change={metric: compare_adjacent(points, selection["duration"])
+        pressure_ranking=dict(state=("CALIBRATION_REQUIRED" if not calibrated else
+            "AVAILABLE" if all(item["rank"] is not None for item in ranking) and ranking else "INCOMPLETE_COVERAGE"),
+            rows=ranking),
+        bottleneck_persistence=dict(status="AVAILABLE" if calibrated else "CALIBRATION_REQUIRED", rows=persistence),
+        pressure_heatmap=heatmap, context_markers=markers,
+        trends=trends, intersection_trends=intersection_trends, change={metric: compare_adjacent(points, selection["duration"])
                               for metric, points in trends.items()})
+
+
+def summarize_persistence(cells, duration):
+    valid = high = longest = streak = 0
+    first = peak = peak_start = previous = None
+    definitions = {cell["definition"] for cell in cells if cell["status"] == "OK"}
+    if len(definitions) > 1:
+        return dict(status="INCOMPATIBLE_DEFINITION", expected=len(cells))
+    for cell in cells:
+        if cell["status"] != "OK":
+            streak = 0
+        else:
+            valid += 1
+            if peak is None or cell["value"] > peak:
+                peak, peak_start = cell["value"], cell["start"]
+            if cell["severity"] == "HIGH":
+                high += 1
+                streak = streak + 1 if previous is not None and cell["start"] - previous == duration else 1
+                longest = max(longest, streak)
+                first = cell["start"] if first is None else first
+            else:
+                streak = 0
+        previous = cell["start"]
+    complete = bool(cells) and valid == len(cells)
+    changes = compare_adjacent(cells, duration)
+    return dict(status="OK" if complete else "INCOMPLETE_COVERAGE", expected=len(cells), valid=valid,
+                observed_high=high, high_share=high / len(cells) if complete else None,
+                longest_streak=longest, current_streak=streak, first_high_start=first, peak=peak,
+                peak_start=peak_start, latest_adjacent_delta=changes[-1] if changes else None)
 
 
 def intersection_detail(selection, intersection):
@@ -236,7 +350,8 @@ def intersection_detail(selection, intersection):
         windows.append(dict(start=window["start"], state=window["state"], rows=selected,
             worst_queue_direction=intersection_row["worst_queue_direction"] if intersection_row else None,
             traffic_context=intersection_row.get("traffic_context") if intersection_row else None,
-            worst_pressure_direction=dict(value=None, status="CALIBRATION_REQUIRED")))
+            worst_pressure_direction=dict(value=intersection_row.get("worst_pressure_direction") if intersection_row else None,
+                status=metric_status(intersection_row or {}, "pressure_score")["status"])))
     return dict(intersection=intersection, windows=windows, trends={
         direction: {metric: historical_trend(selection, grain="direction", intersection=intersection,
                      direction=direction, metric=metric) for metric in

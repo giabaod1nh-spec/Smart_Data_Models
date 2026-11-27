@@ -10,7 +10,7 @@ import pytest
 
 from contracts.observation_schedule import ObservationSchedule
 from de.gold.business import Claim, DirectionSample, VERIFIED_DEFINITION, WindowSpec, compute_fixture_window
-from de.gold_runtime.business_experiments import validate_pair
+from de.gold_runtime.business_experiments import validate_pair, validate_treatment
 from de.gold_runtime.business_metadata import BusinessMetadata
 from de.gold_runtime.business_publication import BusinessPublisher, DivergentResult
 from de.gold_runtime.business_reader import GoldReader, historical_trend, overview
@@ -116,7 +116,7 @@ def test_terminal_cutoff_and_physical_reader_fence(staged_v1):
         target.rows[result] = saved
         with state._tx() as db:
             db.execute("UPDATE core_window SET generation=generation+1 WHERE id='w1'")
-        assert reader.windows(run_key, 60)["state"] == "NO_PUBLISHED_RESULT"
+        assert reader.windows(run_key, 60)["state"] == "REPROCESSING"
 
 
 def test_experiment_qualification_does_not_infer_comparability_from_modes():
@@ -126,7 +126,23 @@ def test_experiment_qualification_does_not_infer_comparability_from_modes():
     assert validate_pair(fixed, dict(adaptive, sumo_seed=7))["status"] == "INCOMPATIBLE"
 
 
-def test_disposable_coordinator_drains_terminal_window_and_restores_published_revision(tmp_path):
+def test_experiment_requires_pinned_contiguous_adaptive_decisions():
+    from de.silver.archive_resolver import manifest_identity
+
+    manifest = dict(control_mode="ADAPTIVE", simulationRunId="arm", topologyDigest="topology", runGeneration=1,
+        evaluation_end_seconds=60, decision_interval_ticks=15_000_000, controller_config_digest="a" * 64,
+        participatingIntersectionIds=["A", "B"])
+    proof = dict(mode="ADAPTIVE", manifest=manifest_identity(manifest), run_id="arm", end_tick=60_000_000,
+        controller_config_digest="a" * 64, decisions=[[tick, {"A": 0, "B": 1}]
+                                                     for tick in (15_000_000, 30_000_000, 45_000_000)])
+    assert validate_treatment(manifest, proof) == "PASS"
+    assert validate_treatment(manifest, dict(proof, decisions=proof["decisions"][:-1])) == "FAIL"
+    assert validate_treatment(manifest, dict(proof, run_id="another")) == "FAIL"
+    assert validate_treatment(manifest, None) == "UNKNOWN"
+
+
+@pytest.mark.parametrize("correction", (None, "replace", "withdraw"))
+def test_disposable_coordinator_drains_and_replays_effective_revision(tmp_path, correction):
     schedule = ObservationSchedule("integrated", 1, "b" * 64, "c" * 64, "v1:sha256:" + "a" * 64,
                                   (("X", ("East",)),), 10_000, 1_000_000, 10_000, 1)
     source = FixtureSource()
@@ -151,11 +167,31 @@ def test_disposable_coordinator_drains_terminal_window_and_restores_published_re
         cursor = receipt.after
     terminal = _schedule_fixture_receipt(schedule, cursor, lifecycle="ENDED", tick=60_000_000, cutoff=60_000_000)
     segments[cursor.sequence] = terminal
+    measurements = {}
+    initial = source.changes[0]
+    anchor = dict(eventId=initial.event_id, payloadHash=initial.canonical_bundle.intersection["source_payload_hash"],
+                  runId=schedule.run_id, generation=1, manifestIdentity=schedule.manifest_digest,
+                  topologyDigest=schedule.topology_digest, simulationTimeSeconds=0.01, intersectionId="X", cycle=1)
+
+    def measurement(before, number, value):
+        after = replace(before, sequence=number, digest=str(number) * 64)
+        values = None if value is None else {
+            "directions": {"East": {"occupancy": {"method": "e2_percent_v2", "scopeDigest": None, "value": value}}},
+            "spillback": None}
+        payload = dict(anchor=anchor, objectDigest=str(number + 3) * 64,
+                       revision=number, previousDigest="4" * 64 if number == 2 else None, measurements=values)
+        return replace(terminal, before=before, after=after, payload=payload,
+                       captured_through_sequence=number, required_change_sequence=1)
+
+    if correction:
+        measurements[0] = measurement(ObservationMetadataCursor(stream="MEASUREMENT"), 1, 12)
 
     def metadata(request):
         before = request.cursor
         if before.stream == "SCHEDULE" and before.sequence in segments:
             return replace(segments[before.sequence], source_binding_id=source.binding_id)
+        if before.stream == "MEASUREMENT" and before.sequence in measurements:
+            return replace(measurements[before.sequence], source_binding_id=source.binding_id)
         return replace(terminal, source_binding_id=source.binding_id, before=before, after=before,
                        required_change_sequence=0, payload=None, status="EMPTY")
 
@@ -174,7 +210,10 @@ def test_disposable_coordinator_drains_terminal_window_and_restores_published_re
             for entry in source.changes])
         db.commit()
     live_result = None
-    for checkpoint, execution in ((live_checkpoint, None), (live_checkpoint, None), (replay_checkpoint, replay)):
+    runs = ((live_checkpoint, None), (live_checkpoint, None), (replay_checkpoint, replay))
+    for number, (checkpoint, execution) in enumerate(runs):
+        if correction and number == 1:
+            measurements[1] = measurement(measurements[0].after, 2, 22 if correction == "replace" else None)
         namespace = execution.namespace if execution else "live"
         settings = GoldCoreSettings(checkpoint_path=checkpoint, min_free_bytes=0)
         store = IsolatedBusinessStore(checkpoint)
@@ -184,6 +223,11 @@ def test_disposable_coordinator_drains_terminal_window_and_restores_published_re
             target=target, deadline=time.monotonic()+10, session_factory=lambda _: source,
             replay=execution, archive_head="e" * 64 if execution else None)
         try:
+            reader = GoldReader(checkpoint, target, namespace=namespace)
+            if correction and number == 1:
+                assert processor.run_cycle()
+                assert processor._read_metadata("MEASUREMENT") == "APPLIED"
+                assert reader.windows(processor.run_key, 60)["state"] == "REPROCESSING"
             for _ in range(60):
                 if not processor.run_cycle() and processor.drained(processor.status()):
                     break
@@ -194,15 +238,21 @@ def test_disposable_coordinator_drains_terminal_window_and_restores_published_re
             assert processor.confirm_archive() == "e" * 64
             assert verify_source_lineage(retained, checkpoint, processor.run_key) == dict(
                 events=60, verified_members_by_duration={60: 60})
-            window = GoldReader(checkpoint, target, namespace=namespace).windows(processor.run_key, 60)["windows"][0]
-            assert window["lineage"]["revision"] == 1
+            window = reader.windows(processor.run_key, 60)["windows"][0]
+            assert window["lineage"]["revision"] == (2 if correction and number == 1 else 1)
             if execution:
-                assert processor._replay_terminal and len(target.rows) == 2
+                assert processor._replay_terminal and len(target.rows) == (3 if correction else 2)
                 assert window["lineage"]["result_id"] != live_result["lineage"]["result_id"]
                 assert window["lineage"]["input_hash"] == live_result["lineage"]["input_hash"]
                 assert window["rows"] == live_result["rows"]
             else:
-                assert len(target.rows) == 1
+                assert len(target.rows) == (2 if correction and number == 1 else 1)
+                if correction and number == 1:
+                    assert window["lineage"]["input_hash"] == live_result["lineage"]["input_hash"]
+                    assert window["lineage"]["result_id"] != live_result["lineage"]["result_id"]
+                    direction = next(row for row in window["rows"] if row["grain"] == "direction")
+                    assert direction["occupancy_mean"]["valid"] == int(correction == "replace")
+                    assert direction["occupancy_sum"] == (22 if correction == "replace" else 0)
                 live_result = window
         finally:
             release(processor, lock)

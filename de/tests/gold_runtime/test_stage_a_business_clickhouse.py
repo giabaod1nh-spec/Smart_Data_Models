@@ -77,8 +77,9 @@ def test_physical_three_grain_restart_and_exact_readback(staged_v1):
     database = os.environ["STAGE_A_CH_PROBE_DATABASE"]
     deadline = time.monotonic() + 60
 
-    def check_guards():
-        assert psutil.virtual_memory().available >= 2_500_000_000, "Host reserve fell below 2.5 GB"
+    def check_guards(*, startup=False):
+        floor = 2_500_000_000 if startup else 1024**3
+        assert psutil.virtual_memory().available >= floor, f"Host available memory fell below {floor} bytes"
         assert shutil.disk_usage(staged_v1).free >= 512 * 1024**2, "Scratch space fell below 512 MiB"
         assert time.monotonic() < deadline, "Isolated publication exceeded its wall budget"
 
@@ -88,6 +89,8 @@ def test_physical_three_grain_restart_and_exact_readback(staged_v1):
             port=int(os.environ["STAGE_A_CH_PROBE_PORT"]), username=os.environ["STAGE_A_CH_PROBE_USER"],
             password=os.environ["STAGE_A_CH_PROBE_PASSWORD"], database=database,
             connect_timeout=2, send_receive_timeout=2, query_retries=0)
+
+    check_guards(startup=True)
 
     class GuardedRows(IsolatedClickHouseRows):
         def read(self, result_id, *, limit):
@@ -130,6 +133,7 @@ def test_physical_three_grain_restart_and_exact_readback(staged_v1):
             publisher.publish_once(after_verify=interrupt)
         assert publisher.effective_pointer(scope) is None
         assert target.read(result_id, limit=47) == wanted
+        assert target.verify_typed(result_id) == len(wanted)
 
     with opened(staged_v1, IsolatedBusinessStore) as (store, ledger), connect() as client:
         target = GuardedRows(client, database, max_query_seconds=2)

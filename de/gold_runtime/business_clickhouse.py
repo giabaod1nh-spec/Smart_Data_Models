@@ -1,6 +1,7 @@
 """Three append-only ClickHouse tables for the isolated A-I03 publication probe."""
 
 from re import fullmatch
+import json
 
 from clickhouse_connect.driver.exceptions import OperationalError
 
@@ -10,13 +11,16 @@ from de.gold_runtime.business_state import _RESULT_LIMIT, _digest
 
 _TABLES = {grain: f"gold_v1_{grain}_window" for grain in ("direction", "intersection", "network")}
 _COLUMNS = ("result_id", "row_key", "row_hash", "payload_json")
-_METRICS = ("moving_speed", "stopped_ratio", "observed_load", "queue_mean", "queue_p95", "queue_max", "occupancy_mean")
+_METRICS = ("moving_speed", "stopped_ratio", "observed_load", "queue_mean", "queue_p95", "queue_max", "occupancy_mean",
+            "pressure_score", "high_pressure_count")
 _TYPED = {
     "intersection_id": "Nullable(String) MATERIALIZED JSONExtract(payload_json,'intersection','Nullable(String)')",
     "direction_id": "Nullable(String) MATERIALIZED JSONExtract(payload_json,'direction','Nullable(String)')",
     "window_start_us": "Nullable(UInt64) MATERIALIZED JSONExtract(payload_json,'window_start_us','Nullable(UInt64)')",
     "window_duration_s": "Nullable(UInt16) MATERIALIZED JSONExtract(payload_json,'window_duration_s','Nullable(UInt16)')",
     "definition_set": "LowCardinality(String) MATERIALIZED JSONExtractString(payload_json,'definition_set')",
+    "pressure_definition_version": "LowCardinality(String) MATERIALIZED JSONExtractString(payload_json,'pressure_definition_version')",
+    "pressure_severity": "LowCardinality(String) MATERIALIZED JSONExtractString(payload_json,'pressure_score','severity')",
 }
 for _metric in _METRICS:
     _TYPED[_metric] = f"Nullable(Float64) MATERIALIZED JSONExtract(payload_json,'{_metric}','value','Nullable(Float64)')"
@@ -115,3 +119,31 @@ class IsolatedClickHouseRows:
                                   "max_execution_time": self.max_query_seconds, "max_threads": 1})
                 except OperationalError as exc:
                     raise ConnectionError("ClickHouse insert delivery is uncertain") from exc
+
+    def verify_typed(self, result_id):
+        """Audit stored projections as typed ClickHouse values against their immutable row payloads."""
+        result_id = self._identity(result_id)
+        fields = tuple(_TYPED)
+        count = 0
+        for grain in _TABLES:
+            query = f"""SELECT payload_json,{','.join(fields)} FROM {self._name(grain)}
+                WHERE result_id={{rid:FixedString(64)}} LIMIT {2 * _MAX_ROWS + 1}"""
+            result = self.client.query(query, parameters={"rid": result_id},
+                settings={"max_execution_time": self.max_query_seconds, "max_threads": 1})
+            for payload, *observed in result.result_rows:
+                data = json.loads(payload)
+                expected = dict(data, intersection_id=data.get("intersection"), direction_id=data.get("direction"),
+                                pressure_severity=(data.get("pressure_score") or {}).get("severity"))
+                for metric in _METRICS:
+                    value = data.get(metric) or {}
+                    expected[metric] = value.get("value")
+                    for field in ("expected", "valid", "status"):
+                        expected[metric + "_" + field] = value.get(field)
+                values = tuple((expected.get(field) or "") if _TYPED[field].startswith("LowCardinality")
+                               else expected.get(field) for field in fields)
+                if values != tuple(observed):
+                    raise DivergentResult("Typed ClickHouse metric projection differs from the immutable row")
+                count += 1
+                if count > 2 * _MAX_ROWS:
+                    raise DivergentResult("Typed ClickHouse audit exceeds the result row cap")
+        return count

@@ -7,9 +7,11 @@ import shutil
 import time
 from collections import deque
 from dataclasses import asdict
+from hashlib import sha256
 from pathlib import Path
 
 from contracts.observation_measurements import digest
+from de.gold.pressure import PressureDefinition
 from de.gold_runtime.business_clickhouse import IsolatedClickHouseRows
 from de.gold_runtime.business_experiments import compare, read_manifest
 from de.gold_runtime.business_materialization import compute_business_once, iter_seal_business_work
@@ -69,7 +71,8 @@ class BatchedStageAInput(CoreInputStream):
 class StageABusinessProcessor(GoldCoreProcessor):
     """Drive Silver receipts, Core proofs, Business computation and publication under one lease."""
 
-    def __init__(self, settings, silver, store, lock, *, run, target, deadline, archive_head=None, **kwargs):
+    def __init__(self, settings, silver, store, lock, *, run, target, deadline, archive_head=None,
+                 pressure_definition=None, **kwargs):
         super().__init__(settings, silver, store, lock, **kwargs)
         self.run_coordinates = run
         self.run_identity = canonical_run_identity(*run)
@@ -83,14 +86,21 @@ class StageABusinessProcessor(GoldCoreProcessor):
         self._metadata_empty_until = {}
         self._proof_started = 0.0
         self.archive_head = archive_head
+        self.pressure_definition = pressure_definition
         self._verified_heads = {}
         self._last_discovery = float("-inf")
+
+    def bind_runtime(self):
+        identity = dict(run_key=self.run_key, archive_head=self.archive_head,
+            publish_target=getattr(self.publisher.target, "destination_identity", None), namespace=self.namespace)
+        if self.pressure_definition is not None:
+            identity["pressure_definition"] = self.pressure_definition.digest
+        self.business.bind_runtime(identity)
 
     def _bootstrap(self):
         if self.store.conn.execute("SELECT 1 FROM core_run WHERE id<>? LIMIT 1", (self.run_key,)).fetchone():
             raise CoreStateFault("Stage A checkpoint belongs to another run")
-        self.business.bind_runtime(dict(run_key=self.run_key, archive_head=self.archive_head,
-            publish_target=getattr(self.publisher.target, "destination_identity", None), namespace=self.namespace))
+        self.bind_runtime()
         self.business.recover_reservations()
         self.publisher.recover()
         return super()._bootstrap()
@@ -145,7 +155,10 @@ class StageABusinessProcessor(GoldCoreProcessor):
         run_id, generation, topology, manifest = self.run_coordinates
         core = CoreReplayManifest(self.binding_id, boundary, run_id, generation, topology,
                                   manifest, 0, schedules[1] // 1_000_000)
-        return dict(core=asdict(core), archive_head_digest=archive_head)
+        document = dict(core=asdict(core), archive_head_digest=archive_head)
+        if self.pressure_definition is not None:
+            document["pressure_definition_digest"] = self.pressure_definition.digest
+        return document
 
     def _changes(self):
         if self.pending_change is None and self.store.cursors()["CHANGE"] >= self.latest.verified_change_prefix:
@@ -212,13 +225,13 @@ class StageABusinessProcessor(GoldCoreProcessor):
         promoted = self.ledger.promote(self.settings.promotion_limit)
         promoted += self.business.promote_terminal_windows(self.run_key, limit=self.settings.promotion_limit)
         rechecked = self.business.recheck_waiting_schedule()
-        computed = compute_business_once(self.publisher)
+        computed = compute_business_once(self.publisher, pressure_definition=self.pressure_definition)
         publication = self.publisher.publish_once()
         work = self.business.reserve_next()
         if work is None:
             return bool(promoted or rechecked or computed or publication != "IDLE")
         self._proof = work, iter_seal_business_work(self.business, self.ledger, work, self.materialize,
-                                                    deadline=self.deadline, measure_occupancy=True)
+            deadline=self.deadline, measure_occupancy=True, pressure_definition=self.pressure_definition)
         self._proof_started = time.monotonic()
         return self._continue_proof()
 
@@ -280,11 +293,13 @@ class StageABusinessProcessor(GoldCoreProcessor):
             super().close()
 
 
-def check_guards(path):
+def check_guards(path, *, startup=True):
     import psutil
 
-    if psutil.virtual_memory().available < 2_500_000_000:
-        raise CoreStateFault("Stage A host reserve fell below 2.5 GB")
+    floor = 2_500_000_000 if startup else 1024**3
+    if psutil.virtual_memory().available < floor:
+        raise CoreStateFault("Stage A host memory is below the startup reserve" if startup
+                             else "Stage A host memory is below the 1 GiB runtime floor")
     if shutil.disk_usage(path).free < 512 * 1024**2:
         raise CoreStateFault("Stage A scratch reserve fell below 512 MiB")
 
@@ -312,6 +327,27 @@ def open_clickhouse_target(silver=None):
     return target
 
 
+def load_pressure_definition(definition_path, holdout_path):
+    if definition_path is None and holdout_path is None:
+        return None
+    if definition_path is None or holdout_path is None:
+        raise ValueError("Pressure publication requires the owner-approved definition and its holdout report")
+    definition = PressureDefinition(**read_manifest(definition_path))
+    with holdout_path.open("rb") as stream:
+        evidence = stream.read(1024 * 1024 + 1)
+    if len(evidence) > 1024 * 1024 or sha256(evidence).hexdigest() != definition.holdout_sha256:
+        raise ValueError("Pressure holdout report differs from the approved definition")
+    report = json.loads(evidence)
+    candidates = report["candidates"]
+    score = next((candidate for candidate in candidates
+                  if (candidate["occupancy_weight"], candidate["high_threshold"]) ==
+                     (definition.occupancy_weight_pct, definition.high_threshold)), None)
+    if score is None or not all(score[split][duration]["meets_targets"] is True
+                                for split in ("calibration", "holdout") for duration in ("60", "300")):
+        raise ValueError("Pressure calibration and holdout must meet targets at both window durations")
+    return definition
+
+
 def drain(args):
     if not args.run_id or args.generation < 1 or not digest(args.manifest):
         raise ValueError("Pass the run ID, positive generation and exact manifest digest from the source run")
@@ -324,6 +360,7 @@ def drain(args):
         instance_lock_path=store.db_path.with_name("instance.lock"), replay_manifest=None).validate_core()
     _, lock_path = settings.state_paths(silver)
     coordinates = args.run_id, args.generation, args.topology, args.manifest
+    pressure_definition = load_pressure_definition(args.pressure_definition, args.pressure_holdout)
     replay = archive_head = None
     if args.replay_capture:
         document = read_manifest(args.replay_capture)
@@ -331,6 +368,8 @@ def drain(args):
         core["boundary"] = tuple(core["boundary"])
         replay = CoreReplayManifest(**core)
         archive_head = document["archive_head_digest"]
+        if document.get("pressure_definition_digest") != (pressure_definition.digest if pressure_definition else None):
+            raise ValueError("Replay pressure definition differs from the captured source run")
         if (not digest(archive_head) or (replay.run_id, replay.run_generation, replay.topology_digest,
                 replay.manifest_identity) != coordinates or replay.start_simulation_time != 0
                 or replay.end_simulation_time % 300):
@@ -343,14 +382,14 @@ def drain(args):
     try:
         lock.acquire(open_store=True)
         processor = StageABusinessProcessor(settings, silver, store, lock,
-            run=coordinates, target=target, deadline=deadline, replay=replay, archive_head=archive_head)
-        processor.business.bind_runtime(dict(run_key=processor.run_key, archive_head=archive_head,
-            publish_target=target.destination_identity, namespace=processor.namespace))
+            run=coordinates, target=target, deadline=deadline, replay=replay, archive_head=archive_head,
+            pressure_definition=pressure_definition)
+        processor.bind_runtime()
         target.initialize()
         next_guard = 0.0
         while time.monotonic() < deadline:
             if time.monotonic() >= next_guard:
-                check_guards(store.db_path.parent)
+                check_guards(store.db_path.parent, startup=False)
                 lock.renew()
                 next_guard = time.monotonic() + 1
             if processor.run_cycle():
@@ -401,6 +440,8 @@ def main():
     run.add_argument("--manifest", required=True)
     run.add_argument("--seconds", type=int, default=300)
     run.add_argument("--replay-capture", type=Path)
+    run.add_argument("--pressure-definition", type=Path, help="Owner-approved calibration definition and holdout identity")
+    run.add_argument("--pressure-holdout", type=Path, help="Exact report approved for the calibrated definition")
     catalog = commands.add_parser("catalog")
     catalog.add_argument("--checkpoint", required=True, type=Path)
     catalog.add_argument("--after", default="")
@@ -411,11 +452,13 @@ def main():
     read.add_argument("--start", type=int)
     read.add_argument("--end", type=int)
     read.add_argument("--intersection")
+    read.add_argument("--selected-start", type=int)
     read.add_argument("--replay-id")
     experiment = commands.add_parser("compare")
     for role in ("baseline", "adaptive"):
         experiment.add_argument(f"--{role}-checkpoint", required=True, type=Path)
         experiment.add_argument(f"--{role}-manifest", required=True, type=Path)
+        experiment.add_argument(f"--{role}-treatment", required=True, type=Path)
         experiment.add_argument(f"--{role}-run-key", required=True)
     experiment.add_argument("--duration", type=int, choices=(60, 300), required=True)
     experiment.add_argument("--start", required=True, type=int)
@@ -437,7 +480,8 @@ def main():
             namespace = replay_namespace(args.replay_id) if args.replay_id else "live"
             selection = GoldReader(args.checkpoint, target, namespace=namespace).windows(
                 args.run_key, args.duration, args.start, args.end)
-            view = intersection_detail(selection, args.intersection) if args.intersection else overview(selection)
+            view = (intersection_detail(selection, args.intersection) if args.intersection
+                    else overview(selection, selected_start=args.selected_start))
             print(json.dumps(dict(selection=selection, view=view), sort_keys=True))
         finally:
             target.client.close()
@@ -448,7 +492,8 @@ def main():
             readers = [GoldReader(path, target) for path in (args.baseline_checkpoint, args.adaptive_checkpoint)]
             report = compare(*readers, read_manifest(args.baseline_manifest), read_manifest(args.adaptive_manifest),
                 baseline_run_key=args.baseline_run_key, adaptive_run_key=args.adaptive_run_key,
-                duration=args.duration, start=args.start, end=args.end)
+                duration=args.duration, start=args.start, end=args.end,
+                treatment=(read_manifest(args.baseline_treatment), read_manifest(args.adaptive_treatment)))
             print(json.dumps(report, sort_keys=True))
             return 0 if report["status"] == "PASS" else 1
         finally:

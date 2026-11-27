@@ -358,6 +358,56 @@ def test_measurement_linkage_revision_withdrawal_and_verified_prefix(outbox):
         store.close()
 
 
+def test_independent_oracle_follows_replacements_and_withdrawals(outbox):
+    import time
+
+    from Visualize.tools import stage_a_source
+    from de.gold_runtime.stage_a_oracle import read_source
+
+    schedule, rows, store_cls, _, scratch = outbox
+    store = store_cls.create(scratch, schedule)
+    first, second = rows(0)
+
+    def evidence(percent):
+        return {"directions": {"East": {"occupancy": {"method": "lane_percent_v2", "percent": [percent]}}},
+                "spillback": None}
+
+    try:
+        store.set_lifecycle("RUNNING", tick=0)
+        store.append_scheduled_cycle(0, (first, second), measurement_evidence={
+            first.event_id: evidence(10), second.event_id: evidence(20)})
+        store.set_lifecycle("ENDED", tick=1_000_000)
+        _, _, samples, counts = read_source(store.db_path)
+        assert samples[("X", 0)][1]["East"]["occupancy"][0] == 10
+        assert counts["measurement_objects"] == counts["occupancy_samples"] == 2
+
+        original = dict(store._conn.execute("SELECT event_id,digest FROM observation_measurement_revision"))
+        from unittest.mock import patch
+
+        replacement = scratch / "corrected.json"
+        replacement.write_text(json.dumps(evidence(0)), encoding="utf-8")
+        with patch.object(stage_a_source, "guard"):
+            for event_id, path, withdraw in ((first.event_id, replacement, False), (second.event_id, None, True)):
+                args = SimpleNamespace(event_id=event_id, previous_digest=original[event_id],
+                                       evidence=path, withdraw=withdraw)
+                assert stage_a_source.correct(store, args, time.monotonic() + 30) == 0
+                assert stage_a_source.correct(store, args, time.monotonic() + 30) == 0
+        _, _, samples, counts = read_source(store.db_path)
+        assert samples[("X", 0)][1]["East"]["occupancy"][0] == 0
+        assert samples[("Y", 0)][1] == {}
+        assert counts["measurement_objects"] == 4
+        assert counts["replacements"] == counts["withdrawals"] == 1
+        assert counts["occupancy_samples"] == counts["occupancy_zeros"] == 1
+        head = json.loads((store.run_archive / "observation_schedule_v1" / "head.json").read_bytes())
+        assert head["measurementSequence"] == 4
+
+        store._conn.execute("UPDATE observation_measurement_revision SET index_digest=digest WHERE sequence=4")
+        with pytest.raises(ValueError, match="archive index"):
+            read_source(store.db_path)
+    finally:
+        store.close()
+
+
 def test_public_silver_receipts_block_delayed_observations_and_bind_original_evidence(outbox):
     schedule, rows, store_cls, _, scratch = outbox
     store = store_cls.create(scratch, schedule)

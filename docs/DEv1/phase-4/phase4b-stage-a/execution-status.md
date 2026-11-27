@@ -64,6 +64,19 @@ The Docker Linux API was unavailable and WSL listed only the Docker Desktop syst
 
 ## Runnable functional checkpoint
 
+### Owner decision — Analytics Overview delivery
+
+On 2026-11-27 the owner prioritized the four Overview KPI cards and the Priority Ranking, Traffic Pressure Heatmap and Historical Traffic Performance Trends datasets. M-01–08 remain in scope, including actual Fixed-Time physical verification and G-CAL. Actual Adaptive execution and acceptance are **DEFERRED_EXTERNAL_DEPENDENCY**. The approved trained checkpoints for A, B, C, D and M are unavailable. This deferral does not block Overview. Preserve the comparison contract and fail-closed treatment validation. Production acceptance, cutover, Spring and React implementation remain deferred.
+
+The owner approved G-CAL screening on independent phase/trajectory reference evidence with false-high at or below 10% on normal-red cases and missed bottlenecks at or below 20%, reported for both durations. The approval covers the evaluation criteria. Scoring parameters and official severity publication remain subject to calibration evidence and owner approval.
+
+### Source qualification and physical verification
+
+- The retained original dataset reproduced all 53 missing queues. At A–West and B–South, SUMO confirms TLS-controlled U-turn connections for 13 and 30 samples. At C–South and M–South, the 7 and 3 upstream observations are within the configured sensing population with verified straight continuation into the terminal segment. The isolated route method v2 checks actual lane, road and position, an exact route suffix through the sensing segments, and one unambiguous lane-connected turn at the TLS. Outside-scope vehicles receive no queue credit. Ambiguity still suppresses queue.
+- The isolated detector profile `stage_a_detector_geometry_v2` authenticates the actual network and detector files. The exact SUMO topology matched the catalog. All 69 detector IDs, lanes, offsets and lengths matched the configured geometry and fell within their lanes. The previous expected network digest is unchanged in the default profile and remains visible in the run manifest. It did not match the actual bytes under either LF or CRLF normalization.
+- Qualified run `stage-a-70af99db82f146968a2d95c1abc88359` captured 1,500 original V1 events at 300 slots. The independent source reducer verified 5,100 queue samples. For the previously missing slots it observed queues of 3.5 m at A–West and B–South, 10.5 m at C–South and 17 m at M–South. The complete V1 direction payloads matched the previous run at the same coordinates. The old dataset was retained with its missing values.
+- The authoritative memory policy separates the 2.5 GB startup/readiness reserve from the 1 GiB runtime floor. The isolated runners now enforce this distinction. With it, a disposable ClickHouse 24.3.18.7 probe verified the physical three-grain restart and reconciliation path. On the qualified run Kafka ACKed 1,500 events, Raw committed 1,500, and Bronze accepted 1,500 as new, with zero pending intents and integrity faults. This probe does not substitute for the full integrated drain, typed row audit or independent Reader reconciliation.
+
 | Package | Implemented and verified at this checkpoint | Remaining evidence |
 |---|---|---|
 | UP-01 | The isolated SUMO launcher wrote 1,500 original V1 events in 300 slots across five intersections and exported 22 schedule segments. Reopening the same Outbox installed its local registry without recapture. The existing Silver archive resolver accepted the terminal registry, run/manifest identity and both published archive heads. | Delivery on the dedicated Kafka topic, physical Raw/Bronze/Silver drain and negative-path reconciliation with this retained run. |
@@ -78,9 +91,13 @@ Core retains original event-ID proof order. Stage A groups up to eight contiguou
 
 The expanded suites recorded 48 passes and one skipped physical ClickHouse test. A separate affected Core/Foundation run recorded 47 passes, including tests that overlap the expanded suite. The Docker Linux pipe was absent, and the session had no `STAGE_A_CH_PROBE*` configuration. No physical acceptance was recorded. The pinned catalog matched the actual SUMO network. Its detector profile declares a different expected file hash, which remains visible in the source manifest and blocks any assumption of broader detector/source qualification.
 
+In a later checkpoint, Docker Linux became reachable. A dedicated ClickHouse 24.3 container published only on loopback. Available host memory fell to 1,651,863,552 bytes after launch, so the probe stopped its container before creating the test database or writing probe data. Physical acceptance remains open. No separately provisioned `STAGE_A_CH_PROBE*` endpoint was configured in the session.
+
+The correction command commits a replacement or withdrawal against the last accepted measurement digest and exports it with the original V1 event unchanged. The source oracle verifies every measurement revision and both predecessor links, then computes expected metrics from the effective revision. The fixture verifies a corrected zero and an explicit withdrawal and rejects a damaged index. The Gold coordinator regression verifies both changes fence the previous result, publish a new revision with the same Core proof, and produce identical effective rows on replay. The unchanged actual Outbox still matches its recorded source counts.
+
 ## Reproduce the disposable physical validation
 
-Run from the repository root with the existing DE and Visualize dependencies, SUMO and `psutil`. Use a new ignored scratch directory and keep the 2.5 GB available host memory and 512 MiB disk reserves. Each worker runs in the foreground. Record its counters in a second terminal and stop that worker after it drains before starting the next one. Use the dedicated stack and confirm its ports are free before starting it.
+Run from the repository root with the existing DE and Visualize dependencies, SUMO and `psutil`. Use a new ignored scratch directory. Require the 2.5 GB startup/readiness reserve, the 1 GiB runtime floor and 512 MiB free scratch disk. Each worker runs in the foreground. Record its counters in a second terminal and stop that worker after it drains before starting the next one. Use the dedicated stack and confirm its ports are free before starting it.
 
 1. Use the retained Outbox where available, or make a new fixed-time capture. Keep the JSON output with run ID, generation, topology and manifest digest.
 
@@ -151,3 +168,11 @@ Run from the repository root with the existing DE and Visualize dependencies, SU
    ```
 
    Capture the output revisions, result and manifest hashes, duplicate/conflict outcomes and remaining work. The full pipeline run can be staged sequentially while Kafka and ClickHouse retain their durable data.
+
+6. On a designated disposable validation copy, qualify correction or withdrawal against the currently effective measurement digest. Supply the actual replacement evidence for `--evidence`, or exercise withdrawal with `--withdraw` on that copy. Preserve the original retained capture. Run the same Gold drain and oracle again. Check that the affected window revision advances and its Core input proof is unchanged. A frozen replay captured before the correction must reject the advanced archive head. A replay pinned after correction must match the new effective rows.
+
+   ```powershell
+   python -m Visualize.tools.stage_a_source correct $disposableOutbox --event-id $eventId --previous-digest $measurementDigest --withdraw
+   python -m de.gold_runtime.stage_a drain --checkpoint $gold --run-id $runId --generation $generation --topology $topology --manifest $manifest --seconds 1800
+   python -m de.gold_runtime.stage_a_oracle $disposableOutbox --checkpoint $gold
+   ```

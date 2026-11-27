@@ -12,7 +12,7 @@ MAX_MEASUREMENT_BYTES = 32 * 1024
 _MAX_SAMPLES = 512
 _MOVEMENTS = ("left", "straight", "right")
 _OCCUPANCY_METHODS = {"e2_percent_v2", "lane_percent_v2"}
-_QUEUE_METHODS = {"e2_jam_movement_v1", "route_stopped_length_v1"}
+_QUEUE_METHODS = {"e2_jam_movement_v1", "route_stopped_length_v1", "route_stopped_length_v2"}
 _SPILLBACK_METHODS = {"e2_ratio_v2", "lane_ratio_v2"}
 
 
@@ -49,13 +49,14 @@ def _queue(record):
     method = record.get("method")
     if method not in _QUEUE_METHODS or not digest(record.get("scopeDigest")):
         raise ValueError("invalid queue evidence identity")
-    route = method == "route_stopped_length_v1"
+    route = method.startswith("route_stopped_length_")
     _keys(record, "method", "scopeDigest", "samples", *(["haltingThreshold"] if route else []))
-    totals = dict.fromkeys(_MOVEMENTS, 0.0)
+    movements = (*_MOVEMENTS, "uturn") if method == "route_stopped_length_v2" else _MOVEMENTS
+    totals = dict.fromkeys(movements, 0.0)
     threshold = _number(record["haltingThreshold"], minimum=0.001, through=30) if route else None
     for sample in _samples(record["samples"], allow_empty=route):
         if (not isinstance(sample, list) or len(sample) != (3 if route else 2)
-                or sample[0] not in _MOVEMENTS):
+                or sample[0] not in movements):
             raise ValueError("invalid queue component")
         length = _number(sample[1], through=100_000, minimum=0.001 if route else 0)
         movement = sample[0]

@@ -160,7 +160,7 @@ def seal_business_work(state, ledger, work, materialize):
 
 
 def iter_seal_business_work(state, ledger, work, materialize, *, deadline, measure_occupancy=False,
-                            fixture_deadline=None):
+                            fixture_deadline=None, pressure_definition=None):
     """Yield after each verified member so the coordinator can service other lanes."""
     window_id = work["window_id"]
     try:
@@ -269,7 +269,10 @@ def iter_seal_business_work(state, ledger, work, materialize, *, deadline, measu
     except ResourceLimit:
         state.hold_unsealed(work)
         return "RESOURCE_LIMIT"
-    metadata_digest = canonical_hash([boundary_hash, sorted(measurement_refs)])
+    metadata_identity = [boundary_hash, sorted(measurement_refs)]
+    if pressure_definition is not None:
+        metadata_identity.append(pressure_definition.digest)
+    metadata_digest = canonical_hash(metadata_identity)
     return "SEALED" if state.finish(ledger, work, stream.input_hash, stream.count, projection,
         definition_set=VERIFIED_DEFINITION if measure_occupancy else "stage_a_fixture_v1",
         source_semantics="silver_observation_metadata_v1",
@@ -277,7 +280,7 @@ def iter_seal_business_work(state, ledger, work, materialize, *, deadline, measu
         metadata_digest=metadata_digest, metadata_marker=marker, verify_metadata=True) else "STALE"
 
 
-def compute_business_once(publisher):
+def compute_business_once(publisher, *, pressure_definition=None):
     """Compute the oldest durable supported projection, then persist its exact result bytes."""
     state = publisher.state
     row = state.store.conn.execute("""
@@ -299,4 +302,5 @@ def compute_business_once(publisher):
               for due, actual, node, event, dirs in value["claims"])
     result = compute_fixture_window(spec, claims, definition_set=row["definition_set"])
     return publisher.save_computed(row["id"], row["projection_hash"], result.encode(
-        context=value.get("context"), measurement_methods=value.get("measurement_methods")))
+        context=value.get("context"), measurement_methods=value.get("measurement_methods"),
+        pressure_definition=pressure_definition))
