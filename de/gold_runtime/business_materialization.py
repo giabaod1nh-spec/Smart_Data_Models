@@ -4,7 +4,7 @@ import json
 import time
 from dataclasses import replace
 
-from contracts.observation_schedule import ObservationSchedule, TICKS_PER_SECOND, seconds_to_ticks
+from contracts.observation_schedule import MAX_CANONICAL_INTEGER, ObservationSchedule, TICKS_PER_SECOND, seconds_to_ticks
 from contracts.traffic_observation import canonical_json
 from de.gold.business import Claim, DirectionSample, ResourceLimit, WindowSpec, compute_fixture_window
 from de.gold_runtime.business_state import _MEMBER_LIMIT, _PROJECTION_LIMIT, _verify_canonical
@@ -23,47 +23,98 @@ def _ordinals(schedule, start, end):
     return first_at(start), first_at(end)
 
 
-def _window_boundary(state, window_id):
+def applied_window_coverage(state, run_key, start_s, duration_s, *, core_eligible=False):
+    """Classify an aligned interval from applied metadata, including absent Core windows."""
+    if (type(start_s) is not int or type(duration_s) is not int or duration_s not in (60, 300)
+            or start_s < 0 or start_s % duration_s or (start_s + duration_s) * TICKS_PER_SECOND > MAX_CANONICAL_INTEGER):
+        raise ValueError("Expected an aligned 60s/300s Business interval")
     db = state.store.conn
-    window = db.execute("SELECT * FROM core_window WHERE id=?", (window_id,)).fetchone()
-    if window is None or not window["eligible"]:
-        raise CoreStateFault("Business work is not a verified eligible Core interval")
-    run = window["run_key"]
     row = db.execute("""
         SELECT s.*,c.settled_ordinal FROM business_observation_schedule s JOIN business_metadata_cursor c USING(run_key)
         WHERE s.run_key=? AND c.stream='SCHEDULE'
-    """, (run,)).fetchone()
+    """, (run_key,)).fetchone()
     if row is None:
         return "UNSUPPORTED_SCHEDULE", None
-    start = window["start"] * TICKS_PER_SECOND
-    end = window["end"] * TICKS_PER_SECOND
-    if row["start_tick"] is None:
-        return "WAITING", None
-    if row["start_tick"] > start or (row["cutoff"] is not None and row["cutoff"] < end):
+    start = start_s * TICKS_PER_SECOND
+    end = start + duration_s * TICKS_PER_SECOND
+    started, cutoff = row["start_tick"], row["cutoff"]
+    if started is None:
+        return ("OUTSIDE_RUN" if cutoff is not None else "WAITING"), None
+    if end <= started or (cutoff is not None and start >= cutoff):
+        return "OUTSIDE_RUN", None
+    if start < started:
         return "PARTIAL_BOUNDARY", None
+    if cutoff is not None and end > cutoff:
+        return "TERMINAL_PARTIAL", None
     raw = canonical_json(json.loads(row["schedule"])).encode()
     schedule = ObservationSchedule.decode(raw, row["schedule_id"])
     first, stop = _ordinals(schedule, start, end)
     if stop - first < 2 or stop - first > 300:
         raise ResourceLimit("Business expected window exceeds its slot bounds")
-    if stop - 1 > row["settled_ordinal"]:
+    settled = row["settled_ordinal"]
+    settled_tick = schedule.due_tick(settled) if settled >= 0 else 0
+    observed_tick = max(row["lifecycle_tick"] or 0, settled_tick, cutoff or 0)
+    if stop - 1 > settled or (not core_eligible and observed_tick < end):
         return "WAITING", None
     slots = db.execute("""
         SELECT ordinal,outcome FROM business_observation_slot WHERE run_key=? AND ordinal>=? AND ordinal<?
         ORDER BY ordinal LIMIT 301
-    """, (run, first, stop)).fetchall()
+    """, (run_key, first, stop)).fetchall()
     if tuple(slot["ordinal"] for slot in slots) != tuple(range(first, stop)):
         raise CoreStateFault("Gold applied observation slots contain a gap")
-    due = {event["eventId"]: schedule.due_tick(slot["ordinal"])
-           for slot in slots for event in json.loads(slot["outcome"])["events"]
-           if event["disposition"] == "BUNDLE_VALID"}
+    suppressed = db.execute("""
+        SELECT event_id,sequence FROM core_suppression WHERE run_key=? AND simulation_time>=? AND simulation_time<?
+        LIMIT ?
+    """, (run_key, start_s, start_s + duration_s, _MEMBER_LIMIT + 1)).fetchall()
+    if len(suppressed) > _MEMBER_LIMIT:
+        raise ResourceLimit("Business invalidation evidence exceeds its member budget")
+    suppressions = dict(map(tuple, suppressed))
+    due, conflicts, outcomes, linked_suppressions = {}, [], [], []
+    for slot in slots:
+        ordinal = slot["ordinal"]
+        outcome = json.loads(slot["outcome"])
+        outcomes.append([ordinal, outcome])
+        events = outcome["events"]
+        if outcome["outcome"] in ("CAPTURE_FAILED", "MISSED_TICK", "CLOCK_MISMATCH") and not events:
+            continue
+        expected = dict(zip(schedule.event_ids(ordinal), (node for node, _ in schedule.participants)))
+        if (outcome["outcome"] != "DELIVERED" or len(events) != len(expected)
+                or {event["eventId"] for event in events} != expected.keys()):
+            raise CoreStateFault("Applied schedule result differs from the expected participants")
+        tick = schedule.due_tick(ordinal)
+        for event in events:
+            event_id = event["eventId"]
+            if event_id in suppressions:
+                linked_suppressions.append((event_id, suppressions[event_id]))
+            if event["disposition"] == "BUNDLE_VALID" and event_id not in suppressions:
+                due[event_id] = tick
+            elif event["disposition"] in ("BUNDLE_VALID", "CONFLICTED", "SUPERSEDED_BY_CONFLICT"):
+                conflicts.append((expected[event_id], tick))
+            else:
+                raise CoreStateFault("Applied schedule result has an unknown canonical disposition")
     if not due:
-        return "MISSING_WINDOW", None
-    spec = WindowSpec(start, window["duration"], tuple(schedule.due_tick(i) for i in range(first, stop)),
-                      schedule.participants, schedule.due_tick(stop - 1))
+        return ("CONFLICTED_WINDOW" if conflicts else "MISSING_WINDOW"), None
+    spec = WindowSpec(start, duration_s, tuple(schedule.due_tick(i) for i in range(first, stop)),
+                      schedule.participants, schedule.due_tick(stop - 1), conflicted_slots=tuple(sorted(conflicts)))
+    evidence = [row["schedule_id"], outcomes]
+    if conflicts:
+        evidence.extend((spec.conflicted_slots, sorted(linked_suppressions)))
+    boundary_hash = canonical_hash(evidence)
+    return "READY", (spec, due, boundary_hash)
+
+
+def _window_boundary(state, window_id):
+    db = state.store.conn
+    window = db.execute("SELECT * FROM core_window WHERE id=?", (window_id,)).fetchone()
+    if window is None or not window["eligible"]:
+        raise CoreStateFault("Business work is not a verified eligible Core interval")
+    status, coverage = applied_window_coverage(state, window["run_key"], window["start"], window["duration"],
+                                               core_eligible=True)
+    if coverage is None:
+        return status, None
+    spec, due, boundary_hash = coverage
     marker = db.execute("SELECT receipt_digest FROM business_metadata_dirty WHERE window_id=?", (window_id,)).fetchone()
-    boundary_hash = canonical_hash([row["schedule_id"], [[slot["ordinal"], json.loads(slot["outcome"])] for slot in slots]])
-    return "READY", (spec, due, marker[0] if marker else None, boundary_hash)
+    return status, (spec, due, marker[0] if marker else None, boundary_hash)
 
 
 def seal_business_work(state, ledger, work, materialize):
@@ -124,6 +175,7 @@ def seal_business_work(state, ledger, work, materialize):
         projection = canonical_bytes({
             "version": 1, "start": spec.start_us, "duration": spec.duration_s,
             "slots": spec.slots_us, "population": spec.population, "through": spec.settled_through_us,
+            **({"conflicted_slots": spec.conflicted_slots} if spec.conflicted_slots else {}),
             "claims": [[claim.due_us, claim.actual_us, claim.intersection, claim.event_id,
                         [[x.direction, x.vehicles, x.stopped, x.moving_speed_kmh, x.queue_m] for x in claim.directions]]
                        for claim in sorted(claims, key=lambda item: (item.due_us, item.intersection, item.event_id))],
@@ -159,7 +211,8 @@ def compute_business_once(publisher):
     if value["version"] != 1:
         raise CoreStateFault("Unsupported Business projection version")
     spec = WindowSpec(value["start"], value["duration"], tuple(value["slots"]),
-                      tuple((node, tuple(dirs)) for node, dirs in value["population"]), value["through"])
+                      tuple((node, tuple(dirs)) for node, dirs in value["population"]), value["through"],
+                      conflicted_slots=tuple(tuple(item) for item in value.get("conflicted_slots", ())))
     claims = (Claim(due, actual, node, event, tuple(DirectionSample(*item) for item in dirs))
               for due, actual, node, event, dirs in value["claims"])
     return publisher.save_computed(row["id"], row["projection_hash"], compute_fixture_window(spec, claims).encode())

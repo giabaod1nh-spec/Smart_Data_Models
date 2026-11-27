@@ -87,7 +87,7 @@ CREATE TABLE business_metadata_budget (
 INSERT INTO business_metadata_budget VALUES (1,0,0);
 CREATE TABLE business_observation_schedule (
  run_key TEXT PRIMARY KEY, schedule_id TEXT NOT NULL, schedule BLOB NOT NULL,
- lifecycle TEXT NOT NULL, cutoff INTEGER, start_tick INTEGER
+ lifecycle TEXT NOT NULL, cutoff INTEGER, start_tick INTEGER, lifecycle_tick INTEGER
 );
 CREATE TABLE business_observation_slot (
  run_key TEXT NOT NULL, ordinal INTEGER NOT NULL, receipt_digest TEXT NOT NULL REFERENCES business_metadata_receipt(digest),
@@ -122,6 +122,11 @@ BEGIN
  UPDATE business_obligation SET state='SUPERSEDED'
   WHERE window_id=OLD.id AND generation<NEW.generation AND state<>'SUPERSEDED';
 END;
+"""
+
+_COVERAGE_INDEX = """
+CREATE INDEX IF NOT EXISTS business_suppression_window
+ ON core_suppression(run_key,simulation_time);
 """
 
 
@@ -180,12 +185,18 @@ class IsolatedBusinessStore(GoldCoreStore):
 
     def _upgrade(self, db, version):
         if version == 1:
-            db.executescript(f"BEGIN IMMEDIATE; {_SCHEMA} {_PUBLICATION_VERIFICATION} PRAGMA user_version=2; COMMIT;")
-        elif db.execute("SELECT count(*) FROM sqlite_master WHERE name IN "
-                        "('business_publication_verification','business_core_generation_fence')").fetchone()[0] != 2:
-            # Reopen earlier disposable v2 databases without rewriting any
-            # existing Core or Business results. Old in-flight work reconciles.
-            db.executescript(f"BEGIN IMMEDIATE; {_PUBLICATION_VERIFICATION} COMMIT;")
+            db.executescript(f"BEGIN IMMEDIATE; {_SCHEMA} {_PUBLICATION_VERIFICATION} {_COVERAGE_INDEX} "
+                             "PRAGMA user_version=2; COMMIT;")
+            return
+        names = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN "
+                 "('business_publication_verification','business_core_generation_fence','business_suppression_window')")}
+        columns = {row[1] for row in db.execute("PRAGMA table_info(business_observation_schedule)")}
+        if len(names) != 3 or "lifecycle_tick" not in columns:
+            # Older disposable v2 receipts without this coordinate retain their
+            # verified slot and terminal evidence until the next receipt applies.
+            clock_column = ("ALTER TABLE business_observation_schedule ADD COLUMN lifecycle_tick INTEGER;"
+                            if "lifecycle_tick" not in columns else "")
+            db.executescript(f"BEGIN IMMEDIATE; {_PUBLICATION_VERIFICATION} {_COVERAGE_INDEX} {clock_column} COMMIT;")
 
 
 def _digest(payload):

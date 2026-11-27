@@ -1,7 +1,9 @@
 """Isolated schedule clock and durable producer-prefix acceptance fixtures."""
 
 import json
-from dataclasses import replace
+import subprocess
+import sys
+from dataclasses import asdict, replace
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
@@ -183,6 +185,82 @@ def test_archive_head_follows_only_durable_segments_and_retries_byte_exact(outbo
             store.export_checkpoint()
     finally:
         store.close()
+
+
+@pytest.mark.parametrize("crash_point", ("before_commit", "after_commit", "before_head"))
+def test_abrupt_producer_exit_keeps_outbox_schedule_and_measurement_link_atomic(outbox, crash_point):
+    schedule, rows, store_cls, _, scratch = outbox
+    store = store_cls.create(scratch, schedule)
+    try:
+        store.set_lifecycle("RUNNING", tick=0)
+        assert store.export_checkpoint() == 2
+        path = store.db_path
+        archive = store.run_archive / "observation_schedule_v1"
+        head = (archive / "head.json").read_bytes()
+    finally:
+        store.close()
+
+    cycle = rows(0)
+    evidence = {"directions": {"East": {"occupancy": {"method": "lane_percent_v2", "percent": [0.8]}}},
+                "spillback": None}
+    inputs = json.dumps({"database": str(path), "schedule": schedule.canonical_bytes().decode(),
+                        "scheduleId": schedule.schedule_id, "point": crash_point,
+                        "rows": [asdict(item) for item in cycle], "evidence": {cycle[0].event_id: evidence}})
+    child = r'''
+import json
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path("Visualize").resolve()))
+from contracts.observation_schedule import ObservationSchedule
+from integration.kafka.outbox_store import OutboxRow
+from integration.kafka import scheduled_outbox
+
+job = json.load(sys.stdin)
+schedule = ObservationSchedule.decode(job["schedule"].encode(), job["scheduleId"])
+store = scheduled_outbox.IsolatedScheduledOutbox(Path(job["database"]), schedule)
+point = job["point"]
+if point == "before_commit":
+    save = store._save_measurement
+    def save_then_exit(*args):
+        save(*args)
+        os._exit(73)
+    store._save_measurement = save_then_exit
+store.append_scheduled_cycle(0, (OutboxRow(**row) for row in job["rows"]), measurement_evidence=job["evidence"])
+if point == "after_commit":
+    os._exit(73)
+if point == "before_head":
+    store.checkpoint()
+    install = scheduled_outbox._install_archive_file
+    def install_until_head(path, content, *, immutable):
+        if not immutable:
+            os._exit(73)
+        return install(path, content, immutable=True)
+    scheduled_outbox._install_archive_file = install_until_head
+    store.export_checkpoint()
+raise AssertionError("producer returned without reaching the injected crash point")
+'''
+    repo = Path(__file__).resolve().parents[3]
+    run = subprocess.run([sys.executable, "-c", child], input=inputs, text=True, capture_output=True, cwd=repo, timeout=20)
+    assert run.returncode == 73, run.stderr
+    assert (archive / "head.json").read_bytes() == head
+    if crash_point == "before_head":
+        assert (archive / "schedule-3.json").is_file() and (archive / "measurement-1.json").is_file()
+    reopened = store_cls(path, schedule)
+    try:
+        uncommitted = crash_point == "before_commit"
+        assert reopened.checkpoint() == (-1 if uncommitted else 0)
+        assert reopened._conn.execute("SELECT count(*) FROM observation_measurement_revision").fetchone()[0] == int(not uncommitted)
+        assert all((reopened.get(row.event_id) is None) == uncommitted for row in cycle)
+        retried = reopened.append_scheduled_cycle(0, cycle, measurement_evidence={cycle[0].event_id: evidence})
+        assert (retried.inserted, retried.reused_pending) == ((2, 0) if uncommitted else (0, 2))
+        assert tuple(reopened.get(row.event_id).payload_json for row in cycle) == tuple(row.payload_json for row in cycle)
+        assert reopened.checkpoint() == 0 and reopened.export_checkpoint() == 3
+        published = json.loads((archive / "head.json").read_bytes())
+        assert published["measurementSequence"] == 1 and published["sequence"] == 3
+    finally:
+        reopened.close()
 
 
 def test_unmarked_outbox_refused_before_wal_or_schema_mutation(outbox):

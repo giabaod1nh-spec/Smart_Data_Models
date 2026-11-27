@@ -26,6 +26,7 @@ class WindowSpec:
     population: tuple[tuple[str, tuple[str, ...]], ...]
     settled_through_us: int
     tolerance_us: int = 0
+    conflicted_slots: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,8 +152,14 @@ def _validate(spec: WindowSpec) -> dict[str, frozenset[str]]:
 
 
 def _reduce(spec, population, members):
-    claims = {}
     slots = frozenset(spec.slots_us)
+    if len(spec.conflicted_slots) > len(slots) * len(population):
+        raise ResourceLimit("conflicted slots exceed the fixture population")
+    claims = {}
+    for node, due in spec.conflicted_slots:
+        if node not in population or type(due) is not int or due not in slots or due > spec.settled_through_us:
+            raise ValueError("conflicted slot lacks a settled expected identity")
+        claims[node, due] = _CONFLICT
     end = spec.start_us + spec.duration_s * _US
     for index, claim in enumerate(members, start=1):
         if index > 3_000:

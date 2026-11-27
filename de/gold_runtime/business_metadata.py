@@ -3,8 +3,9 @@
 import json
 
 from contracts.observation_measurements import digest as is_digest
-from contracts.observation_schedule import ObservationSchedule
+from contracts.observation_schedule import MAX_CANONICAL_INTEGER, ObservationSchedule
 from contracts.traffic_observation import canonical_json
+from de.gold_runtime.business_state import _digest
 from de.gold_runtime.checkpoint_store import CoreStateFault
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
 from de.silver.observation_contract import ObservationMetadataCursor, VerifiedObservationMetadata
@@ -67,7 +68,7 @@ class BusinessMetadata:
             raise CoreStateFault("Silver observation metadata receipt exceeds byte limit")
         run = {key: getattr(receipt, key) for key in ("run_id", "run_generation", "topology_digest", "manifest_identity")}
         run_key = canonical_hash(run)
-        digest = receipt.receipt_digest
+        digest = _digest(encoded)
         with self.state._tx() as db:
             binding = self.state.store.binding()
             if binding is None or binding["binding_id"] != receipt.source_binding_id:
@@ -98,9 +99,9 @@ class BusinessMetadata:
             db.execute("UPDATE business_metadata_budget SET receipt_count=receipt_count+1, "
                        "receipt_bytes=receipt_bytes+? WHERE singleton=1", (len(encoded),))
             if stream == "SCHEDULE":
-                self._apply_schedule(db, run_key, receipt)
+                self._apply_schedule(db, run_key, receipt, digest)
             else:
-                self._apply_measurement(db, run_key, receipt)
+                self._apply_measurement(db, run_key, receipt, digest)
             db.execute("""
                 INSERT INTO business_metadata_cursor VALUES (?,?,?,?,?,?,?)
                 ON CONFLICT(run_key,stream) DO UPDATE SET sequence=excluded.sequence,digest=excluded.digest,
@@ -112,33 +113,41 @@ class BusinessMetadata:
         return "APPLIED"
 
     @staticmethod
-    def _apply_schedule(db, run_key, receipt):
+    def _apply_schedule(db, run_key, receipt, digest):
         payload = receipt.payload
         previous = receipt.before.settled_ordinal
         rows = payload["slots"]
-        schedule = ObservationSchedule.decode(canonical_json(json.loads(canonical_bytes(payload["schedule"]))).encode(),
-                                              receipt.schedule_id)
+        schedule_bytes = canonical_bytes(payload["schedule"])
+        schedule = ObservationSchedule.decode(canonical_json(json.loads(schedule_bytes)).encode(), receipt.schedule_id)
         if (schedule.run_id, schedule.generation, schedule.topology_digest, schedule.manifest_digest) != (
                 receipt.run_id, receipt.run_generation, receipt.topology_digest, receipt.manifest_identity):
             raise CoreStateFault("Schedule document and verified metadata run differ")
         if (len(rows) > 16 or len(rows) != receipt.after.settled_ordinal - previous
                 or any(item["ordinal"] != previous + index for index, item in enumerate(rows, 1))):
             raise CoreStateFault("Verified schedule prefix is not contiguous")
+        tick = payload["lifecycleTick"]
+        prior = db.execute("SELECT lifecycle_tick FROM business_observation_schedule WHERE run_key=?",
+                           (run_key,)).fetchone()
+        if (type(tick) is not int or not 0 <= tick <= MAX_CANONICAL_INTEGER or tick % schedule.step_ticks
+                or (prior is not None and prior[0] is not None and tick < prior[0])):
+            raise CoreStateFault("Verified schedule lifecycle clock moved backwards or off lattice")
         db.execute("""
-            INSERT INTO business_observation_schedule VALUES (?,?,?,?,?,?)
+            INSERT INTO business_observation_schedule
+                (run_key,schedule_id,schedule,lifecycle,cutoff,start_tick,lifecycle_tick) VALUES (?,?,?,?,?,?,?)
             ON CONFLICT(run_key) DO UPDATE SET lifecycle=excluded.lifecycle,cutoff=excluded.cutoff,
+                lifecycle_tick=excluded.lifecycle_tick,
                 start_tick=coalesce(business_observation_schedule.start_tick,excluded.start_tick)
-        """, (run_key, receipt.schedule_id, canonical_bytes(payload["schedule"]), payload["lifecycle"],
-              payload["terminalCutoffTick"], payload["lifecycleTick"] if payload["lifecycle"] == "RUNNING" else None))
+        """, (run_key, receipt.schedule_id, schedule_bytes, payload["lifecycle"],
+              payload["terminalCutoffTick"], tick if payload["lifecycle"] == "RUNNING" else None, tick))
         db.executemany("INSERT INTO business_observation_slot VALUES (?,?,?,?)",
-                       ((run_key, row["ordinal"], receipt.receipt_digest, canonical_bytes(row)) for row in rows))
+                       ((run_key, row["ordinal"], digest, canonical_bytes(row)) for row in rows))
         db.execute("""
             INSERT INTO business_schedule_recheck VALUES (?,?,?)
             ON CONFLICT(run_key) DO UPDATE SET receipt_digest=excluded.receipt_digest,next_due_tick=excluded.next_due_tick
-        """, (run_key, receipt.receipt_digest, schedule.due_tick(receipt.after.settled_ordinal + 1)))
+        """, (run_key, digest, schedule.due_tick(receipt.after.settled_ordinal + 1)))
 
     @staticmethod
-    def _apply_measurement(db, run_key, receipt):
+    def _apply_measurement(db, run_key, receipt, digest):
         payload = receipt.payload
         anchor = payload["anchor"]
         event_id = anchor["eventId"]
@@ -178,7 +187,7 @@ class BusinessMetadata:
             db.execute("""
                 INSERT INTO business_metadata_dirty VALUES (?,?)
                 ON CONFLICT(window_id) DO UPDATE SET receipt_digest=excluded.receipt_digest
-            """, (window_id, receipt.receipt_digest))
+            """, (window_id, digest))
             db.execute("""
                 UPDATE business_scope SET result_id=NULL,epoch=epoch+1 WHERE id IN (
                     SELECT scope_id FROM business_obligation WHERE window_id=?)

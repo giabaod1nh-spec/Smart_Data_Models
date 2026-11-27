@@ -9,7 +9,8 @@ import pytest
 
 from de.gold_runtime.business_publication import BusinessPublisher, DivergentResult, PhysicalRow, result_rows
 from de.gold_runtime.business_metadata import BusinessMetadata
-from de.gold_runtime.business_materialization import compute_business_once, seal_business_work
+from de.gold.business import Claim, DirectionSample, compute_fixture_window
+from de.gold_runtime.business_materialization import applied_window_coverage, compute_business_once, seal_business_work
 from de.gold_runtime.business_state import BusinessState, IsolatedBusinessStore
 from de.gold_runtime.checkpoint_store import CoreStateFault, GoldCoreStore
 from de.gold_runtime.instance_lock import InstanceLock
@@ -385,6 +386,93 @@ def test_metadata_requires_both_core_watermarks_and_atomically_fences_correction
         metadata = BusinessMetadata(BusinessState(store, "live", ledger.token))
         assert metadata.cursor(*identity.values(), "MEASUREMENT") == next_cursor
         assert metadata.apply(correction) == "REUSED"
+
+
+def _schedule_fixture_receipt(schedule, cursor, slots=(), *, lifecycle="RUNNING", tick=0, cutoff=None):
+    after = replace(cursor, sequence=cursor.sequence + 1, digest=canonical_hash(["segment", cursor.sequence + 1]),
+                    settled_ordinal=cursor.settled_ordinal + len(slots))
+    return VerifiedObservationMetadata(run_id=schedule.run_id, run_generation=schedule.generation,
+        topology_digest=schedule.topology_digest, manifest_identity=schedule.manifest_digest,
+        source_binding_id="binding", schedule_id=schedule.schedule_id, archive_head_digest="e" * 64,
+        captured_through_sequence=after.sequence, before=cursor, after=after, required_change_sequence=0,
+        required_invalidation_sequence=0, status="VERIFIED", payload=freeze({
+            "schedule": json.loads(schedule.canonical_bytes()), "slots": slots,
+            "lifecycle": lifecycle, "lifecycleTick": tick, "terminalCutoffTick": cutoff}))
+
+
+@pytest.mark.parametrize("duration", (60, 300))
+@pytest.mark.parametrize("terminal_partial", (False, True))
+def test_metadata_only_close_distinguishes_absent_window_from_partial_after_restart(staged_v1, duration, terminal_partial):
+    schedule = ObservationSchedule("metadata-only", 1, "b" * 64, "c" * 64, "v1:sha256:" + "a" * 64,
+                                  (("A", ("East",)),), 10_000, 1_000_000, 10_000, 1)
+    run_key = canonical_hash(dict(run_id=schedule.run_id, run_generation=schedule.generation,
+        topology_digest=schedule.topology_digest, manifest_identity=schedule.manifest_digest))
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        metadata = BusinessMetadata(state)
+        cursor = ObservationMetadataCursor(stream="SCHEDULE")
+        assert applied_window_coverage(state, run_key, 0, duration)[0] == "UNSUPPORTED_SCHEDULE"
+        registered = _schedule_fixture_receipt(schedule, cursor, lifecycle="REGISTERED")
+        assert metadata.apply(registered) == "APPLIED"
+        started = _schedule_fixture_receipt(schedule, registered.after)
+        assert metadata.apply(started) == "APPLIED"
+        cursor = started.after
+        for first in range(0, duration, 16):
+            slots = [{"ordinal": ordinal, "outcome": "MISSED_TICK", "events": []}
+                     for ordinal in range(first, min(first + 16, duration))]
+            page = _schedule_fixture_receipt(schedule, cursor, slots)
+            assert metadata.apply(page) == "APPLIED"
+            cursor = page.after
+        assert applied_window_coverage(state, run_key, 0, duration)[0] == "WAITING"
+        cutoff = duration * 1_000_000 - (500_000 if terminal_partial else 0)
+        terminal = _schedule_fixture_receipt(schedule, cursor, lifecycle="ENDED", tick=cutoff, cutoff=cutoff)
+        assert metadata.apply(terminal) == "APPLIED"
+
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        expected = "TERMINAL_PARTIAL" if terminal_partial else "MISSING_WINDOW"
+        assert applied_window_coverage(state, run_key, 0, duration) == (expected, None)
+        assert applied_window_coverage(state, run_key, duration, duration) == ("OUTSIDE_RUN", None)
+        assert store.conn.execute("SELECT count(*) FROM core_window WHERE run_key=?", (run_key,)).fetchone()[0] == 0
+        assert store.conn.execute("SELECT count(*) FROM business_result").fetchone()[0] == 0
+        assert store.cursors() == {"CHANGE": 1, "INVALIDATION": 0}
+
+
+def test_verified_and_late_conflicts_never_become_missing_or_add_metric_credit(staged_v1):
+    schedule = ObservationSchedule("conflicts", 1, "b" * 64, "c" * 64, "v1:sha256:" + "a" * 64,
+                                  (("A", ("A-East",)), ("B", ("B-East",))), 10_000, 1_000_000, 10_000, 1)
+    identity = dict(run_id=schedule.run_id, run_generation=schedule.generation,
+        topology_digest=schedule.topology_digest, manifest_identity=schedule.manifest_digest)
+    run_key = canonical_hash(identity)
+    e1, e2 = schedule.event_ids(0)
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        metadata = BusinessMetadata(state)
+        cursor = ObservationMetadataCursor(stream="SCHEDULE")
+        started = _schedule_fixture_receipt(schedule, cursor)
+        assert metadata.apply(started) == "APPLIED"
+        cursor = started.after
+        for first in range(0, 60, 16):
+            slots = [{"ordinal": ordinal, "outcome": "MISSED_TICK", "events": []}
+                     for ordinal in range(first, min(first + 16, 60))]
+            if first == 0:
+                slots[0] = {"ordinal": 0, "outcome": "DELIVERED", "events": [
+                    {"eventId": e1, "disposition": "CONFLICTED"}, {"eventId": e2, "disposition": "BUNDLE_VALID"}]}
+            page = _schedule_fixture_receipt(schedule, cursor, slots)
+            assert metadata.apply(page) == "APPLIED"
+            cursor = page.after
+        ended = _schedule_fixture_receipt(schedule, cursor, lifecycle="ENDED", tick=60_000_000, cutoff=60_000_000)
+        assert metadata.apply(ended) == "APPLIED"
+        status, (spec, due, _) = applied_window_coverage(state, run_key, 0, 60)
+        assert status == "READY" and due == {e2: 10_000}
+        result = compute_fixture_window(spec, [Claim(10_000, 10_000, "B", e2, (DirectionSample("B-East", 0, 0, 0, 0),))])
+        assert result.slot_states == (("A", 0, 59, 0, 1, 0), ("B", 1, 59, 0, 0, 0))
+        assert result.rows[-1].observed_load.value is None
+        with store.transaction("live", ledger.token) as db:
+            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(identity)))
+            db.execute("INSERT INTO core_suppression VALUES (?,1,'invalidation',?,0.01,'B',1,2,'proof')", (e2, run_key))
+        assert applied_window_coverage(state, run_key, 0, 60) == ("CONFLICTED_WINDOW", None)
+        assert store.conn.execute("SELECT count(*) FROM business_result").fetchone()[0] == 0
 
 
 def test_verified_schedule_wakes_isolated_work_and_materializes_same_core_proof(staged_v1):
