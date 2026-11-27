@@ -1,10 +1,10 @@
 # D-A14 — Proposed authoritative amendment text
 
-**Owner selected Conditional Entry. Authorization is pending.** This Stage A document records the decision and exact text to submit. Existing minimum gate still governs until the authoritative amendment has been approved and recorded. Retained Performance Acceptance remains ENVIRONMENT BLOCKED.
+**Recorded and effective for the approved isolated scope.** The requester confirmed both required owner roles and approved the frozen D-A14 scope on 2026-11-27 (Asia/Bangkok). See the [authoritative entry record](../performance/acceptance-result.md). The existing minimum gate still governs full integration. Retained Performance Acceptance remains ENVIRONMENT BLOCKED.
 
 ## Destination and approval procedure
 
-Insert the text below in `docs/DEv1/phase-4/performance/acceptance-result.md`, immediately following the Phase 4B entry-gate paragraph. Reference that approved amendment in the governing Phase 4A performance/Phase 4B entry decision record if repository owner requires. This task must not edit those files. Performance owner and project owner approve exact scope and effective revision in a separate scoped change. Source owners authorize UP-01 and UP-02 packages individually. Work-package owners record fixture/limits and design approvals before use. Validate the merged/accepted authoritative revision and authorization record before opening isolated work. A decision in a Stage A Markdown file alone does not activate entry.
+Insert the text below in `docs/DEv1/phase-4/performance/acceptance-result.md`, immediately following the Phase 4B entry-gate paragraph. Reference that approved amendment in the governing Phase 4A performance/Phase 4B entry decision record if repository owner requires. The freeze task prepared this proposal. The implementation task records the approved amendment separately. Performance owner and project owner approve exact scope and effective revision in a separate scoped change. Source owners authorize UP-01 and UP-02 packages individually. Work-package owners record fixture/limits and design approvals before use. Validate the merged/accepted authoritative revision and authorization record before opening isolated work. A decision in a Stage A Markdown file alone does not activate entry.
 
 ## Exact insertion proposed
 
