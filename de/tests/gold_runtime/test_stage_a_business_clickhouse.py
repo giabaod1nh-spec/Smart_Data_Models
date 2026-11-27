@@ -12,6 +12,7 @@ from clickhouse_connect.driver.exceptions import OperationalError
 from de.gold_runtime.business_clickhouse import IsolatedClickHouseRows
 from de.gold_runtime.business_publication import BusinessPublisher, DivergentResult, PhysicalRow, result_rows
 from de.gold_runtime.business_state import BusinessState, IsolatedBusinessStore
+from de.gold_runtime.stage_a import open_clickhouse_target
 from de.silver.incremental_contract import canonical_bytes
 from de.tests.gold_runtime.test_stage_a_business_state import opened, result_payload, staged_v1
 
@@ -66,6 +67,22 @@ def test_adapter_limits_isolation_partial_write_and_exact_row_hash():
     client.tables[key][0] = (rid, "a" * 64, "b" * 64, "{}")
     with pytest.raises(DivergentResult, match="length or hash"):
         target.read(rid, limit=47)
+
+
+def test_loopback_disposable_target_supports_windows_empty_environment_value(monkeypatch):
+    import clickhouse_connect
+
+    calls = []
+    monkeypatch.setattr(clickhouse_connect, "get_client", lambda **kwargs: calls.append(kwargs))
+    for key, value in {"": "1", "_HOST": "127.0.0.1", "_PORT": "18124", "_USER": "default",
+                       "_DATABASE": "stage_a_probe_" + "0" * 16}.items():
+        monkeypatch.setenv("STAGE_A_CH_PROBE" + key, value)
+    monkeypatch.delenv("STAGE_A_CH_PROBE_PASSWORD", raising=False)
+    open_clickhouse_target()
+    assert calls[0]["password"] == ""
+    monkeypatch.setenv("STAGE_A_CH_PROBE_HOST", "other-host")
+    with pytest.raises(ValueError, match="PASSWORD"):
+        open_clickhouse_target()
 
 
 @pytest.mark.skipif(os.environ.get("STAGE_A_CH_PROBE") != "1",

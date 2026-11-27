@@ -309,17 +309,20 @@ def open_clickhouse_target(silver=None):
 
     if os.environ.get("STAGE_A_CH_PROBE") != "1":
         raise ValueError("Set STAGE_A_CH_PROBE=1 with an explicitly allocated disposable ClickHouse database")
-    required = ("HOST", "PORT", "USER", "PASSWORD", "DATABASE")
+    required = ("HOST", "PORT", "USER", "DATABASE")
     missing = [key for key in required if f"STAGE_A_CH_PROBE_{key}" not in os.environ]
     if missing:
         raise ValueError("Missing Stage A ClickHouse configuration: " + ", ".join(missing))
     values = {key: os.environ[f"STAGE_A_CH_PROBE_{key}"] for key in required}
+    password = os.environ.get("STAGE_A_CH_PROBE_PASSWORD")
+    if password is None and values["HOST"] not in ("localhost", "127.0.0.1", "::1"):
+        raise ValueError("Set STAGE_A_CH_PROBE_PASSWORD for a non-loopback ClickHouse host")
     database = values["DATABASE"]
     if silver is not None and database == silver.clickhouse_database:
         raise ValueError("Gold Business requires a ClickHouse database distinct from Bronze/Silver")
     target = IsolatedClickHouseRows(None, database, max_query_seconds=2)
     target.client = clickhouse_connect.get_client(host=values["HOST"], port=int(values["PORT"]),
-        username=values["USER"], password=values["PASSWORD"], database=database,
+        username=values["USER"], password=password or "", database=database,
         secure=os.environ.get("STAGE_A_CH_PROBE_SECURE") == "1",
         connect_timeout=2, send_receive_timeout=2, query_retries=0)
     target.destination_identity = canonical_hash([values["HOST"], int(values["PORT"]), database,
@@ -400,7 +403,7 @@ def drain(args):
                     "RESOURCE_LIMIT", "MEMBER_LIMIT", "NO_LINKED_MEMBERS", "CONFLICTED_WINDOW")):
                 break
             if replay and processor._replay_terminal and not status["faults"]:
-                print(json.dumps(dict(status, state="DRAINED"), sort_keys=True))
+                print(json.dumps(dict(status, state="DRAINED", replay_id=replay.replay_id), sort_keys=True))
                 return 0
             if not replay and processor.drained(status):
                 archive_head = processor._lane("work", processor.confirm_archive)

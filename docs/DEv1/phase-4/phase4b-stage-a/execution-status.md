@@ -75,7 +75,13 @@ The owner approved G-CAL screening on independent phase/trajectory reference evi
 - The retained original dataset reproduced all 53 missing queues. At A–West and B–South, SUMO confirms TLS-controlled U-turn connections for 13 and 30 samples. At C–South and M–South, the 7 and 3 upstream observations are within the configured sensing population with verified straight continuation into the terminal segment. The isolated route method v2 checks actual lane, road and position, an exact route suffix through the sensing segments, and one unambiguous lane-connected turn at the TLS. Outside-scope vehicles receive no queue credit. Ambiguity still suppresses queue.
 - The isolated detector profile `stage_a_detector_geometry_v2` authenticates the actual network and detector files. The exact SUMO topology matched the catalog. All 69 detector IDs, lanes, offsets and lengths matched the configured geometry and fell within their lanes. The previous expected network digest is unchanged in the default profile and remains visible in the run manifest. It did not match the actual bytes under either LF or CRLF normalization.
 - Qualified run `stage-a-70af99db82f146968a2d95c1abc88359` captured 1,500 original V1 events at 300 slots. The independent source reducer verified 5,100 queue samples. For the previously missing slots it observed queues of 3.5 m at A–West and B–South, 10.5 m at C–South and 17 m at M–South. The complete V1 direction payloads matched the previous run at the same coordinates. The old dataset was retained with its missing values.
-- The authoritative memory policy separates the 2.5 GB startup/readiness reserve from the 1 GiB runtime floor. The isolated runners now enforce this distinction. With it, a disposable ClickHouse 24.3.18.7 probe verified the physical three-grain restart and reconciliation path. On the qualified run Kafka ACKed 1,500 events, Raw committed 1,500, and Bronze accepted 1,500 as new, with zero pending intents and integrity faults. This probe does not substitute for the full integrated drain, typed row audit or independent Reader reconciliation.
+- The authoritative memory policy separates the 2.5 GB startup/readiness reserve from the 1 GiB runtime floor. The isolated runners now enforce this distinction. With it, a disposable ClickHouse 24.3.18.7 probe verified the physical three-grain restart and reconciliation path. On the qualified run Kafka ACKed 1,500 events, Raw committed 1,500, Bronze accepted 1,500 as new with zero pending intents or integrity faults, and Silver marked all 1,500 events valid at change/invalidation prefixes 1,500/0. This probe does not substitute for the full integrated drain, typed row audit or independent Reader reconciliation.
+
+### G-CAL screening
+
+The first phase/trajectory reference cases with seeds 42/73 under nominal and heavy demand yielded no bottleneck positives. A phase-complete obstruction reproduction then yielded actual residual queues in the calibration seed 342 and independent holdout seed 373. At each duration the experiment has one positive window per split. None of the 12 screened combinations met both error limits on both durations in both splits. For 25/75 and a high threshold of 70, the 60s calibration false-high count was 4/12. For 50/50 and a high threshold of 60, the 300s calibration missed count was 1/1, and the holdout missed count was 1/1 at both durations.
+
+For a new independent holdout, fix the candidate at 50% Occupancy and 50% Stopped Ratio with high threshold 52. The previously observed 60s and 300s data put the largest normal-red score at 51.354 and the smallest bottleneck score at 53.384. That separation was observed in a small development sample after screening and gives no official approval. The Moderate threshold of 40 remains the candidate from the Business Spec. Recommend the measured-empty rule only with full joint coverage, zero vehicle exposure and measured zero occupancy. Unknown or incomplete windows stay unavailable. Release of any official Pressure version still requires fresh holdout results and owner approval.
 
 | Package | Implemented and verified at this checkpoint | Remaining evidence |
 |---|---|---|
@@ -165,6 +171,16 @@ Run from the repository root with the existing DE and Visualize dependencies, SU
    python -m de.gold_runtime.stage_a read --checkpoint $gold --run-key $runKey --duration 300
    python -m de.gold_runtime.stage_a_oracle $outbox --checkpoint $gold
    python -m pytest de/tests/gold_runtime/test_stage_a_business_clickhouse.py -q
+   ```
+
+   For a ClickHouse service explicitly bound to loopback, omit `STAGE_A_CH_PROBE_PASSWORD` when the test user uses no password. Windows may omit empty variables when it starts a child process. Other hosts still require the explicit password variable.
+
+   For physical replay verification, allocate a new checkpoint, pass the saved capture document to drain, and use the returned replay ID for the Reader and oracle. Use the original run coordinates and matching pressure definition when the capture included one.
+
+   ```powershell
+   $replay = python -m de.gold_runtime.stage_a allocate $scratch
+   python -m de.gold_runtime.stage_a drain --checkpoint $replay --run-id $runId --generation $generation --topology $topology --manifest $manifest --seconds 1800 --replay-capture $captureManifest
+   python -m de.gold_runtime.stage_a_oracle $outbox --checkpoint $replay --replay-id $replayId
    ```
 
    Capture the output revisions, result and manifest hashes, duplicate/conflict outcomes and remaining work. The full pipeline run can be staged sequentially while Kafka and ClickHouse retain their durable data.

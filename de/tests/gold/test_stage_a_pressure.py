@@ -44,6 +44,11 @@ def test_calibrated_pressure_keeps_unrounded_severity_and_full_network_populatio
     assert view["pressure_heatmap"][3]["status"] == "MISSING_WINDOW"
     assert view["bottleneck_persistence"]["rows"]["A"]["longest_streak"] == 1
     assert view["bottleneck_persistence"]["rows"]["A"]["high_share"] is None
+    gap = overview(selection, selected_start=60)
+    assert gap["selected_state"] == "MISSING_WINDOW"
+    assert all(item["value"] is None for item in gap["kpis"].values())
+    assert [point["status"] for point in view["intersection_trends"]["A"]["queue_p95"]] == [
+        "OK", "MISSING_WINDOW", "OK"]
 
 
 def test_calibration_does_not_pass_without_independent_positives_or_joint_coverage():

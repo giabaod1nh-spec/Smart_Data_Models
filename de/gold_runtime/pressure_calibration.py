@@ -80,22 +80,23 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--calibration", nargs=2, action="append", required=True, metavar=("OUTBOX", "REFERENCE"))
     parser.add_argument("--holdout", nargs=2, action="append", required=True, metavar=("OUTBOX", "REFERENCE"))
+    parser.add_argument("--candidate", nargs=2, type=int, metavar=("OCCUPANCY_WEIGHT", "HIGH_THRESHOLD"),
+                        help="Evaluate one candidate fixed before a fresh holdout")
     args = parser.parse_args()
     calibration, holdout = [[evidence(*(Path(p).resolve(strict=True) for p in pair)) for pair in group]
                             for group in (args.calibration, args.holdout)]
     if {item[0] for item in calibration} & {item[0] for item in holdout}:
         raise ValueError("Holdout must use an independent seed")
     result = []
-    for weight in WEIGHTS:
-        for threshold in HIGH_THRESHOLDS:
-            training = {duration: evaluate(
-                [row for _, _, _, windows in calibration for row in windows[duration]], weight, threshold)
-                for duration in (60, 300)}
-            measurements = {duration: evaluate(
-                [row for _, _, _, windows in holdout for row in windows[duration]], weight, threshold)
-                for duration in (60, 300)}
-            result.append(dict(occupancy_weight=weight, stopped_ratio_weight=100-weight, high_threshold=threshold,
-                               calibration=training, holdout=measurements))
+    candidates = [args.candidate] if args.candidate else [(w, h) for w in WEIGHTS for h in HIGH_THRESHOLDS]
+    for weight, threshold in candidates:
+        if weight not in WEIGHTS or not 0 < threshold <= 100:
+            raise ValueError("Candidate is outside the evaluation contract")
+        scores = {split: {duration: evaluate(
+            [row for _, _, _, windows in group for row in windows[duration]], weight, threshold)
+            for duration in (60, 300)} for split, group in (("calibration", calibration), ("holdout", holdout))}
+        result.append(dict(occupancy_weight=weight, stopped_ratio_weight=100-weight, high_threshold=threshold,
+                           **scores))
     print(json.dumps(dict(reference_inputs=[(seed, scale, digest) for seed, scale, digest, _ in calibration + holdout],
                           false_high_limit=FALSE_HIGH_LIMIT, missed_limit=MISSED_LIMIT, candidates=result), sort_keys=True))
     return 0

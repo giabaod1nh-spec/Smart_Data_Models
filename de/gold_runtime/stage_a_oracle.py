@@ -343,9 +343,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("outbox", type=Path)
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--replay-id", help="Read a separately allocated Stage A replay checkpoint")
     parser.add_argument("--pressure-definition", type=Path)
     parser.add_argument("--pressure-holdout", type=Path)
     args = parser.parse_args()
+    if args.replay_id and args.checkpoint is None:
+        parser.error("--replay-id requires --checkpoint")
     from de.gold_runtime.stage_a import load_pressure_definition
 
     definition = load_pressure_definition(args.pressure_definition, args.pressure_holdout)
@@ -367,6 +370,7 @@ def main():
                     if pressure_pairs else None))
         if args.checkpoint and windows:
             from de.gold_runtime.business_reader import GoldReader
+            from de.gold_runtime.config import replay_namespace
             from de.gold_runtime.processing_ledger import canonical_run_identity
             from de.gold_runtime.stage_a import check_guards, open_clickhouse_target
             from de.silver.incremental_contract import canonical_hash
@@ -378,7 +382,8 @@ def main():
                 lineage = verify_source_lineage(args.outbox, args.checkpoint, run_key)
             target = open_clickhouse_target()
             try:
-                reader = GoldReader(args.checkpoint, target)
+                reader = GoldReader(args.checkpoint, target,
+                                    namespace=replay_namespace(args.replay_id) if args.replay_id else "live")
                 selection = reader.windows(run_key, duration, 0, windows[-1][0] + duration)
                 verify_selection(windows, selection, duration)
                 comparisons[duration]["typed_physical_rows"] = sum(
