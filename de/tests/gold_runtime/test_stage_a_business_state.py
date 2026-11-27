@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from de.gold_runtime.business_publication import BusinessPublisher, PhysicalRow
+from de.gold_runtime.business_publication import BusinessPublisher, DivergentResult, PhysicalRow, result_rows
 from de.gold_runtime.business_metadata import BusinessMetadata
 from de.gold_runtime.business_materialization import compute_business_once, seal_business_work
 from de.gold_runtime.business_state import BusinessState, IsolatedBusinessStore
@@ -35,7 +35,8 @@ def opened(root, cls):
 
 @pytest.fixture
 def staged_v1(tmp_path):
-    with opened(tmp_path, GoldCoreStore) as (store, ledger):
+    root = IsolatedBusinessStore.allocate_checkpoint(tmp_path).parent
+    with opened(root, GoldCoreStore) as (store, ledger):
         store.initialize_binding("live", ledger.token, ("binding", b"{}", "1", "v1", "gold-core-v1"))
         with store.transaction("live", ledger.token) as db:
             db.execute("INSERT INTO core_receipt VALUES ('receipt','CHANGE',0,1,?,0)", (b"{}",))
@@ -50,7 +51,18 @@ def staged_v1(tmp_path):
                     INSERT INTO core_work(window_id,generation,state,source_receipt,created_at,eligible_at)
                     VALUES (?,1,'PENDING','receipt',0,?)
                 """, (key, start))
-    return tmp_path
+    return root
+
+
+def test_isolated_business_store_refuses_unmarked_core_before_any_write(tmp_path):
+    root = tmp_path / "stage-a-gold-lookalike"
+    root.mkdir()
+    with opened(root, GoldCoreStore):
+        pass
+    before = {path.name: path.read_bytes() for path in root.iterdir()}
+    with pytest.raises(CoreStateFault, match="identity is unavailable"):
+        IsolatedBusinessStore(root / "checkpoint.sqlite3")
+    assert {path.name: path.read_bytes() for path in root.iterdir()} == before
 
 
 def commit_projection(state, ledger, work, *, barrier=None):
@@ -108,15 +120,34 @@ def test_hold_does_not_monopolize_traversal_and_stale_generation_cannot_seal(sta
         assert state.reserve_next()["generation"] == 2
 
 
+def test_over_budget_membership_is_held_before_claim_and_next_window_is_admitted(staged_v1):
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        with store.transaction("live", ledger.token) as db:
+            db.execute("""
+                WITH RECURSIVE ids(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM ids WHERE n<3001)
+                INSERT INTO core_event SELECT 'member-'||n,'r',n,1,'transition','bundle','normal','A',n,1 FROM ids
+            """)
+            db.execute("INSERT INTO core_membership SELECT 'w1',id FROM core_event")
+        assert state.reserve_next()["window_id"] == "w2"
+        assert tuple(store.conn.execute("SELECT window_id,reason FROM business_hold").fetchone()) == ("w1", "MEMBER_LIMIT")
+        assert tuple(store.conn.execute("SELECT window_id FROM business_reservation").fetchone()) == ("w2",)
+        assert store.conn.execute("SELECT state FROM core_work WHERE window_id='w1'").fetchone()[0] == "PENDING"
+
+
 class DisposableRows:
     def __init__(self):
         self.rows = {}
         self.ambiguous = False
+        self.read_count = 0
+        self.insert_count = 0
 
     def read(self, result_id, *, limit):
+        self.read_count += 1
         return tuple(self.rows.get(result_id, [])[:limit])
 
     def insert(self, result_id, rows):
+        self.insert_count += 1
         if self.ambiguous:
             self.rows.setdefault(result_id, []).append(rows[0])
             self.ambiguous = False
@@ -163,7 +194,109 @@ def test_retry_reuses_payload_revision_and_repairs_partial_physical_rows(staged_
         with store.transaction("live", ledger.token) as db:
             ledger._advance_work(db, "w1", "receipt")
         assert writer.effective_pointer(scope) is None
+        assert tuple(store.conn.execute("SELECT result_id,epoch FROM business_scope").fetchone()) == (None, 2)
+        assert store.conn.execute("SELECT state FROM business_obligation").fetchone()[0] == "SUPERSEDED"
         assert len(target.rows[identifier]) == 3
+
+
+@pytest.mark.parametrize("invalidate", (False, True))
+def test_verified_result_holds_exact_manifest_across_restart_and_fences_generation(staged_v1, invalidate):
+    target = DisposableRows()
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        writer = BusinessPublisher(state, target, clock=lambda: 1)
+        identifier = prepare_result(state, ledger, writer)
+
+        def crash():
+            raise RuntimeError("interrupted after durable verification")
+
+        with pytest.raises(RuntimeError, match="after durable verification"):
+            writer.publish_once(after_verify=crash)
+        scope = store.conn.execute("SELECT id FROM business_scope").fetchone()[0]
+        assert writer.effective_pointer(scope) is None
+        assert store.conn.execute("""
+            SELECT v.manifest_hash=r.manifest_hash AND v.claim_token=p.claim_token
+            FROM business_publication_verification v JOIN business_result r ON r.id=v.result_id
+            JOIN business_publication p ON p.result_id=v.result_id
+        """).fetchone()[0] == 1
+        assert (target.read_count, target.insert_count) == (2, 1)
+
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target, clock=lambda: 5)
+        assert writer.recover() == 0
+        if invalidate:
+            with store.transaction("live", ledger.token) as db:
+                ledger._advance_work(db, "w1", "receipt")
+        assert writer.publish_once() == ("INVALIDATED" if invalidate else "PUBLISHED")
+        assert writer.effective_pointer(scope) == (None if invalidate else (identifier, 1))
+        assert tuple(store.conn.execute("SELECT id,revision FROM business_result").fetchone()) == (identifier, 1)
+        assert store.conn.execute("SELECT count(*) FROM business_publication_verification").fetchone()[0] == 1
+        assert (target.read_count, target.insert_count) == (2, 1)
+
+
+def test_reopening_earlier_disposable_v2_preserves_immutable_results(staged_v1):
+    target = DisposableRows()
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target)
+        identifier = prepare_result(writer.state, ledger, writer)
+        before = tuple(store.conn.execute("SELECT * FROM business_result WHERE id=?", (identifier,)).fetchone())
+        with store.transaction("live", ledger.token) as db:
+            # Reconstruct the previously shipped v2 fixture shape before reopening.
+            db.execute("DROP TRIGGER business_core_generation_fence")
+            db.execute("DROP TABLE business_publication_verification")
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        assert store.conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert tuple(store.conn.execute("SELECT * FROM business_result WHERE id=?", (identifier,)).fetchone()) == before
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target)
+        assert writer.publish_once() == "PUBLISHED"
+        assert store.conn.execute("SELECT result_id FROM business_publication_verification").fetchone()[0] == identifier
+
+
+def test_exhausted_write_budget_uses_last_claim_only_to_reconcile(staged_v1):
+    class LateVisibility(DisposableRows):
+        def insert(self, result_id, rows):
+            self.insert_count += 1
+            if self.insert_count == 3:
+                self.rows[result_id] = list(rows)
+            raise TimeoutError("ambiguous insert")
+
+    target = LateVisibility()
+    now = [0]
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target, clock=lambda: now[0])
+        identifier = prepare_result(writer.state, ledger, writer)
+        for _ in range(3):
+            assert writer.publish_once() == "PENDING"
+            now[0] += 2
+        assert writer.publish_once() == "PUBLISHED"
+        assert (target.insert_count, target.read_count) == (3, 4)
+        assert tuple(store.conn.execute("SELECT result_id,attempts FROM business_publication").fetchone()) == (identifier, 4)
+
+
+def test_computed_families_cannot_drop_a_sealed_approach(staged_v1):
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        state = BusinessState(store, "live", ledger.token)
+        writer = BusinessPublisher(state, DisposableRows())
+        assert state.finish(ledger, state.reserve_next(), "proof", 60, canonical_bytes({"projection": []}),
+            definition_set="fixture", source_semantics="silver_observation_metadata_v1", coverage_policy="fixture-v1",
+            population_digest=canonical_hash([["A", ["east", "west"]]]), metadata_digest="fixture-boundary")
+        obligation = store.conn.execute("SELECT * FROM business_obligation").fetchone()
+        with pytest.raises(DivergentResult, match="sealed approach population"):
+            writer.save_computed(obligation["id"], obligation["projection_hash"], result_payload())
+        assert store.conn.execute("SELECT count(*) FROM business_result").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("divergent", (False, True))
+def test_physical_same_key_duplicates_are_reconciled_by_exact_bytes(staged_v1, divergent):
+    target = DisposableRows()
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
+        writer = BusinessPublisher(BusinessState(store, "live", ledger.token), target)
+        identifier = prepare_result(writer.state, ledger, writer)
+        expected = result_rows(result_payload())
+        duplicate = replace(expected[0], payload=b"{}") if divergent else expected[0]
+        target.rows[identifier] = [*expected, duplicate]
+        assert writer.publish_once() == ("BLOCKED" if divergent else "PUBLISHED")
+        assert target.read_count == 1 and target.insert_count == 0
 
 
 def test_stale_generation_and_divergent_duplicate_never_set_pointer(staged_v1):
@@ -291,6 +424,7 @@ def test_verified_schedule_wakes_isolated_work_and_materializes_same_core_proof(
         class VerifiedStream:
             input_hash = "same-core-proof"
             count = 60
+            bytes = 1024
 
             def __iter__(self):
                 for ordinal in range(60):

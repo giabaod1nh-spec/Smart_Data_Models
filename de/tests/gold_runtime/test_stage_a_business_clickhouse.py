@@ -1,6 +1,8 @@
 """Three-grain ClickHouse adapter tests with an opt-in physical probe."""
 
 import os
+import shutil
+import time
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -8,7 +10,10 @@ import pytest
 from clickhouse_connect.driver.exceptions import OperationalError
 
 from de.gold_runtime.business_clickhouse import IsolatedClickHouseRows
-from de.gold_runtime.business_publication import DivergentResult, PhysicalRow
+from de.gold_runtime.business_publication import BusinessPublisher, DivergentResult, PhysicalRow, result_rows
+from de.gold_runtime.business_state import BusinessState, IsolatedBusinessStore
+from de.silver.incremental_contract import canonical_bytes
+from de.tests.gold_runtime.test_stage_a_business_state import opened, result_payload, staged_v1
 
 
 _ROWS = (PhysicalRow("direction", "a" * 64, b'{"payload":"direction"}'),
@@ -65,24 +70,71 @@ def test_adapter_limits_isolation_partial_write_and_exact_row_hash():
 
 @pytest.mark.skipif(os.environ.get("STAGE_A_CH_PROBE") != "1",
                     reason="requires an explicitly allocated disposable ClickHouse endpoint and database")
-def test_physical_three_grain_restart_and_exact_readback():
+def test_physical_three_grain_restart_and_exact_readback(staged_v1):
     import clickhouse_connect
+    import psutil
 
     database = os.environ["STAGE_A_CH_PROBE_DATABASE"]
+    deadline = time.monotonic() + 60
+
+    def check_guards():
+        assert psutil.virtual_memory().available >= 2_500_000_000, "Host reserve fell below 2.5 GB"
+        assert shutil.disk_usage(staged_v1).free >= 512 * 1024**2, "Scratch space fell below 512 MiB"
+        assert time.monotonic() < deadline, "Isolated publication exceeded its wall budget"
 
     def connect():
+        check_guards()
         return clickhouse_connect.get_client(host=os.environ["STAGE_A_CH_PROBE_HOST"],
             port=int(os.environ["STAGE_A_CH_PROBE_PORT"]), username=os.environ["STAGE_A_CH_PROBE_USER"],
             password=os.environ["STAGE_A_CH_PROBE_PASSWORD"], database=database,
-            connect_timeout=2, send_receive_timeout=5, query_retries=0)
+            connect_timeout=2, send_receive_timeout=2, query_retries=0)
 
-    result_id = uuid4().hex + uuid4().hex
-    with connect() as client:
-        target = IsolatedClickHouseRows(client, database)
+    class GuardedRows(IsolatedClickHouseRows):
+        def read(self, result_id, *, limit):
+            check_guards()
+            return super().read(result_id, limit=limit)
+
+        def insert(self, result_id, rows):
+            check_guards()
+            return super().insert(result_id, rows)
+
+    class InterruptAfterFirstGrain(GuardedRows):
+        def insert(self, result_id, rows):
+            super().insert(result_id, rows[:1])
+            raise TimeoutError("probe interruption after first ClickHouse INSERT")
+
+    payload = result_payload()
+    wanted = result_rows(payload)
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger), connect() as client:
+        target = InterruptAfterFirstGrain(client, database, max_query_seconds=2)
         target.initialize()
-        target.insert(result_id, _ROWS[:1])
-    with connect() as client:
-        target = IsolatedClickHouseRows(client, database)
-        assert target.read(result_id, limit=47) == _ROWS[:1]
-        target.insert(result_id, _ROWS[1:])
-        assert target.read(result_id, limit=47) == _ROWS
+        state = BusinessState(store, "live", ledger.token)
+        publisher = BusinessPublisher(state, target, clock=lambda: 0)
+        assert state.finish(ledger, state.reserve_next(), "physical-proof", 60, canonical_bytes({}),
+            definition_set="physical-probe-" + uuid4().hex, source_semantics="fixture-source",
+            coverage_policy="fixture", population_digest="population", metadata_digest="physical-boundary")
+        obligation = store.conn.execute("SELECT id,projection_hash FROM business_obligation").fetchone()
+        result_id = publisher.save_computed(obligation["id"], obligation["projection_hash"], payload)
+        scope = store.conn.execute("SELECT id FROM business_scope").fetchone()[0]
+        assert publisher.publish_once() == "PENDING"
+        assert target.read(result_id, limit=47) == wanted[:1] and publisher.effective_pointer(scope) is None
+
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger), connect() as client:
+        target = GuardedRows(client, database, max_query_seconds=2)
+        publisher = BusinessPublisher(BusinessState(store, "live", ledger.token), target, clock=lambda: 5)
+
+        def interrupt():
+            raise RuntimeError("probe interruption after durable VERIFIED state")
+
+        with pytest.raises(RuntimeError, match="durable VERIFIED"):
+            publisher.publish_once(after_verify=interrupt)
+        assert publisher.effective_pointer(scope) is None
+        assert target.read(result_id, limit=47) == wanted
+
+    with opened(staged_v1, IsolatedBusinessStore) as (store, ledger), connect() as client:
+        target = GuardedRows(client, database, max_query_seconds=2)
+        publisher = BusinessPublisher(BusinessState(store, "live", ledger.token), target, clock=lambda: 10)
+        assert publisher.recover() == 0 and publisher.publish_once() == "PUBLISHED"
+        assert publisher.effective_pointer(scope) == (result_id, 1)
+        assert target.read(result_id, limit=47) == wanted
+    check_guards()

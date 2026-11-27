@@ -7,7 +7,10 @@ and the existing instance lease before constructing a BusinessState.
 import hashlib
 import json
 import shutil
+import stat
 import time
+from pathlib import Path
+from tempfile import mkdtemp
 
 from de.gold_runtime.checkpoint_store import GoldCoreStore, CoreStateFault
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
@@ -16,8 +19,12 @@ _PROJECTION_LIMIT = 256 * 1024
 _RESULT_LIMIT = _MANIFEST_LIMIT = 32 * 1024
 _RESERVATION = _PROJECTION_LIMIT + _RESULT_LIMIT + _MANIFEST_LIMIT
 _TASK_LIMIT = 16
+_MEMBER_LIMIT = 3_000
 _PENDING_LIMIT = 8 * 1024 * 1024
 _PROTECTED_FREE = (64 + 32) * 1024 * 1024
+_SCRATCH_PREFIX = "stage-a-gold-"
+_CHECKPOINT_NAME = "checkpoint.sqlite3"
+_ISOLATION_MARKER = ".stage-a-db-identity"
 
 _SCHEMA = """
 CREATE TABLE business_reservation (
@@ -99,15 +106,86 @@ CREATE TABLE business_metadata_dirty (
 );
 """
 
+_PUBLICATION_VERIFICATION = """
+CREATE TABLE IF NOT EXISTS business_publication_verification (
+ result_id TEXT PRIMARY KEY REFERENCES business_publication(result_id),
+ claim_token TEXT NOT NULL,
+ manifest_hash TEXT NOT NULL,
+ scope_epoch INTEGER NOT NULL CHECK(scope_epoch>=0),
+ verified_at REAL NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS business_core_generation_fence
+AFTER UPDATE OF generation ON core_window WHEN NEW.generation > OLD.generation
+BEGIN
+ UPDATE business_scope SET result_id=NULL,epoch=epoch+1 WHERE id IN (
+  SELECT scope_id FROM business_obligation WHERE window_id=OLD.id);
+ UPDATE business_obligation SET state='SUPERSEDED'
+  WHERE window_id=OLD.id AND generation<NEW.generation AND state<>'SUPERSEDED';
+END;
+"""
+
 
 class IsolatedBusinessStore(GoldCoreStore):
     """Opt-in additive schema; the production Core opener rejects this version."""
 
     schema_version = 2
 
+    @classmethod
+    def allocate_checkpoint(cls, scratch_parent):
+        """Allocate a fresh target for disposable Core initialization or backup."""
+        root = Path(mkdtemp(prefix=_SCRATCH_PREFIX, dir=Path(scratch_parent).resolve(strict=True)))
+        checkpoint = root / _CHECKPOINT_NAME
+        checkpoint.touch(exist_ok=False)
+        identity = checkpoint.stat()
+        (root / _ISOLATION_MARKER).write_bytes(f"{identity.st_dev}:{identity.st_ino}\n".encode("ascii"))
+        return checkpoint
+
+    def __init__(self, db_path):
+        path = Path(db_path).absolute()
+        self._verify_isolation(path)
+        super().__init__(path.resolve(strict=True))
+
+    @staticmethod
+    def _verify_isolation(path):
+        if path.name != _CHECKPOINT_NAME or not path.parent.name.startswith(_SCRATCH_PREFIX):
+            raise CoreStateFault("Business checkpoint requires a dedicated disposable directory")
+        try:
+            identity = path.lstat()
+            directory = path.parent.lstat()
+            marker = path.parent / _ISOLATION_MARKER
+            marker_identity = marker.lstat()
+            if (not stat.S_ISREG(identity.st_mode) or identity.st_nlink != 1
+                    or not stat.S_ISDIR(directory.st_mode) or not stat.S_ISREG(marker_identity.st_mode)
+                    or any(getattr(info, "st_file_attributes", 0) & 0x400
+                           for info in (identity, directory, marker_identity))):
+                raise CoreStateFault("Unsafe disposable Business checkpoint path")
+            with marker.open("rb") as stream:
+                expected = f"{identity.st_dev}:{identity.st_ino}\n".encode("ascii")
+                if stream.read(len(expected) + 1) != expected:
+                    raise CoreStateFault("Disposable Business checkpoint identity changed")
+            for suffix in ("-wal", "-shm", "-journal"):
+                companion = path.with_name(path.name + suffix)
+                if companion.exists() or companion.is_symlink():
+                    info = companion.lstat()
+                    if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                            or getattr(info, "st_file_attributes", 0) & 0x400):
+                        raise CoreStateFault("Unsafe SQLite companion file path")
+        except OSError as exc:
+            raise CoreStateFault("Disposable Business checkpoint identity is unavailable") from exc
+
+    def open(self):
+        if self._conn is None:
+            self._verify_isolation(self.db_path)
+        super().open()
+
     def _upgrade(self, db, version):
         if version == 1:
-            db.executescript(f"BEGIN IMMEDIATE; {_SCHEMA} PRAGMA user_version=2; COMMIT;")
+            db.executescript(f"BEGIN IMMEDIATE; {_SCHEMA} {_PUBLICATION_VERIFICATION} PRAGMA user_version=2; COMMIT;")
+        elif db.execute("SELECT count(*) FROM sqlite_master WHERE name IN "
+                        "('business_publication_verification','business_core_generation_fence')").fetchone()[0] != 2:
+            # Reopen earlier disposable v2 databases without rewriting any
+            # existing Core or Business results. Old in-flight work reconciles.
+            db.executescript(f"BEGIN IMMEDIATE; {_PUBLICATION_VERIFICATION} COMMIT;")
 
 
 def _digest(payload):
@@ -197,36 +275,48 @@ class BusinessState:
             """).fetchone()
             if pending >= _TASK_LIMIT or used + _RESERVATION > _PENDING_LIMIT:
                 return None
+            for _ in range(_TASK_LIMIT):
+                row = self._next_unheld_work(db)
+                if row is None:
+                    return None
+                key = row["window_id"], row["generation"]
+                count = db.execute("""
+                    SELECT COUNT(*) FROM (SELECT 1 FROM core_membership WHERE window_id=? LIMIT ?)
+                """, (key[0], _MEMBER_LIMIT + 1)).fetchone()[0]
+                if count > _MEMBER_LIMIT:
+                    db.execute("INSERT INTO business_hold VALUES (?,?,?,?)", (*key, "MEMBER_LIMIT", time.time()))
+                    continue
+                db.execute("INSERT INTO business_reservation VALUES (?,?,?,?)", (*key, self.lease_token, _RESERVATION))
+                if row["state"] != "COMPLETE":
+                    db.execute("UPDATE core_work SET state='RUNNING' WHERE window_id=? AND generation=?", key)
+                return row
+            return None
+
+    @staticmethod
+    def _next_unheld_work(db):
+        for status in ("RUNNING", "PENDING"):
             row = db.execute("""
                 SELECT c.* FROM core_work c
                 JOIN core_window w ON w.id=c.window_id AND w.generation=c.generation
                 LEFT JOIN business_hold h ON h.window_id=c.window_id AND h.generation=c.generation
-                WHERE c.state IN ('PENDING','RUNNING') AND h.window_id IS NULL
-                ORDER BY CASE c.state WHEN 'RUNNING' THEN 0 ELSE 1 END, c.eligible_at,c.window_id,c.generation
-                LIMIT 1
-            """).fetchone()
-            if row is None:
-                row = db.execute("""
-                    SELECT c.* FROM business_metadata_dirty m
-                    JOIN core_window w ON w.id=m.window_id
-                    JOIN core_work c ON c.window_id=w.id AND c.generation=w.generation
-                    LEFT JOIN business_hold h ON h.window_id=c.window_id AND h.generation=c.generation
-                    WHERE c.state='COMPLETE' AND h.window_id IS NULL
-                    ORDER BY c.completed_at,c.window_id LIMIT 1
-                """).fetchone()
-                if row is None:
-                    return None
-            db.execute("INSERT INTO business_reservation VALUES (?,?,?,?)",
-                       (row["window_id"], row["generation"], self.lease_token, _RESERVATION))
-            if row["state"] != "COMPLETE":
-                db.execute("UPDATE core_work SET state='RUNNING' WHERE window_id=? AND generation=?",
-                           (row["window_id"], row["generation"]))
-            return row
+                WHERE c.state=? AND h.window_id IS NULL
+                ORDER BY c.eligible_at,c.window_id,c.generation LIMIT 1
+            """, (status,)).fetchone()
+            if row is not None:
+                return row
+        return db.execute("""
+            SELECT c.* FROM business_metadata_dirty m
+            JOIN core_window w ON w.id=m.window_id
+            JOIN core_work c ON c.window_id=w.id AND c.generation=w.generation
+            LEFT JOIN business_hold h ON h.window_id=c.window_id AND h.generation=c.generation
+            WHERE c.state='COMPLETE' AND h.window_id IS NULL
+            ORDER BY c.completed_at,c.window_id LIMIT 1
+        """).fetchone()
 
     def finish(self, ledger, work, input_hash, member_count, projection, *,
                definition_set, source_semantics, coverage_policy, population_digest, metadata_digest,
                metadata_marker=None, verify_metadata=False, barrier=None):
-        if type(member_count) is not int or not 0 <= member_count <= 3_000:
+        if type(member_count) is not int or not 0 <= member_count <= _MEMBER_LIMIT:
             raise CoreStateFault("Business projection exceeds fixture member budget")
         projection_hash = _verify_canonical(projection, _PROJECTION_LIMIT)
         key = work["window_id"], work["generation"]

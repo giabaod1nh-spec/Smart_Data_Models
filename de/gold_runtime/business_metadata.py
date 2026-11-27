@@ -180,9 +180,8 @@ class BusinessMetadata:
                 ON CONFLICT(window_id) DO UPDATE SET receipt_digest=excluded.receipt_digest
             """, (window_id, receipt.receipt_digest))
             db.execute("""
-                UPDATE business_scope SET result_id=NULL,epoch=epoch+1 WHERE result_id IN (
-                    SELECT r.id FROM business_result r JOIN business_obligation o ON o.id=r.obligation_id
-                    WHERE o.window_id=?)
+                UPDATE business_scope SET result_id=NULL,epoch=epoch+1 WHERE id IN (
+                    SELECT scope_id FROM business_obligation WHERE window_id=?)
             """, (window_id,))
             db.execute("UPDATE business_obligation SET state='SUPERSEDED' WHERE window_id=? AND state<>'SUPERSEDED'",
                        (window_id,))

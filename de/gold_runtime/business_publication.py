@@ -68,6 +68,15 @@ def _manifest(rows):
     return canonical_bytes([[row.grain, row.key, _digest(row.payload)] for row in rows])
 
 
+def _population_digest(rows):
+    population = {}
+    for row in rows:
+        if row.grain == "direction":
+            sample = json.loads(row.payload)
+            population.setdefault(sample["intersection"], []).append(sample["direction"])
+    return canonical_hash([(node, sorted(directions)) for node, directions in sorted(population.items())])
+
+
 class BusinessPublisher:
     def __init__(self, state, target: ResultRows, *, clock=time.time):
         self.state = state
@@ -90,8 +99,10 @@ class BusinessPublisher:
 
     def save_computed(self, obligation_id: str, projection_hash: str, payload: bytes):
         payload_hash = _verify_canonical(payload, _RESULT_LIMIT)
-        manifest = _manifest(result_rows(payload))
+        rows = result_rows(payload)
+        manifest = _manifest(rows)
         manifest_hash = _verify_canonical(manifest, _MANIFEST_LIMIT)
+        population_hash = _population_digest(rows)
         with self.state._tx() as db:
             obligation = db.execute("""
                 SELECT o.* FROM business_obligation o
@@ -101,6 +112,9 @@ class BusinessPublisher:
             """, (obligation_id, self.state.namespace)).fetchone()
             if obligation is None or obligation["projection_hash"] != projection_hash:
                 raise CoreStateFault("Computed result does not match current obligation")
+            if (obligation["source_semantics"] == "silver_observation_metadata_v1" and
+                    obligation["population_digest"] != population_hash):
+                raise DivergentResult("Computed result does not cover the sealed approach population")
             current = db.execute("SELECT * FROM business_result WHERE obligation_id=?",
                                  (obligation_id,)).fetchone()
             if current is not None:
@@ -121,11 +135,13 @@ class BusinessPublisher:
             return result_id
 
     def recover(self):
-        """After acquiring the instance lease, release interrupted publication claims."""
+        """Release claims interrupted before verification. Verified work retains its CAS."""
         with self.state._tx() as db:
             return db.execute("""
                 UPDATE business_publication SET state=CASE WHEN attempts>=? THEN 'BLOCKED' ELSE 'PENDING' END,
                     claim_token=NULL WHERE state='WRITING'
+                    AND NOT EXISTS (SELECT 1 FROM business_publication_verification v
+                                    WHERE v.result_id=business_publication.result_id)
             """, (_MAX_ATTEMPTS,)).rowcount
 
     def _claim(self):
@@ -133,11 +149,14 @@ class BusinessPublisher:
             if db.execute("SELECT 1 FROM business_publication WHERE state='WRITING' LIMIT 1").fetchone():
                 return None
             row = db.execute("""
-                SELECT r.*,p.attempts,o.window_id,o.generation
+                SELECT r.*,p.attempts,s.epoch AS scope_epoch
                 FROM business_publication p JOIN business_result r ON r.id=p.result_id
                 JOIN business_obligation o ON o.id=r.obligation_id
                 JOIN core_window w ON w.id=o.window_id AND w.generation=o.generation
+                JOIN core_work c ON c.window_id=o.window_id AND c.generation=o.generation
+                  AND c.state='COMPLETE' AND c.work_id=o.work_id AND c.input_hash=o.input_hash
                 JOIN core_binding b ON b.binding_id=o.binding_id
+                JOIN business_scope s ON s.id=r.scope_id
                 WHERE b.namespace=? AND o.state='COMPUTED' AND p.state='PENDING' AND p.attempts<? AND p.retry_at<=?
                 ORDER BY p.retry_at,o.created_at,p.result_id LIMIT 1
             """, (self.state.namespace, _MAX_ATTEMPTS, self.clock())).fetchone()
@@ -161,13 +180,16 @@ class BusinessPublisher:
             seen.add(key)
         return tuple(row for key, row in expected_by_key.items() if key not in seen)
 
-    def publish_once(self, *, barrier=None):
+    def publish_once(self, *, barrier=None, after_verify=None):
+        existing = self.commit_verified()
+        if existing != "IDLE":
+            return existing
         claim = self._claim()
         if claim is None:
             return "IDLE"
         row, token = claim
         result_id = row["id"]
-        state = "PUBLISHED"
+        state = "VERIFIED"
         try:
             if _verify_canonical(row["payload"], _RESULT_LIMIT) != row["payload_hash"]:
                 raise DivergentResult("Durable output hash mismatch")
@@ -176,9 +198,10 @@ class BusinessPublisher:
             if manifest != row["row_manifest"] or _digest(manifest) != row["manifest_hash"]:
                 raise DivergentResult("Durable row manifest mismatch")
             missing = self._verify_target(result_id, expected)
-            if missing:
+            if missing and row["attempts"] + 1 < _MAX_ATTEMPTS:
                 self.target.insert(result_id, missing)
-            if self._verify_target(result_id, expected):
+                missing = self._verify_target(result_id, expected)
+            if missing:
                 state = "PENDING"
         except (CoreStateFault, KeyError, TypeError, ValueError):
             state = "BLOCKED"
@@ -186,28 +209,86 @@ class BusinessPublisher:
             state = "PENDING"
         if barrier:
             barrier()
-        return self._finish(row, token, state)
+        if state != "VERIFIED":
+            return self._finish_unverified(row, token, state)
+        if not self._record_verification(row, token):
+            return "INVALIDATED"
+        if after_verify:
+            after_verify()
+        return self.commit_verified()
 
-    def _finish(self, row, token, state):
+    def _current(self, db, row):
+        return db.execute("""
+            SELECT 1 FROM business_scope s JOIN business_result r ON r.scope_id=s.id
+            JOIN business_obligation o ON o.id=r.obligation_id AND o.state='COMPUTED'
+            JOIN core_window w ON w.id=o.window_id AND w.generation=o.generation
+            JOIN core_work c ON c.window_id=o.window_id AND c.generation=o.generation
+              AND c.state='COMPLETE' AND c.work_id=o.work_id AND c.input_hash=o.input_hash
+            JOIN core_binding b ON b.binding_id=o.binding_id AND b.namespace=?
+            WHERE r.id=? AND s.epoch=?
+        """, (self.state.namespace, row["id"], row["scope_epoch"])).fetchone() is not None
+
+    def _record_verification(self, row, token):
         with self.state._tx() as db:
-            current = db.execute("SELECT generation FROM core_window WHERE id=?", (row["window_id"],)).fetchone()
-            binding = db.execute("""
-                SELECT 1 FROM core_binding b JOIN business_obligation o ON o.binding_id=b.binding_id
-                WHERE b.namespace=? AND o.id=? AND o.state='COMPUTED'
-            """, (self.state.namespace, row["obligation_id"])).fetchone()
-            if current is None or current[0] != row["generation"] or binding is None:
+            if not self._current(db, row):
+                self._retire_claim(db, row["id"], token, "INVALIDATED", 0)
+                return False
+            inserted = db.execute("""
+                INSERT INTO business_publication_verification
+                SELECT p.result_id,p.claim_token,?,?,? FROM business_publication p
+                JOIN business_result r ON r.id=p.result_id AND r.manifest_hash=?
+                WHERE p.result_id=? AND p.state='WRITING' AND p.claim_token=?
+            """, (row["manifest_hash"], row["scope_epoch"], self.clock(), row["manifest_hash"], row["id"], token))
+            if inserted.rowcount != 1:
+                raise CoreStateFault("Publication verification claim CAS was lost")
+            return True
+
+    def commit_verified(self):
+        """Publish a durable exact-row verification under the current Gold lease."""
+        if self.state.store.conn.execute("""
+            SELECT 1 FROM business_publication p JOIN business_publication_verification v ON v.result_id=p.result_id
+            WHERE p.state='WRITING' LIMIT 1
+        """).fetchone() is None:
+            return "IDLE"
+        with self.state._tx() as db:
+            row = db.execute("""
+                SELECT r.id,r.scope_id,r.manifest_hash,v.manifest_hash AS verified_hash,v.scope_epoch,
+                       v.claim_token AS verified_token,p.claim_token AS current_token
+                FROM business_publication_verification v JOIN business_publication p ON p.result_id=v.result_id
+                JOIN business_result r ON r.id=v.result_id WHERE p.state='WRITING' LIMIT 1
+            """).fetchone()
+            if row is None:
+                return "IDLE"
+            if not row["current_token"] or row["current_token"] != row["verified_token"]:
+                raise CoreStateFault("Durable publication verification no longer matches its claim")
+            if row["verified_hash"] != row["manifest_hash"]:
+                raise DivergentResult("Durable publication verification differs from the result manifest")
+            state = "INVALIDATED"
+            if self._current(db, row):
+                changed = db.execute("UPDATE business_scope SET result_id=?,epoch=epoch+1 WHERE id=? AND epoch=?",
+                                     (row["id"], row["scope_id"], row["scope_epoch"]))
+                if changed.rowcount != 1:
+                    raise CoreStateFault("Business publication pointer CAS was lost")
+                state = "PUBLISHED"
+            self._retire_claim(db, row["id"], row["verified_token"], state, 0)
+            return state
+
+    def _finish_unverified(self, row, token, state):
+        with self.state._tx() as db:
+            if not self._current(db, row):
                 state = "INVALIDATED"
             attempts = row["attempts"] + 1
             if state == "PENDING" and attempts >= _MAX_ATTEMPTS:
                 state = "BLOCKED"
-            changed = db.execute("""
-                UPDATE business_publication SET state=?,claim_token=NULL,retry_at=?
-                WHERE result_id=? AND state='WRITING' AND claim_token=?
-            """, (state, self.clock() + (0.25 * 2 ** (attempts - 1) if state == "PENDING" else 0),
-                  row["id"], token))
-            if changed.rowcount != 1:
-                raise CoreStateFault("Publication claim CAS was lost")
-            if state == "PUBLISHED":
-                db.execute("UPDATE business_scope SET result_id=?,epoch=epoch+1 WHERE id=?",
-                           (row["id"], row["scope_id"]))
+            ready = self.clock() + 0.25 * 2 ** (attempts - 1) if state == "PENDING" else 0
+            self._retire_claim(db, row["id"], token, state, ready)
         return state
+
+    @staticmethod
+    def _retire_claim(db, result_id, token, state, ready):
+        changed = db.execute("""
+            UPDATE business_publication SET state=?,claim_token=NULL,retry_at=?
+            WHERE result_id=? AND state='WRITING' AND claim_token=?
+        """, (state, ready, result_id, token))
+        if changed.rowcount != 1:
+            raise CoreStateFault("Publication claim CAS was lost")

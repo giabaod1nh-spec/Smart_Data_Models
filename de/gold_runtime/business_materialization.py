@@ -1,14 +1,19 @@
 """Isolated Core-to-Business handoff through verified Silver/Gold metadata."""
 
 import json
+import time
 from dataclasses import replace
 
 from contracts.observation_schedule import ObservationSchedule, TICKS_PER_SECOND, seconds_to_ticks
 from contracts.traffic_observation import canonical_json
 from de.gold.business import Claim, DirectionSample, ResourceLimit, WindowSpec, compute_fixture_window
-from de.gold_runtime.business_state import _PROJECTION_LIMIT, _verify_canonical
+from de.gold_runtime.business_state import _MEMBER_LIMIT, _PROJECTION_LIMIT, _verify_canonical
 from de.gold_runtime.checkpoint_store import CoreStateFault
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
+
+
+_ENCODED_RECEIPT_BUDGET = 64 * 1024 * 1024
+_ISOLATED_WORK_SECONDS = 60
 
 
 def _ordinals(schedule, start, end):
@@ -64,7 +69,12 @@ def _window_boundary(state, window_id):
 def seal_business_work(state, ledger, work, materialize):
     """Use one normal verified Core traversal to construct a bounded Business projection."""
     window_id = work["window_id"]
-    status, boundary = _window_boundary(state, window_id)
+    deadline = time.monotonic() + _ISOLATED_WORK_SECONDS
+    try:
+        status, boundary = _window_boundary(state, window_id)
+    except ResourceLimit:
+        state.hold_unsealed(work)
+        return "RESOURCE_LIMIT"
     if status != "READY":
         state.hold_unsealed(work, reason=status)
         return status
@@ -75,8 +85,12 @@ def seal_business_work(state, ledger, work, materialize):
     stream = materialize(work)
     try:
         for index, bundle in enumerate(stream, 1):
-            if index > 3_000:
+            if index > _MEMBER_LIMIT:
                 raise ResourceLimit("Business work exceeds its member budget")
+            if stream.bytes > _ENCODED_RECEIPT_BUDGET:
+                raise ResourceLimit("Business work exceeds its encoded receipt budget")
+            if time.monotonic() >= deadline:
+                raise ResourceLimit("Business work exceeds its isolated wall budget")
             event_id = bundle.event_id
             if event_id not in due:
                 continue
@@ -116,6 +130,8 @@ def seal_business_work(state, ledger, work, materialize):
         })
         if len(projection) > _PROJECTION_LIMIT:
             raise ResourceLimit("Business projection exceeds its byte budget")
+        if time.monotonic() >= deadline:
+            raise ResourceLimit("Business work exceeds its isolated wall budget")
     except ResourceLimit:
         state.hold_unsealed(work)
         return "RESOURCE_LIMIT"
