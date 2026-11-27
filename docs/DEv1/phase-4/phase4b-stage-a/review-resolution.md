@@ -27,3 +27,18 @@ Baseline local/remote 035e88e26151951dbee407934751550ae7bfc381. So với baselin
 ## Consistency review
 
 Truy vết D-A06 → A-I02/SA-01, G-COV → slot ledger/metrics/timeline, G-REV → SQLite obligation/pointer + fenced read, G-EXP → A-I05 và AC-33…35. Optional study giữ gate riêng. Giữ Phase 5 integrated acceptance. Các thiết kế trong package là proposal, runtime acceptance vẫn open.
+## Final architecture review R01–R09
+
+| ID | Original issue / root cause | Evidence | Resolution / design impact | Documents updated | Acceptance | Remaining risk / status |
+|---|---|---|---|---|---|---|
+| R01 | Shared lane có thể stall Core vì một scheduler/writer | GoldCoreProcessor.run_cycle, GoldCoreStore.transaction | Coordinator writer, worker contracts, quotas, age/admission và realtime control | architecture-design scheduler, performance-design overload | FA-21…25/29 | Resolved in plan, benchmark và budget approval required |
+| R02 | Slot/lifecycle không đủ authority vì Core hiện UNKNOWN/DISABLED | checkpoint_store CORE_SCHEMA, backend and Silver facts | Producer authority qua verified public Silver interface, timeline và lifecycle rules | coverage-contract R02/R05 | FA-03…07 | Blocked on upstream evidence/contract approval |
+| R03 | Crash giữa proof và business handoff có thể mất obligation | CoreWorkLedger.finish CAS, claim chỉ RUNNING/PENDING | Atomic proof + obligation + sealed projection, fenced tokens, durable poll | state-schema atomic and failure matrix | FA-08…13/19 | Resolved in plan, implementation approval required |
+| R04 | Store v1 không có migration business state | GoldCoreStore.open guard/WAL/BEGIN IMMEDIATE | Additive v2 candidate, backup/version/rollback/schema guards | state-schema migration, plan A-I02 | FA-14/30 | Resolved in plan, migration rehearsal required |
+| R05 | Counting rows double counts slot | V1 source identity, CoreInputStream event-ID enumeration and fence | Frozen sealed projection UNIQUE/CONFLICT reducer, bounds per window | coverage-contract R02/R05, architecture-design flow | FA-01…07 | Resolved in plan conditional on R02 metadata |
+| R06 | RAM-only result amplifies retry CPU/reads | _work discards bundles, no active Business result | Immutable durable payload+manifest, reuse retries with same identity | state-schema state machine, publication-recovery-design | FA-12/13/15/18 | Resolved in plan, payload sizing and WAL benchmark |
+| R07 | CH writes and SQLite pointer separate | active Core local transaction, legacy repositories insert/read | One fenced authority, exact verify and reader revalidate | publication-recovery-design R07, serving-contract | FA-15…20 | Resolved in plan, CH deployment/read contract approval |
+| R08 | Core terminal stops Core loop, business may remain pending | processor.run_cycle/_complete_replay, CoreReplayManifest.check | Isolated job identity and sealed work set, separate terminal predicates | publication-recovery-design R08, plan A-I06 | FA-23/26…28/30 | Partially resolved, moving source may abort replay. Concurrent historical capability needs verified frozen source |
+| R09 | Unbounded backlog from mismatch or dependency failure | current min_free_bytes guard and PA records | Per-stage accounting, protective reserve, no TTL pending, controlled stop/resume | architecture-design scheduler, performance-design and state-schema retention | FA-21…25/29/30 | Resolved in plan, benchmark/retention approval required |
+
+Cross-review: thay đường V2 ghi payload tùy chọn bằng handoff projection bắt buộc, compute lại chỉ trước durable result hoặc recovery có quản trị. Đồng bộ pointer CAS, lifecycle/coverage, lane pause, controlled stop và replay DONE predicates. R02 và frozen replay source vẫn là external dependencies. Tất cả FA cases chưa chạy.

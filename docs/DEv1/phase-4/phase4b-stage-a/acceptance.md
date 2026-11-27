@@ -72,3 +72,41 @@ Fixture F-01…07 từ Business Spec. Dùng frozen raw observations, manifest, s
 ## Exit
 
 Chốt riêng business correctness (approved metric registries, strict independently computed population, cả hai durations và ba grain), publication (one manifest, no zero fill, no mixed rows), recovery/replay (late/invalidation/restart/version rebuild), serving (fenced queries độc lập Orion và handoff B), performance và operational readiness. Giữ A-I05 mandatory cho comparison. Mọi phạm vi deferred có owner và evidence gate riêng. Vòng revision này chưa thực thi acceptance cases.
+## Architecture remediation cases (FA-01–30)
+
+Tất cả trạng thái PLANNED. Mỗi case chạy với frozen independent source/slot/manifest oracle, kiểm tra transition trace, persistent SQLite/CH state và current-effective query. Fixture dùng namespace/database riêng. Khi có performance measures, đối chiếu approved envelope và matched Core-only control. Giá trị threshold còn chờ owner. Một lần run lưu exact input profile, bounds, injection barrier, expected/actual và disposition.
+
+| Case / objective | Preconditions và workload | Injection | Expected transition / persistent state và điều kiện đạt | Evidence / measures |
+|---|---|---|---|---|
+| FA-01 Duplicate | Projection baseline + byte-identical retry | duplicate event/rows | UNIQUE giữ nguyên; 1 term và 1 credit | slot keys, digest và numeric oracle |
+| FA-02 Conflict | Hai effective IDs cùng slot | claim thứ hai tới cuối stream | CONFLICT absorbing; metric payload bị bỏ; no coverage credit | permuted order cho cùng digest và no double count |
+| FA-03 Missing / empty | Hai windows cùng schedule, có full measured zeros ở một window | bỏ tất cả samples window kia | MISSING_WINDOW vs valid zero/N/A, không ghi fake zero | expected-timeline oracle và durable marts |
+| FA-04 Partial windows | Run start/end giữa interval | terminal partial first và last | PARTIAL, không pointer finalized; expected caps giữ nguyên | lifecycle snapshot và timeline |
+| FA-05 Late correction | PUBLISHED g và approved upstream correction | invalidation rồi corrected change | clear g pointer trước change ACK, g+1 verified replacement | ACK order và exact moment effective |
+| FA-06 Reset | Hai generations cùng clock/topology | reset tại cùng sim time | tách keys/proofs/marts, không đổi denominator cũ | archived manifest and selectors |
+| FA-07 Invalid slot/time | Official schedule + lệch step/time | lệch 60/300 boundary hoặc slot mismatch | Core membership nguyên, slot credit withheld | raw times, source proof, numerator/denominator |
+| FA-08 Crash trước finish | RUNNING và verified stream đang tiến | kill trước atomic finish | RUNNING recover; không obligation/pointer | SQLite checkpoint + rerun receipt reads |
+| FA-09 Crash trong atomic transaction | RUNNING và ready seal | kill giữa finish CAS và insert | rollback cả proof và projection/obligation | SQLite snapshot before/after |
+| FA-10 Crash trước notification | Current lease, valid projection | kill sau commit | COMPLETE + PENDING + projection; poll index resumes | durable ID và no skipped work |
+| FA-11 Duplicate obligation | Existing committed identity | dispatch repeat identical rồi altered digest | reuse identical, altered integrity fault | unique indexes/cursor untouched |
+| FA-12 Crash trong compute | Sealed PENDING; dispatched token | kill khi COMPUTING, restart owner | PENDING reclaim, old completion reject, same projection | attempt claims, no second Silver read |
+| FA-13 Crash sau durable result | Computed 3 grain family commit | kill trước publisher dispatch | COMPUTED + PENDING, same revision/digest | payload read-back, no recompute |
+| FA-14 Migration barriers | Populated schema 1, archived state digest | kill trước và sau user_version commit; disk-full case | v1 intact hoặc fully migrated v2; wrong schema fault | integrity/FK/index/cursors and Core proof diff |
+| FA-15 CH outage | Live load có COMPUTED work | dependency unavailable đủ để trigger pause | WRITING → PENDING or BLOCKED; giữ payload và no pointer | backoff, write attempts, pending bytes |
+| FA-16 Ambiguous and partial | 3 grains, expected manifest sealed | timeout sau partial commit | reconcile exact keys, verify and publish whole set | per-table keys and counts |
+| FA-17 Duplicate publish | Staged exact rows hiện có | identical rồi divergent same key | dedup identical; divergent BLOCKED; never expose unverified | physical rows và authority |
+| FA-18 Crash giữa stores | CH family đã persisted | kill trước VERIFIED/PUBLISHED | staged hidden; resume same revision then CAS | CH exact digest và pointer history |
+| FA-19 Stale writer | Running compute/CH write under g | invalidation hoặc late change bumps generation | suppress old, reject token, no stale publish, orphan retained | epoch/receipt trace và current-effective query |
+| FA-20 Serving race | Pinned range, cache warm | invalidate between resolve/read, rồi authority outage | retry/reprocessing/stale cursor; outage unavailable | reader barriers và exact pinned rows |
+| FA-21 Compute overload | Controlled arrivals official-fidelity profile | slow compute under published budget | high watermark triggers, sealed/ledger work preserved, fresh Core quanta in reserve | rate, slope, oldest age, RSS, Core lag |
+| FA-22 Publish overload | Compute nhanh hơn publisher | CH pacing và outage/drain | backlog guard and unchanged durable payload reuse | CH attempt rate, DB/WAL, recovery drain |
+| FA-23 Replay contention | Live + isolated historical source | consume replay credit under live load | pause/resume replay, no live starvation, no mutable source bypass | Core/Business/realtime latency and namespaces |
+| FA-24 Retry storm / poison | Transient failed and malformed workloads | concurrent timeouts and permanent bad payload | bounded due time/attempts, BLOCKED poison, fresh progress | retry budget and queue age |
+| FA-25 Storage pressure/restart | Large backlog with reserved disk | fill near guard then restart | pause admission, controlled Core intake stop if needed, bounded indexed recover and safe drain | persistent queues, committed cursor, bytes, new lease |
+| FA-26 Core complete / Business pending | Sealed replay scope and Core COMPLETE | leave PENDING obligations | overall not complete; restart drains business stages | required set digest and counters |
+| FA-27 Computed / unverified replay | Replay durable results, staged CH | interrupt then restart during publication | computed done only; publication resume same IDs | independent scope coverage and manifests |
+| FA-28 Replay correction / supersession | Frozen replay with required g | change source boundary or supersede result | abort old boundary or require valid current replacement; never mark retry/conflict complete | Core status and work outcomes integrity |
+| FA-29 Realtime regression | Matched official fidelity, co-tenant realtime traffic | compute + CH + replay + outage phases | no approved budget violations; safe admission protects live | TraCI/Projector timing, CPU/I/O, Core p95/age |
+| FA-30 Retention / old proofs | Existing complete Core proofs at activation | retention gap, restart backfill, retry cleanup | idempotent obligations only with verified authority; gap BLOCKED; pending never TTL | checkpoint, read count, lineage and cleanup audit |
+
+FA-01…07 preserve slot/window correctness. FA-08…14 test atomic state and migrations. FA-15…20 publication/serving. FA-21…25 và FA-29 là capacity/integration candidate, không đóng G-PERF trước khi có representative evidence. FA-26…28 và FA-30 kiểm tra replay/rebuild. Giữ AC-01…40 và SA-01…19 từ vòng trước.

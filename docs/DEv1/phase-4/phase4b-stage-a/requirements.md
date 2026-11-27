@@ -37,3 +37,6 @@ Stage A includes feasibility, metric/coverage decisions, independent oracles, Go
 ## Ranh giới sau review
 
 B4B-04 đề xuất duration switch 60/300. Nếu owner xác nhận nested comparison riêng thì dùng cùng aligned end, ghi rõ samples chồng lấn, không tạo mart riêng. B4B-01/02/03 giữ scenario-neutral Core membership và context sampled. B4B-08 cùng E-01…04 có data support/comparability ở A-I05. End-to-end UI riêng ở Stage C. B4B-12 phụ thuộc durable obligation và read protocol. Pressure trì hoãn riêng không đóng đủ 4 KPI.
+## R02/R05: eligibility và identity
+
+Q-01/Q-02 và B4B-10 là dependency A-P03. Gold tính finalized KPI cho full tumbling windows có authoritative horizon và strict applicable coverage. Partial first/last, missing toàn window và unsupported schedule trả trạng thái. Traffic zero đo được giữ numeric meaning của từng metric. Window identity Core giữ scenario-neutral, source sequence là proof coordinate và replay/order boundary. Business result identity gắn Core proof/generation cùng source semantics, schedule/population, definition và revision. B4B-12/13 áp dụng fence chung cho publication và serving.

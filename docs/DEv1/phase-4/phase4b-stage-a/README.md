@@ -2,7 +2,7 @@
 
 **Status:** Technical design and implementation plan for owner review. No business, schema, or architecture decision in this package is approved by this document.
 
-**Baseline review:** local và remote `035e88e26151951dbee407934751550ae7bfc381` trên `codex/phase-1-v1-raw`. Working tree và index sạch trước revision.
+**Baseline review:** local và remote `e57116e5bdda9fc6c39fdf84ae83c78dcd780cbc` trên `codex/phase-1-v1-raw`. Working tree và index sạch trước revision.
 
 This package turns the Phase 4B review candidate into an evidence-linked Stage A plan. It does not change code, migrations, runtime configuration, Phase 4A records, or the business specification. The Phase 4B Stage A/B/C split remains proposed and must be reconciled with the Master Plan by the owner.
 
@@ -26,7 +26,8 @@ This package turns the Phase 4B review candidate into an evidence-linked Stage A
 | [decisions.md](decisions.md) | Unapproved decisions requiring owner action |
 | [blockers.md](blockers.md) | Entry blockers, evidence and mitigation |
 | [handover.md](handover.md) | Review directions and implementation prerequisites |
-| [review-resolution.md](review-resolution.md) | RV-01…15 và SR-01…04 |
+| [review-resolution.md](review-resolution.md) | RV-01…15, SR-01…04 và R01–R09 |
+| [state-schema.md](state-schema.md) | SQLite schema, atomic handoff và migration |
 
 ## Current planning verdict
 

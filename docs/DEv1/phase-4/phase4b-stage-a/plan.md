@@ -14,20 +14,22 @@
 
 A-P01…05 là preparation có thể cấp quyền riêng, tuỳ scope read-only hoặc isolated fixture. Production Gold business code chờ applicable approvals và G-ENTRY authority. Nếu owner duyệt amendment conditional entry thì điều kiện của amendment phải được ghi nhận trước task đầu tiên. G-PERF kiểm chứng performance/operational sau khi có workload phù hợp. Xem D-A14.
 
-## Business Implementation
+## Implementation package mapping
 
-Các file hiện hữu bên dưới là điểm tích hợp. Tên file mới và migration version chốt trong A-P05. Chỉ tác động source sau explicit authorization.
+ID ổn định A-I01…07 tương ứng P4B-A08, A09 phần Core, A09 phần publication, A10 serving, A10 experiments, A11 và A12. Bảng bên dưới mô tả scope cập nhật.
 
-| ID / mapping cũ | Scope và file impact | Dependencies, risk và rollback | Tests, evidence, exit |
-|---|---|---|---|
-| A-I01 (A08) | Pure accumulators trong candidate de/gold/business, input qua canonical contracts | A-P03/04/05 theo metric + G-ENTRY. No persistence; disable module nếu oracle sai | AC-01…14, SA-02…08/11/12, raw fixture + independent output hashes |
-| A-I02 (A09 phần Core) | de/gold_runtime/processor.py, processing_ledger.py, checkpoint_store.py. Bounded consumption + durable obligation cùng finish CAS | A-I01. Preserve Core proof hash, scheduler, cursors, namespace. Disable business integration, preserve durable obligations for recovery | AC-15/18, SA-01/09/11/12, crash barriers và Core regressions |
-| A-I03 (A09 phần writes) | Candidate additive de/migrations and Gold coordinator. Exact staged rows, digests, manifest pointer | A-I02 + G-MART/G-REV. Disable publication, keep evidence, suppress incompatible revisions | AC-16…19, SA-17, physical ClickHouse/SQLite independent audit |
-| A-I04 (A10) | Gold reader candidate dưới de/gold_runtime, pinned manifest set, range timeline, query limits | A-I03, design adapter G-API; no Spring/React. Disable new reader nếu stale/mixed results | AC-20…32/39, SA-13/14/18, return digest, query plans, stale/cancel fixtures |
-| A-I05 (tách từ A10) | Experiment metadata validation và paired Gold query, candidate reader module dưới de/gold_runtime | A-I04 và G-EXP + controlled independent run metadata. Không chờ optional throughput/waiting. Metadata không đủ thì return UNKNOWN, disable comparisons only | AC-33…35, SA-19, signed demand/controller/geometry + paired oracle |
-| A-I06 (A11) | de/gold_runtime/replay.py và coordinator: historical backfill cursor, replay, rebuild và recovery | A-I02…04, source retention and compatibility. Pause live-independent rebuild, preserve history and V2 | AC-15…19/38 theo adoption, SA-09/10/15…18, replay proof, no live mutation |
-| A-I07 (A12) | Stage A acceptance và evidence package từ de/tests/gold_runtime, representative approved runtime fixture | A-I01…06 theo scope, G-PERF. Safety stop giữ artifacts. B/C và cutover không nằm trong package | AC-40 + toàn bộ adopted AC; ba grain, hai durations, oracle, restart, query and scope verdicts |
+## Sequencing refinement sau final review
 
-Critical path A-P01 → A-P02 required paths → A-P03 + A-P04 → A-P05 → G-ENTRY → A-I01…04 → A-I06/07. A-I05 là nhánh bắt buộc cho experiment acceptance; có thể chuẩn bị metadata song song. Source correctness implementation, nếu cần, phải được phê duyệt riêng trước dependent outputs. Pressure và queue gates chỉ chặn outputs/qualification phụ thuộc. Đóng tất cả bốn KPI cần cả pressure và queue. Optional research không nằm trên critical path.
+| Work package | Input → output, impact và scope | Prerequisite, invariant và acceptance |
+|---|---|---|
+| A-P03 contract closure | SF-07 và archived manifest → approved source lifecycle, schedule IDs và Gold applicability. Chỉ đề xuất upstream change riêng | A-P02 source evidence + owner source approval, Q-01/02, FA-01…07 |
+| A-P05 state and lane design approval | Approved identities → schema v2, writer lease, bounds, backpressure, freeze/replay/retention, CH/reader protocols. Review state-schema và lane design | A-P03 + metric definitions theo scope. No migration execution. G-MART/G-REV và budgets approvals, FA-08…30 planned |
+| A-I01 projection + compute | Public verified member fields và aggregate specs → bounded reducer và deterministic payload builder trong candidate de/gold/business | A-P03/04/05 + G-ENTRY. No per-KPI reread; exact P95 and slot oracle, FA-01…07 |
+| A-I02 state + atomic handoff | Core store v1 → additive schema + proof/obligation/projection, scheduler admission trong processor.py, processing_ledger.py, checkpoint_store.py | A-P05 + G-ENTRY, schema migration có thể implement song song pure reducer, integration chờ A-I01. Preserve ACK/lease/fences và verify rollback, FA-08…14/21/25 |
+| A-I03 publication | Verified durable projection → compute+result state, CH schema/verify/write lane and pointer | A-I02, G-MART/G-REV. No live enablement under conditional entry, FA-13/15…19/22/24 |
+| A-I04 serving | SQLite pointer/epoch + CH manifest → bounded read protocol | A-I03, FA-20/29, không viết Spring/React |
+| A-I05 experiment | approved pair/metadata + reader → comparability results | A-I04/G-EXP, AC-33…35, optional source metrics riêng |
+| A-I06 recovery/replay | Frozen namespace/expected work set và durable results → restart/rebuild and separate completion | A-I02…04, retained evidence/frozen source support, FA-23/25…28/30 |
+| A-I07 acceptance | Stage fixtures + workload envelopes → independent correctness and performance verdicts | A-I01…06, G-PERF và operational approvals. FA-01…30 theo scope, prior PA gate còn hiệu lực |
 
-Stage A exit theo acceptance.md, ghi riêng business correctness, publication, recovery/replay, serving, performance và operational verdicts. Phase 5 vẫn chịu integrated verification/cutover.
+Dependency chính là authoritative population → state/atomic contract + projection design → separately authorized implementation → publication/reader/replay → integration acceptance. Benchmarked numeric limits cần setup diagnostics được duyệt. Chúng không tự thay thế G-ENTRY, cũng không dùng kết quả tương lai làm điều kiện để duyệt read-only design.

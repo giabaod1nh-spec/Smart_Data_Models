@@ -3,7 +3,7 @@
 | Blocker | Severity | Evidence / status | Affected work | Mitigation and resolution owner |
 |---|---|---|---|---|
 | G-ENTRY: Minimum paced evidence ENVIRONMENT BLOCKED | Critical | `performance/acceptance-result.md`; paced run stopped on 2026-11-25 at 206.05 simulation seconds due to memory floor; no full two-duration/drain/oracle boundary | Stage A runtime qualification; any conditional entry | Preserve evidence, resolve environment cause under performance owner; do not rerun or reuse retained fixture without separate authorization |
-| G-COV: no approved expected slot schedule | Critical | backend interval default and rounded sim timestamp, but no verified slot identity/alignment; Core coverage UNKNOWN | Official business publication, strict coverage, metrics/serving | SF-07 capture and manifest/producer contract proposal; source + DE + business owners approve |
+| G-COV: no approved expected slot schedule | Critical | backend interval default and actual canonical sim timestamp, but no verified slot identity/alignment; Core coverage UNKNOWN | Official business publication, strict coverage, metrics/serving | SF-07 capture and manifest/producer contract proposal; source + DE + business owners approve |
 | G-SRC: occupancy normalization | Critical cho occupancy/pressure | Inbound/outbound E2 sai với percent nhỏ. Lane paths cần probe theo installed version. | Occupancy, score và spillback evidence tùy path | SF-01 và source version boundary được duyệt |
 | G-QUEUE: mixed queue methods lack provenance | High | E2 nonzero branch vs vehicle-based estimate fallback; no proven method compatibility | Official queue P95, queue-dependent reference calibration và comparison | Source fixture study; choose compatible definition or represent separately |
 | G-REV: no approved business revision/publication protocol | Critical | Core has input proof generations, but no business publication manifest/current-effective transaction across CH+SQLite | All business writes and latest serving | Approve failure matrix and implement staged immutable output + one family publication fence |
@@ -15,3 +15,8 @@
 ## Phạm vi blocker
 
 G-ENTRY hiện chặn production business implementation, gồm minimum gate unresolved hoặc cần approved amendment. G-COV/G-REV chặn official publication. G-SRC/G-CAL chặn occupancy/pressure-dependent outputs; G-QUEUE chặn queue-dependent results, impact calibration chỉ khi queue dùng làm reference. G-EXP chặn official comparisons. Optional research chặn riêng sản phẩm adopt. G-PERF và Phase 5 blockers chặn operational/cutover acceptance. Preparation read-only reviewer work và separately scoped fixtures có approval riêng.
+## Dependencies bổ sung
+
+- R02: cần authoritative lifecycle/schedule/slot linkage được verify qua public Silver. No eligible official KPI nếu historical runs thiếu evidence.
+- R01/R04/R06/R09: numeric bounds và protected reserve, upstream retention, v2 schema rehearsal, CPU/I/O coexistence và durable payload sizing chờ owner cùng benchmark.
+- R07/R08: approve SQLite writer/serving adapter, CH read consistency, cleanup grace và frozen replay source nếu cần historical concurrent with live. Không hạ replay boundary checks để mở gate.

@@ -1,0 +1,49 @@
+# Durable Business state và migration ứng viên
+
+## State store và identities (R03/R04/R06)
+
+GoldCoreStore.open hiện chấp nhận schema 0 (DB mới) hoặc CORE_SCHEMA_VERSION=1, kiểm tra application_id, WAL, synchronous FULL và foreign_keys. transaction dùng BEGIN IMMEDIATE và lease token. core_work PK (window_id,generation), work_id unique sau finish; transition/cursor ACK là transaction riêng. Hiện không có Business state.
+
+Tất cả bảng ứng viên đặt trong cùng SQLite với Core của một namespace. Coordinator sở hữu mọi writes; worker read short snapshot hoặc nhận payload đã seal. Key/hash versioned, dùng canonical serialization và domain tag. Các BLOB bị giới hạn trước allocation và commit. Dấu thời gian chỉ phục vụ scheduling/retention.
+
+| Bảng ứng viên | Keys và fields | Quan hệ và index |
+|---|---|---|
+| business_obligation | obligation_id TEXT PK. namespace, binding_id, window_id, core_generation, work_id, input_hash, definition_set, source_semantics_version, population_digest, projection_version TEXT/INTEGER theo semantics. status, created_at, ready_at, attempt_count, lease_epoch, claim_token, claim_deadline, last_fault, reserved_projection_bytes, reserved_result_bytes | FK (window_id,core_generation) → core_work. Unique toàn bộ identity inputs kể cả projection_version. Index (status,ready_at,created_at,obligation_id), (window_id,core_generation) |
+| business_projection | obligation_id TEXT PK/FK, payload_version, canonical_bytes BLOB NOT NULL, byte_count, sha256, member_count, slot_count, stream_fence | One-to-one sealed projection. Immutable; no analytical query |
+| business_result | result_id TEXT PK, obligation_id TEXT UNIQUE/FK, revision INTEGER, payload_version, canonical_bytes BLOB, byte_count, sha256, projection_digest, row_manifest, computed_at | Unique effective scope + revision qua allocation record; finalized payload có view theo obligation. row_manifest chứa grain/key/row hash/count |
+| business_publication | result_id TEXT PK/FK, state, writer_epoch, claim_token, attempt_count, ready_at, verified_digest, verified_at, last_fault | Index (state,ready_at,result_id); staged CH rows không đặt trong SQLite |
+| business_fence | scope_id TEXT PK, current_result_id nullable FK, visibility_epoch INTEGER, next_revision INTEGER, current_core_generation, reason | scope = namespace + binding + window + definition/source/population policy. Bump epoch khi publish/suppress/generation change; range token bao phủ timeline và selector set |
+| business_job_checkpoint | job_id TEXT PK, namespace, scope_manifest_digest, kind, sealed_work_set_digest, progress_key, core_status, compute_status, publication_status, fault | Bounded keyset replay/backfill; expected work/shard outcomes keyed (job_id,work_key), indexed theo status |
+
+Obligation ID hash bộ identity ở trên. Core generation gắn với member set, Business revision cấp tăng theo scope, namespace bất biến. Cùng obligation luôn tái dùng result ID = hash(obligation ID, assigned revision). Definition/source/coverage upgrades tạo identity mới. Conflict cùng ID nhưng khác input/projection/payload digest là integrity fault.
+
+## Atomic boundary và state transitions
+
+Core verified exhaustion và final public fence check hoàn thành trước transaction. Giữ lease và CAS work RUNNING/current generation trong cùng transaction ghi Core proof, insert-or-verify obligation/projected payload và chiếm reservation. Rollback cả hai nếu lỗi. Notification sau commit chỉ là hint. Recovery tìm state bằng index. ACK cursor hiện có giữ nguyên ý nghĩa, không chờ ClickHouse. Chưa có reservation thì không finish; nếu work có trước activation, bounded verified backfill riêng.
+
+Obligation: PENDING → COMPUTING → COMPUTED. Timeout/crash trả PENDING khi token cũ bị thu hồi; lỗi hết budget → BLOCKED; generation cũ → SUPERSEDED. COMPUTED có nghĩa result payload đã commit, không đồng nghĩa published. Một transaction CAS token/generation, reserve result bytes, cấp revision, ghi immutable result và tạo publication PENDING. Giữ projection span cần cho recovery hoặc release sau validated result và retention policy. Fault chỉ lưu metadata bounded.
+
+Publication: PENDING → WRITING → VERIFIED → PUBLISHED. Transient lỗi quay PENDING với bounded retry time, giữ cùng payload/revision. Nếu result hết validity chuyển SUPERSEDED hoặc INVALIDATED nếu do explicit suppression. Exhausted → BLOCKED. VERIFIED có thể recover chưa có pointer; transaction publish recheck authority. Worker completion chỉ được nhận với current claim token, lease epoch, scope and generation. Restart invalidate stale claims trước dispatch. Persist codec version, canonical row order theo grain/key, finite numeric canonical representation theo metric registry, stable strings/nulls, SHA-256 và row-level digests. Serialize bên ngoài writer transaction. Không tái compute khi ClickHouse timeout, crash hoặc thiếu grain nếu payload/generation vẫn match.
+
+## Failure matrix atomicity
+
+| Barrier | Durable state | Recovery / invariant | Case |
+|---|---|---|---|
+| Trước finish | RUNNING, chưa obligation | Requalify từ Core verified path; không publish | FA-08 |
+| Giữa finish CAS và obligation/projected bytes | Entire transaction rollback | Retry như trước finish; Core proof và obligation cùng có hoặc cùng không | FA-09 |
+| Commit xong trước notification | COMPLETE + PENDING + projection | Poll index sau restart; không mất work | FA-10 |
+| Duplicate claim/creation | Unique identity + one token | Identical digest reuse; mismatch stop | FA-11 |
+| Crash compute / restart COMPUTING | Projection sealed, token cũ recoverable | Reclaim theo lease epoch và rerun compute, không đọc lại Silver | FA-12 |
+| Crash sau compute durable commit | COMPUTED + publication PENDING cùng revision | Resume publication từ bytes persisted | FA-13 |
+| Invalidate trước khi xong | Suppression và generation/fence bump cùng local invalidation ACK | Stale token không ghi result/pointer, cancel/reconcile orphan | FA-19 |
+
+## Migration, compatibility và retention
+
+A-I02 là additive migration trong Stage A tương lai, cần G-ENTRY và state design approval trước khi áp dụng. Giữ CORE_APPLICATION_ID, bump user_version 1→2 ứng viên và Business payload version riêng. Xác minh DB/schema/binding/capacity và offline consistent backup (kể cả WAL qua SQLite backup API), exclusive runtime ownership khi migrate trước boot/ACK. Trong một BEGIN IMMEDIATE tạo bảng theo FK order: obligations/projection → result → publication/fence → checkpoint/outcomes/indexes → check invariants → set user_version cuối → commit. Không mutate Core rows/cursors/lease semantics. Disk full, DDL lỗi, crash trước commit → rollback, schema 1 hoặc fault nếu corruption. Sau commit restart verify version, FK/index, Core digest/cursors và conservative empty Business initialization. Unknown version, wrong application_id hoặc partial schema fail closed. SQLite schema v2 cần binary hỗ trợ v2; tắt Business feature để rollback execution khi DB còn tốt. Restore consistent backup chỉ theo owner recovery runbook và phải reconcile mọi durable advance sau backup, không dùng để bỏ pending work. Existing Core-completed windows xử lý bằng bounded backfill, không update Core proofs.
+
+Budget bytes cho projection/result/pointer metadata, WAL growth và checkpoint reserve. Max pending bytes tính với payload còn giữ cộng worst-case đã reserve, đánh giá actual trước commit. Giữ transaction ngắn: encode/hash/CH I/O ở ngoài lock. Đo lock wait, p95/p99 transaction, WAL checkpoint starvation và backup cost. Hủy short reader snapshots trước CH I/O.
+
+Không TTL pending/BLOCKED/unverified. Cleanup chỉ khi terminal và không còn reference từ pointer, claim, replay/audit/legal retention hoặc active request trong grace interval đã duyệt. Giữ identity/digest tombstone theo owner horizon chống recreate, xóa projection/rows theo batch có quota. Current result và upstream evidence cho outstanding rebuild phải được bảo vệ. Nếu retention gap làm proof không thể xác minh, BLOCKED/UNSUPPORTED kèm reason; không fabricate work completion.
+## Bounded suppression trên đường Core ACK
+
+Trong transaction Core advance_generation, cập nhật window-level Business generation fence một lần cho mỗi affected window và một run/duration visibility epoch cho range revalidation. Reader và writer phải compare generation này cùng scope pointer. Pointer lịch sử khác generation trở nên logically cleared từ cùng commit, kể cả khi sweep chưa physically clear. Không fan-out update mọi historical definition/revision trong ACK. Bounded reconciliation cập nhật stale row status và queue cleanup sau. Result commit luôn kiểm tra claim lease epoch, generation và active policy. Ghi live negative outcomes và faults theo bounded state; không xem stale row chưa sweep là runnable.

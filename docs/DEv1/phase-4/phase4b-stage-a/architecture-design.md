@@ -1,62 +1,47 @@
-# Gold Business Layer architecture
+# Kiến trúc Gold Business Stage A
 
-## Invariants inherited from Phase 4A
+## Baseline đã xác minh
 
-Use the public Silver V1 canonical read contract and verified bundle. Preserve source binding, change and independent invalidation cursors, contiguous cursor progression, receipt and bundle hash verification, durable local ACK/work obligations, exact membership, run/topology isolation, work generation, immutable completed-work identity, dirty-window fencing, bounded reads/work quanta, restart recovery and replay namespace isolation. Never query Silver/ Bronze physical tables or private journals from business aggregation. Never use Orion/Projector, active-run state, or legacy Gold V2 as historical authority.
+Plan V2 là commit e57116e5bdda9fc6c39fdf84ae83c78dcd780cbc. Source dưới đây là hành vi hiện tại. Các lane, schema Business và giao thức trong phần sau là thiết kế chờ duyệt.
 
-Core's acceptance proves these mechanisms for its tested scope, but not business completeness, definition validity, business publication, cross-mart visibility or Performance Acceptance.
+- Silver sở hữu public feed. [Phase 4A Pre contract](../pre/contract-design.md) và de/silver/incremental_reader.py:_build_feed_page quy định bound hữu hạn theo trang, contiguous verified prefix, independent invalidations và conflict dispositions. Không có snapshot xuyên các request.
+- de/gold_runtime/main.py dùng GoldCoreProcessor. _bootstrap xác minh binding/cursors trước work. run_cycle gọi discovery → invalidation → change → Core work, dừng khi mất lease hoặc vượt disk guard. _changes chỉ ACK khi cursor invalidation đạt fence của receipt. CoreWorkLedger.acknowledge/_apply cập nhật receipt, suppression/membership và cursor durable.
+- CoreInputStream đọc indexed members theo event ID, mỗi member qua receipt public đúng sequence, recheck generation, bundle/transition identity và invalidation high water, kiểm tra lần cuối khi exhaustion. _work hiện bỏ bundle, finish CAS chỉ ghi proof. Core scheduler claim RUNNING/PENDING. core_window key không chứa scenario. Core completeness UNKNOWN và finality DISABLED.
+- de/gold_runtime/repositories.py là đường persistence legacy, gồm lookup FINAL. Active Core không publish marts. Không kế thừa FINAL hoặc latest-row làm authority.
 
-## Data flow proposal
+## Flow đề xuất và điểm tách lane
 
-```text
-Silver public discovery + verified receipts/bundles
-        │
-        ▼
-Gold Core durable ACK, membership, generation and invalidation fences
-        │
-        ▼
-One bounded verified bundle traversal per eligible Core work proof
-        │  derive reusable business sufficient statistics and exact queue sample state
-        ▼
-Business result staged under (run, topology, window, generation, definition set)
-        │
-        ▼
-Validate expected population + independent quality checks + deterministic digest
-        │
-        ▼
-ClickHouse immutable revision rows + SQLite durable publication manifest/fence
-        │
-        ▼
-Gold serving views/queries select one current-effective complete revision
-        │
-        └── historical Stage B API; no Orion or active run dependency
+```
+Silver verified pages → Core recovery / invalidation / contiguous ACK
+                                      ↓
+                      Core work + verified member stream
+                              ↓ bounded slot projection
+                    [SQLite: finish CAS + obligation + projection]
+                              ↓                 ↖ startup recovery
+                      Business compute lane (CPU)
+                              ↓
+                    [SQLite: durable computed result]
+                              ↓
+                      Business publication lane ↔ ClickHouse exact rows
+                              ↓ verified receipt set
+                    [SQLite: current pointer + epoch CAS]
+                              ↓
+                   Gold reader pin → CH exact IDs → revalidate → response
+Replay: frozen public source → isolated Core and Business stores/namespace
+        → separate Core / compute / publication completion predicates
 ```
 
-This is a design proposal only. Choose a single coordinator/store boundary after failure and visibility semantics are reviewed. Do not publish when G-COV or G-REV is unresolved.
+Giữ một verified traversal trên normal path. Core thu projection nhỏ cần cho slot ledger khi đọc member. Chỉ sau verified exhaustion mới seal projection cùng proof. Business compute đọc projection, không tự xác minh lại theo semantic khác. So với tính toàn bộ metrics inline, tách compute giúp giới hạn CPU sort/rollup và retry trên đường Core, đổi lại thêm bytes/WAL. Staging từng member sẽ kéo dài số giao dịch và tăng orphan state. Reread theo KPI hoặc read private tables bị loại. Requalification public chỉ dành cho designated historical rebuild, recovery trước atomic commit hoặc mất/corrupt projection theo quy trình có owner approval. Xem [state and migration](state-schema.md).
 
-## Aggregation alternatives
+## R01/R09: scheduler, quyền sở hữu và admission
 
-| Option | Correctness/recovery | Cost and limitations | Recommendation |
-|---|---|---|---|
-| A. Aggregate during verified materialization | Reuses the exact member proof, generation and bundle; deterministic recompute from current source | CPU per bundle; exact P95 needs bounded values or exact order state; requires Core extension/interface and failure tests | Preferred starting point, conditional on source contract and memory bound |
-| B. Bounded verified staging | Can stage bundles/statistics and resume bounded processing | Adds storage, lifecycle and cleanup; durable payload retention duplicates Silver and must revalidate current-effective status | Use only if measured CPU/transaction boundary needs decoupling |
-| C. Reusable incremental business state across generations/windows | Potentially less recompute | Late changes/invalidation make subtract/replace correctness complex; two durations have distinct memberships; cache must be generation fenced | Do not adopt without measured need and proof of exact invalidation behavior |
-| Separate business reread per KPI/chart | Familiar but repeated source traversal | N canonical reads per metric, amplifies latency and authority load | Reject |
+Một coordinator giữ Core lease và là SQLite writer duy nhất trong mỗi namespace. Compute worker nhận immutable projection và token, trả result về coordinator qua mailbox bounded. Publication I/O có client riêng, deadline/cancellation và batch caps; worker không sở hữu pointer hoặc SQLite writer. Core loop không đợi worker/ClickHouse. Baseline đề xuất một job compute và một job publication đang chạy mỗi live namespace, cần xác nhận bằng benchmark trước vận hành. Tách execution lane chưa đủ cô lập CPU, I/O, ClickHouse server và WAL; đo cả realtime service co-tenancy.
 
-Implement a pure deterministic accumulator, independent oracle, bounded state and versioned metric registry first. At completion of a Core proof, process every verified bundle once and fan out values into all approved accumulators. Exact queue P95 should retain at most one window's samples per direction/work identity; estimated current topology memory is small (e.g. 17×300 values for one 300s region), but generic bound must derive from archived participant/approach counts and maximum eligible slots. Never retain whole history in RAM.
+1. Startup chạy schema check, kiểm tra lease và bootstrap Core, sau đó reconcile stale Business claims và result hashes theo bounded cursor. Change ACK vẫn phải chờ invalidation qua receipt fence. Business retry không được giữ lock hoặc vượt thứ tự Core.
+2. Mỗi Core tick giữ các quantum discovery/invalidation/change/work hiện có. Sau Core tick coordinator dùng lượng thời gian và số transaction được cấp để dispatch/nhận Business work. Core member verification tiếp tục theo quantum hiện có. Projection size được reserve trước claim hoặc spool theo một giới hạn bytes in-memory, validate cả khi actual cardinality vượt estimate.
+3. Trong mỗi lane chọn việc đến hạn theo (ready_at, created_at, stable ID), gồm recoverable live và fresh live. Dùng credit luân phiên giữa retry đã đến hạn và fresh work để một poison item không chặn queue. Hàng đợi SQLite indexed, mailbox và in-flight quota tách. Timeout, exponential backoff có jitter, attempt/deadline budget theo lỗi. Exhausted/permanent lỗi chuyển BLOCKED giữ evidence, chỉ manual rearm có lý do. Generation mismatch supersede thay vì retry vô hạn.
+4. Replay/backfill dùng namespace riêng và ngân sách CPU/I/O/CH riêng, chỉ chạy phần dư sau live reserve. Nếu trong envelope có replay credit dương, cấp quantum theo lượt cho eligible replay; khi live pressure vượt guard, pause replay và công bố reason/age. Không bảo đảm replay progress trong lúc live đã hết headroom. Replay không sở hữu live cursor hoặc pointer.
+5. Admission tính queue count, projection/result bytes, DB+WAL, free-disk reserve, oldest age và retry due. Reserve cả projection và worst-case computed payload cùng thời điểm cho work mới, giữ riêng WAL and Core reserve. Một admitted compute được dùng reservation của nó ngay cả khi admission đã đóng, tránh deadlock drain. Khi high watermark: ngừng historical admission trước, ưu tiên drain live publish rồi compute; giữ Core receipt/invalidation progress và Core work admissible trong reserve. Khi Business cap chạm, defer Core finish của work chưa có slot durable; giữ OPEN/PENDING/RUNNING theo ledger semantics, không tạo COMPLETE giả. Nếu actual projection vượt hard bound, dừng work ở trạng thái có thể phục hồi và báo fault; không truncate input.
+6. Core ACK còn tăng Core state dù Business bị pause. Trước khi đụng protected Core/WAL reserve, drain hoặc stop intake/work có kiểm soát ở durable cursor, báo degraded/fault. Resume khi dependency khỏe, outstanding age/bytes giảm qua low watermark theo window quan sát và có đủ reserve. Không skip prefix, drop pending work, hoặc giữ intake vô hạn khi disk cạn.
 
-## Tương thích Core (RV-01)
-
-Active generic window scenario-neutral. Giữ key, membership, scheduler và proof hiện có. Business provenance dùng sampled distribution và chronology theo slot. D-A06 đóng factual finding, không cần sửa Core identity.
-
-## Resource and transaction boundaries
-
-Keep Silver page limits and Core work quantum. Accumulate one member at a time; do not cache raw bundles between generations without a source binding/fence. Stage deterministic outputs and manifest separately from current-effective visibility. Avoid a distributed transaction assumption between SQLite and ClickHouse. ClickHouse inserts are retryable/ambiguous; SQLite controls eligibility only after staged row verification. See `publication-recovery-design.md`.
-
-## Điểm tích hợp và vòng đời accumulator (RV-07)
-
-Giữ Option A. `GoldCoreProcessor._work` hiện gọi next(stream) rồi bỏ bundle. `CoreInputStream` kiểm tra generation, member/receipt/hash và invalidation high water tại exhaustion. Ledger claim chỉ nhận RUNNING/PENDING. Nếu COMPLETE trước khi có durable obligation thì scheduler hiện tại không quay lại work đó.
-
-Khởi tạo state cho (binding, window, generation, definition set, expected population digest), kiểm tra limits trước allocation. Mỗi next thành công xác thực logical slot, cập nhật riêng counters/stats và buffer thời gian cho tất cả grain. Khi exhaustion hợp lệ, lấy input hash immutable, đánh giá coverage, đóng gói kết quả deterministic. Trong cùng SQLite transaction với finish CAS, ghi obligation và payload kết quả bounded hoặc obligation REMATERIALIZE với đủ lineage. Payload ưu tiên để tránh reread bình thường. Staging bền vững từng member tăng WAL và cần fence phục hồi, chỉ xem xét khi đo được nhu cầu. Reconciliation đánh chỉ mục dành cho proof có trước activation và audit thiếu obligation, không thay thế transaction mới.
-
-Nếu lease/generation/binding hoặc invalidation fence đổi, hủy accumulator và payload tạm, work mới bắt đầu sạch. Áp giới hạn cấu hình cần duyệt cho số participants/approaches, members, claim/slot state, exact samples, encoded input/output bytes, số work đồng thời, SQLite transaction/disk và processing time. Expected count không phải hard limit. Quá giới hạn ghi lỗi bounded RESOURCE_LIMIT, không publish và tránh retry loop. Chủ động bảo toàn scheduler fairness và cursor/invalidation ACK. Công việc phục hồi hoặc rematerialize chỉ đọc qua public Silver.
+Hard constraints là single writer, bounded allocations, admission trước durability, no loss, fence checks và no false COMPLETE. Các con số budgets, watermarks, quanta, retry limits và minimum Core/realtime service chưa duyệt. Production topology/cadence và concurrent workload là input của benchmark, không lấy threshold từ diagnostic fixture. [Performance và overload](performance-design.md).

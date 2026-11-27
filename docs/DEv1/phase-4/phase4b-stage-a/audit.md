@@ -5,9 +5,9 @@
 | Item | Observed value |
 |---|---|
 | Branch | `codex/phase-1-v1-raw` |
-| HEAD local và GitHub trước review | `035e88e26151951dbee407934751550ae7bfc381` |
+| HEAD local và GitHub trước review | `e57116e5bdda9fc6c39fdf84ae83c78dcd780cbc` |
 | Working tree | Clean (`git status --short` empty) |
-| Diff từ reviewed baseline | 0. So với addb59a… chỉ thêm 16 Markdown Stage A. |
+| Diff từ reviewed baseline | 0. So với addb59a… chỉ thay đổi 17 Markdown Stage A. Plan V2 có review-resolution.md. |
 | Diff from Business Spec stated baseline | Eight added specification files, 761 lines; no source changes between `25d943fa3825523e14a596aab601bb4e38983853` and HEAD |
 
 No branch switch, pull, runtime, benchmark, or test was performed. The Business Spec's source baseline is older, but the audited application source has no delta from it. The planning files in that newer commit must still be reconciled with current phase governance.
@@ -69,3 +69,8 @@ The inventory distinguishes file existence from depth of review. Core contract/d
 
 No live SUMO source experiment, detector calibration, queue-method capture, database read, benchmark or test was run. Some contract, phase-governance and performance supporting documents/evidence were inspected by relevant sections rather than exhaustively read; this remains an audit completeness limitation. Those items are plan prerequisites, not completed evidence.
 
+## Final architecture review evidence
+
+Baseline remote xác minh bằng exact ref. Origin fetch refspec mặc định chỉ theo dõi final, nên dùng explicit target refspec và đối chiếu FETCH_HEAD/ls-remote. Không có application delta từ Plan V2.
+
+Source call chain cập nhật: CoreWorkLedger._suppress/_advance_work tác động tối đa hai Core memberships và giữ completed proof cũ immutable. processor._changes chờ required invalidation prefix, _work dùng one-member stream và finish CAS. GoldCoreStore.open kiểm tra schema v1/application guard; transaction BEGIN IMMEDIATE giữ lease. CoreReplayManifest.check reject moving authority, run_cycle hiện dừng ở terminal Core replay. Legacy repositories._insert/find_existing và migration 005 không phải active V1 writer. Xem [kiến trúc và đối chiếu source](architecture-design.md) và [R01–R09](review-resolution.md). Đây là static review, chưa có runtime test mới.

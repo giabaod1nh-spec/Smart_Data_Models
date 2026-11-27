@@ -1,6 +1,6 @@
 # Bàn giao Phase 4B Stage A
 
-Baseline review local và remote `035e88e26151951dbee407934751550ae7bfc381`, branch `codex/phase-1-v1-raw`. So với Business Spec `addb59a…`, chỉ có 16 Markdown Stage A. Xem [scope và evidence](audit.md), [RV/SR](review-resolution.md) và [decisions](decisions.md).
+Baseline review local và remote `e57116e5bdda9fc6c39fdf84ae83c78dcd780cbc`, branch `codex/phase-1-v1-raw`. So với Business Spec `addb59a…`, chỉ có 17 Markdown Stage A trong Plan V2. Xem [scope và evidence](audit.md), [RV/SR và R01–R09](review-resolution.md) và [decisions](decisions.md).
 
 **READY FOR OWNER DESIGN REVIEW. SOURCE FEASIBILITY REQUIRED. IMPLEMENTATION ENTRY BLOCKED.**
 
@@ -9,3 +9,6 @@ Baseline review local và remote `035e88e26151951dbee407934751550ae7bfc381`, bra
 - Dùng feasibility evidence để đóng expected slots và source version, metric registry và calibration, bounded state/retention, rebuild, publication và serving interface. Cần design closure review trước implementation.
 - G-ENTRY chờ fresh paced minimum gate hoặc owner amendment theo D-A14. G-PERF vẫn mở. Gold publication cần G-COV/G-REV. Pressure, queue và comparisons có gates riêng.
 - Stage B nhận logical Gold serving contract sau Stage A acceptance. Stage C và Phase 5 giữ nguyên trách nhiệm UI và cutover.
+## Sau final architecture review
+
+Ưu tiên A-P03 để chốt lifecycle/schedule authority rồi A-P05 để chốt atomic state, migration và resource envelope. [State schema](state-schema.md) và [publication/replay](publication-recovery-design.md) là source cho implementation design, cần owner phê duyệt. Kế hoạch chưa sẵn sàng implementation khi G-ENTRY, G-COV và các design approvals còn mở. FA-01–30 đã lập kế hoạch và chưa chạy.

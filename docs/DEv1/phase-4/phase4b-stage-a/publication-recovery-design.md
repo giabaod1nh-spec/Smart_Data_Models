@@ -1,71 +1,32 @@
-# Business publication, revision and recovery design
+# Publication, recovery và replay
 
-## Separate state dimensions
+## R06/R07: publish durable result qua một authority
 
-Do not overload Core `COMPLETE` as business `PUBLISHED`.
+[State machine và identity](state-schema.md) quy định atomic obligation, COMPUTED và immutable result/revision. ClickHouse hiện chưa có active V1 writer. Marts ứng viên dùng append-only rows với (result ID, grain, row key, digest). Gold coordinator giữ SQLite publication authority duy nhất, writer I/O dùng short-lived claim token và deadline, không ghi pointer. SQLite và ClickHouse không dùng chung transaction.
 
-1. **Source completeness:** expected observations and per-metric coverage are evaluated against approved schedule/population.
-2. **Core work:** work generation and verified source proof complete for the recorded input fence.
-3. **Business result:** deterministic metric calculations and cross-grain rollups complete for pinned metric versions.
-4. **Business revision:** monotonic per logical result key, tied to Core generation, topology, definition set and proof identity.
-5. **Publication:** staged rows verified; one durable manifest/fence marks an entire compatible result family eligible.
-6. **Serving eligibility:** query selects current published manifest only if generation/source fence is not suppressed by a known invalidation.
+1. Coordinator claim PENDING theo live budget, recheck generation/token, validate payload/schema/digest, chuyển WRITING. Worker dùng expected row manifest và batch count/byte caps. Negative generation check trước dispatch giảm stale writes, còn CAS cuối mới quyết định visibility.
+2. Đọc exact keys trước insert/retry. Nếu ambiguous timeout, reconcile đủ các grain: missing keys được append, duplicate identical gộp theo key, divergent/unexpected key cách ly result. Không dựa vào insert token sau TTL, FINAL hay eventual merge. Verify cả keys/count/digest bằng exact read-back với read consistency của deployment đã duyệt. Nếu discrepancy hoặc replica chưa thấy kết quả, không publish. Publisher không tái compute.
+3. Coordinator ghi VERIFIED với verified row digest chỉ khi claim/lease, scope, generation, proof và suppression fence match. Trong transaction publish, recheck VERIFIED và current generation/policy, set pointer, bump epoch và PUBLISHED atomic. Invalidation ACK hoặc late change đã xác nhận phải bump relevant epoch và clear prior pointer trong cùng Core-local transaction. Late writer có thể để lại immutable orphan nhưng không thể publish revision cũ.
+4. Phục hồi WRITING qua pending reconciliation. Crash sau CH write trước SQLite commit để staged rows invisible. VERIFY/PUBLISH retry dùng cùng result và manifest. Storage cap/CH failure báo degraded và giữ payload cho tới terminal approved. Cleanup của orphan dùng bounded sweep, chờ expired claims, in-flight CH deadlines/grace, no current pointer, no read pin và retention gate. Late inserts sau cleanup phải vẫn invisible và nhận diện lại được qua result identity/tombstone.
+5. Gold reader pin exact manifest set, expected timeline và scope epochs trong một SQLite snapshot, release lock, query CH bằng exact IDs. Verify payload/projection/digests và grain set, rồi revalidate scope epochs/selectors trong snapshot mới trước return. Điểm đọc là lần validate authority cuối. Range/experiment recheck chung cả set. Nếu fence đổi, bounded retry hoặc REPROCESSING/STALE_CURSOR. Authority unavailable trả UNAVAILABLE cả cache warm. Revision cũ suppressed + revision mới staged cho no effective result. Không claim instant propagation trước Gold invalidation ACK. [Serving contract](serving-contract.md).
 
-Candidate lifecycle: `NOT_ELIGIBLE → COMPUTING → STAGED → VERIFIED → PUBLISHED`; failure → `FAILED` with no visibility; source invalidation/generation change → `SUPPRESSED/REPROCESSING`; corrected output creates a new revision. Partial metric availability can be published only if approved metric-specific quality policy allows it, with explicit per-metric states and no blending of old/new rows.
-
-## Atomic visibility across SQLite and ClickHouse
-
-There is no distributed transaction. Proposed protocol:
-
-1. Under local SQLite transaction and current owner/generation fence, create deterministic result identity and `STAGING` manifest with expected output grains/count, proof identity and definition versions.
-2. Compute output bytes/rows deterministically from one verified input proof. Record digest and stage immutable rows in ClickHouse with deterministic insert token/row identity where supported. Retry ambiguous inserts idempotently; never assume a timeout means failure.
-3. Read back by immutable output identity and verify row count, keys, values/digest and proof lineage independently of the aggregation code.
-4. In a SQLite transaction, recheck generation, suppression, invalidation cursor/fence and owner lease; mark manifest `PUBLISHED` and advance current-effective pointer only if every expected grain verifies.
-5. Serving resolves exactly one manifest/revision and filters all products by it. It never independently takes latest revision from each table.
-
-Crash after ClickHouse insert but before manifest publish leaves invisible staged rows. Recovery re-verifies and publishes if fences still hold, otherwise marks them orphaned/suppressed for retention cleanup. Crash after SQLite publish returns the same effective manifest. If source invalidation arrives later, suppression is durable locally before new work; serving must consult the effective manifest/fence so invalidated revision is not selected after Gold observes the invalidation. The design cannot promise instantaneous source-to-serving suppression before Silver invalidation is observed.
-
-## Failure matrix
-
-| Failure point | Durable state | May serve? | Recovery and expected result |
-|---|---|---|---|
-| Before stage manifest | No business obligation | Existing prior published revision only if its fence remains valid | Retry current generation from verified source |
-| After `STAGING`, before CH write | Manifest only | No new result | Resume same deterministic ID or fail it; no duplicate revision |
-| CH insert rejected | Manifest + partial/none rows | No staged result | Retry bounded insert; verify all expected rows |
-| CH accepted, client timed out | Possibly all rows; outcome ambiguous | No new result | Query deterministic identity, compare expected digest, then continue or repair |
-| Some grains inserted | Partial rows + `STAGING` | No new result family | Insert missing rows, verify whole family; never expose individual grain early |
-| Read-back/validation mismatch | Staged rows + failed validation | No new result | Quarantine result identity, preserve evidence, recompute only after cause resolved |
-| Crash before publication transaction | Verified rows, unpublished manifest | No new result | Recheck generation/fence then publish or suppress |
-| Crash after publication transaction | Published manifest and pointer | Yes, all products under same manifest | Idempotent restart returns same revision |
-| Invalidation observed before publication | Suppression/fence durable | No invalidated result | Discard/stage retained data as orphan; recompute new generation |
-| Invalidation arrives after publication | Existing published manifest then new suppression | Once suppression is durable, prior result unavailable/current status reprocessing | Create corrected revision; never blend products |
-| Replay run | Isolated namespace/database/lock | No live result | Replay produces deterministic isolated manifest; no live writes |
-
-## Required invariants and oracle
-
-All direction/intersection/network rows served together must carry one publication manifest, run generation, topology, definition set and business revision. A missing metric cannot borrow its value from an older revision. Use idempotent result IDs; conflicting output for same ID is an integrity fault. Replay state is isolated and V2 is untouched. An independent source-derived oracle checks expected slot set, values, row identities, digests and effective selection. Crash tests inspect both SQLite manifests and ClickHouse physical rows plus serving results.
-
-## Protocol bổ sung (RV-07/09/10)
-
-SQLite do Gold coordinator sở hữu. Obligation key gồm namespace, Core work ID, generation, input hash, source binding, definition set, source semantics version và population/schedule digest. Unique key chặn cấp revision lặp. Immutable result ID hash canonical obligation key + assigned revision. Expected row set là exact grain/entity keys cộng content hashes và row count cho mỗi grain. Durable transaction finish + obligation là một đơn vị: crash trước commit để RUNNING và replay work, sau commit obligation luôn tồn tại dù worker chưa gửi CH. Quét đối chiếu bounded theo keyset phát hiện proof cũ hoặc lỗi invariant.
-
-Writer đọc exact result ID trước retry insert mơ hồ. Read-back đối chiếu canonical payload từng key với manifest, chỉ retry bổ sung key thiếu dưới writer lease. Bản sao byte-identical được gộp theo key khi đọc và ghi cảnh báo, kể cả sau thời hạn insert-token. Hai payload khác nhau cùng key là integrity fault, cách ly cả revision. Đối soát tất cả grain trước transaction đổi pointer. Không lấy MAX(revision), insertion time hoặc merge làm authority. Cleanup staged/orphan chỉ khi fence xác định không còn quyền publish và retention/read pin đã hết. Sau invalidation/late event, transaction Gold bump fence và suppress pointer liên quan, outstanding stages mất quyền publish. Nguồn thay đổi trước khi Gold nhận invalidate có khoảng eventual consistency.
-
-Serving qua module Gold reader sở hữu truy cập SQLite read-only với transaction ngắn, CH read-only. Stage B gọi giao diện Gold logic này qua adapter/transport cần owner duyệt. CH-only views không kiểm tra được pointer. CH mirror của authority có chi phí đồng bộ và stale-read, chỉ xem xét nếu đo được cần thiết. Ưu tiên reader module với một adapter được cấp quyền, chưa yêu cầu service mới hay Spring truy cập SQLite trực tiếp.
-
-1. Trong cùng SQLite snapshot, resolve scope/range, exact manifest IDs kể cả gaps và pin fence token gồm publication epoch theo run/duration và timeline/definitions digest.
-2. Kết thúc transaction rồi query CH bằng exact result IDs. Validate keys, digests, grain counts và duplicate/conflict rules, chỉ trả projections sau verify.
-3. Mở snapshot SQLite mới, revalidate cùng fence/pointer set trước khi trả response. Mốc đọc là lần kiểm tra cuối thành công trong local authority, không thu hồi được response đã phát. Không claim distributed snapshot.
-4. Fence đổi trong lúc đọc → retry trong retry/deadline budget hoặc REPROCESSING. Authority outage → UNAVAILABLE, không fallback CH/cache. Revision 1 suppressed + revision 2 staged → không có effective result. Multi-window pin cả set trong một snapshot; từng window có revision riêng. KPI/rank/cell chia sẻ selection token. Cursor theo range, sort key và fence. Nếu revision đổi giữa pages thì trả STALE_CURSOR và bắt đầu lại. Cache theo exact IDs + fence, revalidate authority mỗi hit. Coarse epoch có thể retry vì đổi ngoài range, đo trước khi chuyển sang fine-grained validation.
-
-| Barrier bổ sung | Trạng thái và recovery | Acceptance |
+| Failure | Persistent outcome và recovery | FA |
 |---|---|---|
-| Trước/sau Core finish CAS | Cả proof và obligation commit cùng nhau hoặc không có; restart claim work hoặc drain durable obligation | SA-09 |
-| Fence đổi khi staging (late/invalidate) | Suppress; discard stage khỏi effective set; worker generation mới tính lại | AC-16/18 |
-| CH duplicate/conflicting rows | Identical dedup, divergent digest fail closed; rebuild có quản trị | SA-17 |
-| Invalidation/range revision race trong khi serving | Retry hoặc REPROCESSING/STALE_CURSOR; không trộn manifest set | SA-13/14 |
-| Authority mất kết nối | UNAVAILABLE kể cả cache còn warm; retry bounded | SA-18 |
+| CH down hoặc deadline | WRITING → PENDING, COMPUTED preserved; per-dependency backoff | 15 |
+| Timeout nhận insert hoặc partial grain | Exact reconcile, append missing, verify family trước pointer | 16 |
+| Duplicate identical/divergent key | Gộp identical, divergent BLOCKED, no pointer | 17 |
+| Crash sau CH insert | Staged hidden, same revision on restart | 18 |
+| Invalidation/late generation trong compute/write | Token rejected, old current cleared atomic, orphan hidden | 19 |
+| Reader race, authority lost | Revalidate or fail closed; range cannot mix selectors | 20 |
 
-## Historical proofs và rebuild
+## Historical proofs, version rebuild và replay (R08)
 
-Scan Core proof index theo current generation, run/range và durable keyset cursor riêng. Barriers ghi cursor và obligation idempotent cùng transaction. Historical proof chỉ là discovery input. Backfill cần source/binding/version, lịch và retention tương thích. Đọc lại indexed members qua public Silver, reverify proof/generation/hash/fence. Proof cũ lệch current source thì dùng current generation đủ bằng chứng, hoặc báo unsupported/retention gap, giữ evidence. Quota theo windows, bytes, wall budget, RSS và priority live. Replay dùng namespace riêng. Late data tạo generation mới. Invalidation suppress current. Definition upgrade cùng proof nhưng definition set mới. Source semantics hoặc coverage policy đổi thì key compatibility mới và explicit rebuild/selection approval. Không diễn giải lại rows cũ.
+Current CoreReplayManifest gắn source binding, fully applied frozen (Hc,Hi,Sc,Si), run generation/topology/manifest, scope và versions. replay.py:check reject thay đổi boundary. GoldCoreProcessor.run_cycle đánh dấu Core COMPLETE khi đạt frozen cursor, work lane đã yên và không có fault. Terminal Core shortcut hiện chấm dứt Core loop. Thiết kế Business runner có phase/tick độc lập sau Core terminal. Không nới Core replay rules hay ép live producer dừng. Nếu source live advances làm frozen authority khác, giữ Core behavior fail/abort. Muốn historical replay song song ổn định cần separately approved immutable captured source đọc qua public contract tương thích. Scheduler cap và pause replay khi live pressure.
+
+Replay ID Business = hash(Core replay ID, frozen schedule/lifecycle, metric/coverage/source/projection versions, explicit eligibility scope). Persist bounded keyset expected work shards từ approved schedule và frozen Core window/generation index. Seal set digest sau Core COMPLETE và xác nhận cả missing/terminal statuses theo timeline. Required full windows cần effective proof và obligation; missing/unsupported/conflict phải có disposition và làm scope incomplete nếu required. Terminal partial/excluded chỉ có thể loại theo rule đã được frozen trước. Không chọn scope chỉ từ results. Replay DB, leases, publication prefix và CH namespace tách live. Scans, retries và cleanup scoped tới replay ID.
+
+- Core completion cần Core predicate hiện hành và persisted COMPLETE.
+- Compute completion chỉ khi mỗi required current-generation key có valid durable COMPUTED payload. Pending, retries, unresolved conflicts hoặc BLOCKED không count.
+- Publication completion chỉ khi mỗi required key có verified, effective PUBLISHED pointer trong replay namespace. Nếu job mode compute-only được duyệt thì publication = NOT_REQUESTED, overall status ghi COMPUTE_ONLY_COMPLETE.
+- Overall full replay COMPLETE cần đủ ba predicates, same expected set digest và last local fence CAS. SUPERSEDED lineage giữ audit và required key vẫn phải có current replacement trong đúng frozen set. Nếu correction thuộc boundary mới, abort replay cũ và lập job ID mới, không thêm đến vô hạn.
+- Restart đọc sealed set/checkpoints, revoke stale claims, dùng durable projections/results và resume stage. Correction/stale authority reject commit. Sau activation, preexisting Core proofs scan theo bounded keyset riêng, verify public requalification, compare input_hash/current generation và record obligation idempotent. Retention gap và unsupported policy báo BLOCKED/UNSUPPORTED. Version rebuild có identity mới, giữ old evidence, không reset Core or overwrite old interpretations.
