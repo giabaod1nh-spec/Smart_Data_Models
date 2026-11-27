@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import uuid4
 
+from de.gold.business import VERIFIED_DEFINITION
 from de.gold_runtime.business_state import _digest, _verify_canonical, _RESULT_LIMIT, _MANIFEST_LIMIT
 from de.gold_runtime.checkpoint_store import CoreStateFault
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
@@ -34,6 +35,7 @@ class DivergentResult(CoreStateFault):
 
 def result_rows(payload: bytes) -> tuple[PhysicalRow, ...]:
     document = json.loads(payload)
+    verified = document.get("definition_set") == VERIFIED_DEFINITION
     rows = document["rows"]
     if not isinstance(rows, list) or not rows or len(rows) > _MAX_ROWS:
         raise CoreStateFault("Invalid result row population")
@@ -58,6 +60,9 @@ def result_rows(payload: bytes) -> tuple[PhysicalRow, ...]:
         if key in keys:
             raise CoreStateFault("Duplicate result row key")
         keys.add(key)
+        if verified:
+            row = dict(row, window_start_us=document["start_us"], window_duration_s=document["duration_s"],
+                       definition_set=document["definition_set"])
         physical.append(PhysicalRow(grain, key, canonical_bytes(row)))
     if networks != 1 or not directions or referenced != intersections:
         raise CoreStateFault("Expected all three consistent Gold grains")

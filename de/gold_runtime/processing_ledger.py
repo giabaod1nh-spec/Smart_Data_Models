@@ -353,10 +353,15 @@ from de.gold_runtime.checkpoint_store import CoreStateFault
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
 
 
+def canonical_run_identity(run_id, generation, topology_digest, manifest_identity):
+    return dict(source_namespace="live", simulation_run_id=run_id,
+                run_generation=generation, topology_digest=topology_digest,
+                manifest_identity=manifest_identity)
+
+
 def core_run_identity(entry):
-    return dict(source_namespace="live", simulation_run_id=entry.run_id,
-                run_generation=entry.run_generation, topology_digest=entry.topology_digest,
-                manifest_identity=entry.manifest_identity)
+    return canonical_run_identity(entry.run_id, entry.run_generation, entry.topology_digest,
+                                  entry.manifest_identity)
 
 
 def core_window_identity(entry, simulation_time, duration):

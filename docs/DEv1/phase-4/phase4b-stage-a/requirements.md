@@ -36,6 +36,8 @@ Stage A includes feasibility, metric/coverage decisions, independent oracles, Go
 
 ## Ranh giới sau review
 
+Functional implementation and evidence are tracked in the [execution status](execution-status.md). The disposable Reader covers B4B-01–05 and B4B-10–13 for the verified physical metrics it serves, with the retained source oracle and controlled publication tests recorded there. Physical verification remains open. B4B-06/07 require pressure calibration and B4B-08 requires a qualified actual run pair. Those outputs carry explicit unavailable or unknown statuses until their evidence is supplied.
+
 B4B-04 đề xuất duration switch 60/300. Nếu owner xác nhận nested comparison riêng thì dùng cùng aligned end, ghi rõ samples chồng lấn, không tạo mart riêng. B4B-01/02/03 giữ scenario-neutral Core membership và context sampled. B4B-08 cùng E-01…04 có data support/comparability ở A-I05. End-to-end UI riêng ở Stage C. B4B-12 phụ thuộc durable obligation và read protocol. Pressure trì hoãn riêng không đóng đủ 4 KPI.
 ## R02/R05: eligibility và identity
 

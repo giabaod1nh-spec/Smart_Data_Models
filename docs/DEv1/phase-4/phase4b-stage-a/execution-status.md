@@ -4,6 +4,8 @@ Reviewed baseline and initial local/remote: `05c592d30faa9ace6cdb589d0a771f7031f
 
 ## Approval record
 
+On 2026-11-27 (Asia/Bangkok), the Project Owner and Performance Acceptance Owner extended D-A14 to UP-01, UP-02A/B and A-I01–A-I07 functional implementation and correctness in isolated, disposable development environments. A finite source workload may drain sequentially. Physical source-to-Gold verification and approved metric/coverage semantics remain mandatory. Phase 4A performance qualification, representative performance tests, coexistence, resource capacity and operational acceptance remain open for the later milestone. See the [authoritative amendment](../performance/acceptance-result.md).
+
 On 2026-11-27 (Asia/Bangkok), the requester confirmed both the project owner and Performance Acceptance owner roles and approved the frozen D-A14 exception. The effective amendment is in [Phase 4A Performance Acceptance](../performance/acceptance-result.md). The requester separately confirmed authority and approval for UP-01 (source, contract and Silver) and UP-02A/B in the frozen isolated scope. The requester also approved G-MART/G-REV design for A-I03 on disposable stores only. Official source adoption, G-COV, live publication, full-entry performance and operational gates retain their requirements.
 
 ## Implementation and evidence
@@ -15,7 +17,7 @@ On 2026-11-27 (Asia/Bangkok), the requester confirmed both the project owner and
 | UP-02A/B | Isolated source and metadata fixtures verified | Opt-in raw detector and stopped-length components produce corrected values in the archive sidecar. Shared V1 facts retain legacy values. Silver recomputes values, matches the original or linked suppression, and validates revision lineage. Gold fences correction and withdrawal. Sampled independent SUMO oracle covered all 17 approaches. Source adoption and broader scenarios remain open. |
 | A-I02 | Isolated SQLite state and work handoff verified | Disposable v1→v2 migration, lease-bound reservation, atomic Core proof and durable Business projection, metadata-only wake-up and stale-generation rejection. Fixture work reuses the Core stream interface and can republish a new revision against unchanged completed Core proof after a correction. Live coordinator integration and capacity qualification remain open. |
 | A-I03 | Isolated publication state machine and adapter fixtures verified | Immutable result bytes, exact row-set verification, retry after partial write and SQLite fence. The three-grain ClickHouse adapter is isolated by database name and has an opt-in physical test. Physical execution remains open. |
-| A-I04–07, full integration | Pending respective gates | Existing authoritative full-entry minimum gate, source/metric acceptances, representative workload and continuous business-to-Gold proof. |
+| A-I04–07, functional integration | Authorized, correctness open | Proceed on the isolated development path under the revised D-A14 scope. Source and metric acceptances and source-to-Gold correctness remain required. Representative performance and operational qualification are deferred and open. |
 
 Host Python lacked the repository-pinned `rfc8785==0.1.4`. Tests use the unchanged dependency installed in ignored `.pytest_cache/phase4b-deps` (add to PYTHONPATH). Phase 4A Performance Acceptance remains ENVIRONMENT BLOCKED. These fixture results carry no PA-01–12 credit.
 
@@ -59,3 +61,93 @@ The Docker Linux API was unavailable and WSL listed only the Docker Desktop syst
 - Gold classifies an aligned 60 s or 300 s interval from the locally applied schedule, slot evidence and lifecycle clock, including intervals without a Core window. A complete slot list alone remains `WAITING` while the clock is short of the boundary. An applied metadata-only terminal receipt makes a full interval of explicit missing outcomes `MISSING_WINDOW`, and marks an interval that ends beyond the cutoff `TERMINAL_PARTIAL`. Reopen checks retained the classifications without creating Core windows, advancing the canonical cursors, or writing a Business result. For member-bearing intervals, Core still owns admission to the verified proof path.
 - Silver-reported conflict and later Core suppression retain distinct conflict status and consume their expected slots without metric credit. A window containing only those claims reports `CONFLICTED_WINDOW`. A mixed fixture keeps the measured-zero slot as valid coverage and reports the network result unavailable when its expected coverage is incomplete.
 - A child process abruptly exited before commit, after commit, and after writing immutable archive files before replacing the head. Disposable reopening verified atomic Outbox rows, settled horizon and measurement evidence, byte-identical V1 retry, and no premature head advance. All 43 tests in the affected Gold oracle, Gold state and UP-01 Outbox suites passed. These runs exercise FZ-02 and FZ-03 in isolation. Full source and integrated acceptance remains open.
+
+## Runnable functional checkpoint
+
+| Package | Implemented and verified at this checkpoint | Remaining evidence |
+|---|---|---|
+| UP-01 | The isolated SUMO launcher wrote 1,500 original V1 events in 300 slots across five intersections and exported 22 schedule segments. Reopening the same Outbox installed its local registry without recapture. The existing Silver archive resolver accepted the terminal registry, run/manifest identity and both published archive heads. | Delivery on the dedicated Kafka topic, physical Raw/Bronze/Silver drain and negative-path reconciliation with this retained run. |
+| UP-02A/B | The 1,500 raw measurement objects reconcile with original V1 anchors. An independent oracle checked 5,100 Occupancy, 5,047 Queue and 1,500 Spillback observations. Queue coverage explicitly preserves the 53 missing direction samples. | Physical Silver and Gold reconciliation. Pressure method, weights, severity thresholds and empty-traffic policy still require G-CAL. |
+| A-I01–03 | Gold uses the exact canonical Core run key for both metadata streams. Terminal source evidence makes full member-bearing windows eligible without inserting a fake observation or advancing the canonical clock. One bounded public Silver traversal per window covers all Business metrics and grains. ClickHouse writes immutable rows with typed metric and quality columns. | Physical DDL, read-back, failure recovery and validation of published 60s/300s values against the oracle. |
+| A-I04 | Gold Reader pins SQLite revisions, checks the full physical row manifest and rechecks the fence. It supports run catalog, latest/window/range selection, network and intersection metrics, direction trends, coverage gaps, traffic context, queue diagnosis and adjacent-window deltas. | Physical query evidence. Official pressure ranking, heatmap values and pressure persistence require G-CAL. |
+| A-I05 | Pair comparison checks immutable manifests and comparable conditions before calculating matched-window summaries, per-intersection deltas and trends from Gold. | An actual Adaptive run plus verified treatment and comparability evidence. The retained run is Fixed-Time only. |
+| A-I06 | Dedicated source registry and Outbox reopening are retryable. The coordinator fixture reopens the same published revision, then replays a terminal window into a separate checkpoint and namespace with the same Core proof and exact Gold rows. | Execute source-to-Gold replay and verify physical results, correction, interruption and invalidation. |
+| A-I07 | The actual source oracle expects five 60s windows (115 rows) and one 300s window (23 rows). The runnable Gold drain reports verified members, requests, candidate durations, pending work age and publication counts. | Actual Kafka-to-Gold finite drain, value and lineage reconciliation, with the physical environment described below. Representative performance and operational acceptance are deferred. |
+
+Core retains original event-ID proof order. Stage A groups up to eight contiguous change sequences and lets the public Silver reader enforce its lower configured caps. With a three-entry fixture cap, 12 members required four page requests and produced the same proof digest as 12 single-member requests. The isolated 60-second per-work deadline still applies to the original fixture entry point. The runnable drain uses its explicit wall budget and releases an unsealed claim on expiry. Projection encoding on the retained dataset produced 18,218–20,254 bytes for the 60-second windows and 99,034 bytes for the 300-second window before optional window context. The raw 300-second projection was 252,798 bytes. The original durable 256 KiB cap still applies to compressed bytes. The 600-slot, five-intersection source cap admits at most 3,000 initial measurement receipts plus schedule pages below the existing 4,096-receipt and 32 MiB bounds.
+
+The expanded suites recorded 48 passes and one skipped physical ClickHouse test. A separate affected Core/Foundation run recorded 47 passes, including tests that overlap the expanded suite. The Docker Linux pipe was absent, and the session had no `STAGE_A_CH_PROBE*` configuration. No physical acceptance was recorded. The pinned catalog matched the actual SUMO network. Its detector profile declares a different expected file hash, which remains visible in the source manifest and blocks any assumption of broader detector/source qualification.
+
+## Reproduce the disposable physical validation
+
+Run from the repository root with the existing DE and Visualize dependencies, SUMO and `psutil`. Use a new ignored scratch directory and keep the 2.5 GB available host memory and 512 MiB disk reserves. Each worker runs in the foreground. Record its counters in a second terminal and stop that worker after it drains before starting the next one. Use the dedicated stack and confirm its ports are free before starting it.
+
+1. Use the retained Outbox where available, or make a new fixed-time capture. Keep the JSON output with run ID, generation, topology and manifest digest.
+
+   ```powershell
+   $scratch = (New-Item -ItemType Directory -Path (Join-Path .pytest_cache ("stage-a-verify-" + [guid]::NewGuid().ToString("N")))).FullName
+   python -m Visualize.tools.stage_a_source capture $scratch --duration 300 --seconds 300
+   python -m Visualize.tools.stage_a_source export $outbox
+   python -m de.gold_runtime.stage_a_oracle $outbox
+   ```
+
+   Set `$outbox` and `$archive` from the launcher output. For the retained local dataset, the archive is `.pytest_cache/stage-a-schedule-xj1wv3tl` and the Outbox is its `scheduled-outbox.sqlite3`. Use a resolved absolute path for `$archive`.
+
+2. Start Kafka and ClickHouse using a new Compose project. This stack uses Kafka port 39092 and ClickHouse HTTP port 18124. Check the existing V1 topic and copy the cluster ID printed by the container into `$clusterId`.
+
+   ```powershell
+   $project = "stage-a-" + [guid]::NewGuid().ToString("N").Substring(0,8)
+   docker compose -p $project -f docker-compose.v1-acceptance.yml up -d --wait kafka clickhouse
+   docker compose -p $project -f docker-compose.v1-acceptance.yml run --rm init
+   docker compose -p $project -f docker-compose.v1-acceptance.yml exec kafka /opt/kafka/bin/kafka-cluster.sh cluster-id --bootstrap-server kafka:9092
+   python -m Visualize.tools.stage_a_source deliver $outbox --bootstrap localhost:39092 --cluster-id $clusterId
+   ```
+
+3. Apply the existing V1 migrations to this ClickHouse only. Run Raw until `http://localhost:18097/cutover-ready` reports caught up and `/health` accounts for all 1,500 durable events.
+
+   ```powershell
+   $env:K4_CLICKHOUSE_HOST = 'localhost'
+   $env:K4_CLICKHOUSE_PORT = '18124'
+   python -m de.scripts.migrate_clickhouse --v1-bronze
+   python -m de.scripts.migrate_clickhouse --v1-silver
+   $env:DE_V1_RAW_BOOTSTRAP_SERVERS = 'localhost:39092'
+   $env:DE_V1_RAW_CLICKHOUSE_HOST = 'localhost'
+   $env:DE_V1_RAW_CLICKHOUSE_PORT = '18124'
+   $env:DE_V1_RAW_LEDGER_PATH = Join-Path $scratch 'kafka_raw_v1/ledger.sqlite3'
+   $env:DE_V1_RAW_HEALTH_PORT = '18097'
+   python -m de.kafka_raw.v1_main
+   ```
+
+4. Run Bronze then Silver with their own disposable checkpoints. Save Bronze `/health` once partitions reach the retained Raw boundary. Save Silver `/health` once it reaches the resulting Bronze prefix. Retain both SQLite checkpoints and ClickHouse tables for Gold.
+
+   ```powershell
+   $env:DE_BRONZE_RAW_LEDGER_PATH = $env:DE_V1_RAW_LEDGER_PATH
+   $env:DE_BRONZE_CHECKPOINT_PATH = Join-Path $scratch 'bronze_v1/checkpoint.sqlite3'
+   $env:DE_BRONZE_CLICKHOUSE_HOST = 'localhost'
+   $env:DE_BRONZE_CLICKHOUSE_PORT = '18124'
+   $env:DE_BRONZE_HEALTH_PORT = '18098'
+   python -m de.bronze.main
+
+   $env:SILVER_V1_BRONZE_PATH = $env:DE_BRONZE_CHECKPOINT_PATH
+   $env:SILVER_CHECKPOINT_PATH = Join-Path $scratch 'silver_v1/checkpoint.sqlite3'
+   $env:SILVER_CLICKHOUSE_HOST = 'localhost'
+   $env:SILVER_CLICKHOUSE_PORT = '18124'
+   $env:SILVER_V1_ARCHIVE_ROOT = $archive
+   $env:SILVER_HEALTH_HOST = '127.0.0.1'
+   $env:SILVER_HEALTH_PORT = '18096'
+   python -m de.silver.main
+   ```
+
+5. On that disposable ClickHouse server, allocate a database named `stage_a_probe_<16 lowercase hex digits>` and set the six `STAGE_A_CH_PROBE*` variables named in the physical probe above, including the opt-in. Set `$runId`, `$generation`, `$topology` and `$manifest` from the capture. Run the drain, record its JSON, and take `$runKey` from the catalog. The oracle fails if any of the six physical windows, 138 rows or physical metric values differ. Save the `replay_capture` object from the drain JSON and pass it using `--replay-capture` on a separately allocated checkpoint to run the frozen rebuild.
+
+   ```powershell
+   $gold = python -m de.gold_runtime.stage_a allocate $scratch
+   python -m de.gold_runtime.stage_a drain --checkpoint $gold --run-id $runId --generation $generation --topology $topology --manifest $manifest --seconds 1800
+   python -m de.gold_runtime.stage_a catalog --checkpoint $gold
+   python -m de.gold_runtime.stage_a read --checkpoint $gold --run-key $runKey --duration 60 --start 0 --end 300
+   python -m de.gold_runtime.stage_a read --checkpoint $gold --run-key $runKey --duration 300
+   python -m de.gold_runtime.stage_a_oracle $outbox --checkpoint $gold
+   python -m pytest de/tests/gold_runtime/test_stage_a_business_clickhouse.py -q
+   ```
+
+   Capture the output revisions, result and manifest hashes, duplicate/conflict outcomes and remaining work. The full pipeline run can be staged sequentially while Kafka and ClickHouse retain their durable data.

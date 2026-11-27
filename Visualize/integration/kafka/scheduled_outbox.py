@@ -380,6 +380,24 @@ class IsolatedScheduledOutbox(KafkaOutboxStore):
         ))
 
     def export_checkpoint(self):
+        return self.export_archive_prefixes()[0]
+
+    def sealed_archive_prefixes(self):
+        return tuple(self._conn.execute("""
+            SELECT coalesce((SELECT max(sequence) FROM observation_schedule_journal),0),
+                   coalesce((SELECT max(sequence) FROM observation_measurement_revision),0)
+        """).fetchone())
+
+    def source_status(self):
+        row = self._conn.execute("""SELECT lifecycle,EXISTS (SELECT 1 FROM observation_schedule_failure)
+            FROM observation_schedule_head WHERE singleton=1""").fetchone()
+        if row["lifecycle"] == "ENDED":
+            return "INCOMPLETE" if row[1] else "COMPLETE"
+        if row["lifecycle"] == "ABORTED":
+            return "INCOMPLETE"
+        return "RUNNING"
+
+    def export_archive_prefixes(self):
         """Export a bounded batch of committed segments, publishing its head last."""
         directory = self.run_archive / "observation_schedule_v1"
         head_path = directory / "head.json"
@@ -447,7 +465,7 @@ class IsolatedScheduledOutbox(KafkaOutboxStore):
                                       measurement_sequence, measurement_digest), immutable=False)
             for folder in (directory, self.run_archive, self.run_archive.parent, self.db_path.parent):
                 _sync_directory(folder)
-            return sequence
+            return sequence, measurement_sequence
 
     @staticmethod
     def _validate_archive_file(path, expected):

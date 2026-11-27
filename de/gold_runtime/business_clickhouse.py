@@ -10,6 +10,23 @@ from de.gold_runtime.business_state import _RESULT_LIMIT, _digest
 
 _TABLES = {grain: f"gold_v1_{grain}_window" for grain in ("direction", "intersection", "network")}
 _COLUMNS = ("result_id", "row_key", "row_hash", "payload_json")
+_METRICS = ("moving_speed", "stopped_ratio", "observed_load", "queue_mean", "queue_p95", "queue_max", "occupancy_mean")
+_TYPED = {
+    "intersection_id": "Nullable(String) MATERIALIZED JSONExtract(payload_json,'intersection','Nullable(String)')",
+    "direction_id": "Nullable(String) MATERIALIZED JSONExtract(payload_json,'direction','Nullable(String)')",
+    "window_start_us": "Nullable(UInt64) MATERIALIZED JSONExtract(payload_json,'window_start_us','Nullable(UInt64)')",
+    "window_duration_s": "Nullable(UInt16) MATERIALIZED JSONExtract(payload_json,'window_duration_s','Nullable(UInt16)')",
+    "definition_set": "LowCardinality(String) MATERIALIZED JSONExtractString(payload_json,'definition_set')",
+}
+for _metric in _METRICS:
+    _TYPED[_metric] = f"Nullable(Float64) MATERIALIZED JSONExtract(payload_json,'{_metric}','value','Nullable(Float64)')"
+    _TYPED[_metric + "_valid"] = f"Nullable(UInt32) MATERIALIZED JSONExtract(payload_json,'{_metric}','valid','Nullable(UInt32)')"
+    _TYPED[_metric + "_expected"] = f"Nullable(UInt32) MATERIALIZED JSONExtract(payload_json,'{_metric}','expected','Nullable(UInt32)')"
+    _TYPED[_metric + "_status"] = f"LowCardinality(String) MATERIALIZED JSONExtractString(payload_json,'{_metric}','status')"
+for _statistic in ("moving_count", "stopped_count", "ratio_vehicle_count", "load_vehicle_count", "time_slots"):
+    _TYPED[_statistic] = f"Nullable(UInt64) MATERIALIZED JSONExtract(payload_json,'{_statistic}','Nullable(UInt64)')"
+for _statistic in ("weighted_speed", "queue_sum", "occupancy_sum"):
+    _TYPED[_statistic] = f"Nullable(Float64) MATERIALIZED JSONExtract(payload_json,'{_statistic}','Nullable(Float64)')"
 
 
 class IsolatedClickHouseRows:
@@ -33,13 +50,20 @@ class IsolatedClickHouseRows:
                                      settings={"max_execution_time": self.max_query_seconds}).result_rows
         if any(name not in _TABLES.values() for (name,) in existing):
             raise ValueError("disposable database contains unrelated tables")
+        known = {name for (name,) in existing}
+        typed_ddl = ", ".join(f"{name} {definition}" for name, definition in _TYPED.items())
         for grain in _TABLES:
             self.client.command(f"""
                 CREATE TABLE IF NOT EXISTS {self._name(grain)} (
                     result_id FixedString(64), row_key FixedString(64), row_hash FixedString(64),
-                    payload_json String
+                    payload_json String, {typed_ddl}
                 ) ENGINE=MergeTree ORDER BY (result_id,row_key,row_hash)
             """, settings={"max_execution_time": self.max_query_seconds})
+            if _TABLES[grain] in known:
+                additions = ", ".join(f"ADD COLUMN IF NOT EXISTS {name} {definition}"
+                                      for name, definition in _TYPED.items())
+                self.client.command(f"ALTER TABLE {self._name(grain)} {additions}",
+                                    settings={"max_execution_time": self.max_query_seconds})
 
     @staticmethod
     def _identity(value):

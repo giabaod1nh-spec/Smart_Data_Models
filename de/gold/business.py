@@ -12,6 +12,7 @@ from de.silver.incremental_contract import canonical_bytes
 _US = 1_000_000
 _MAX_SAFE_INT = (1 << 53) - 1
 _CONFLICT = object()
+VERIFIED_DEFINITION = "stage_a_verified_v2"
 
 
 class ResourceLimit(ValueError):
@@ -36,6 +37,7 @@ class DirectionSample:
     stopped: int | None
     moving_speed_kmh: float | None
     queue_m: float | None
+    occupancy_pct: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +76,8 @@ class Row:
     load_vehicle_count: int
     time_slots: int
     queue_sum: float | None
+    occupancy_mean: Metric | None = None
+    occupancy_sum: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +86,21 @@ class WindowResult:
     duration_s: int
     slot_states: tuple[tuple[str, int, int, int, int, int], ...]
     rows: tuple[Row, ...]
+    definition_set: str = "stage_a_fixture_v1"
 
-    def encode(self) -> bytes:
-        payload = canonical_bytes({
-            "codec_version": 1,
-            "definition_set": "stage_a_fixture_v1",
-            **asdict(self),
-        })
+    def encode(self, *, context=None, measurement_methods=None) -> bytes:
+        document = asdict(self)
+        if self.definition_set != VERIFIED_DEFINITION:
+            for row in document["rows"]:
+                del row["occupancy_mean"], row["occupancy_sum"]
+        else:
+            methods = {(node, direction): items for node, direction, items in (measurement_methods or ())}
+            for row in document["rows"]:
+                if row["grain"] == "intersection" and context is not None:
+                    row["traffic_context"] = context.get(row["intersection"], {})
+                if row["grain"] == "direction" and measurement_methods is not None:
+                    row["measurement_methods"] = methods.get((row["intersection"], row["direction"]), {})
+        payload = canonical_bytes(dict(document, codec_version=1))
         if len(payload) > 32 * 1024:
             raise ResourceLimit("computed payload exceeds the fixture limit")
         return payload
@@ -113,8 +125,10 @@ def _count(value: int | None) -> int | None:
 
 
 def _sample(row: DirectionSample) -> DirectionSample:
+    occupancy = _num(row.occupancy_pct)
     return DirectionSample(row.direction, _count(row.vehicles), _count(row.stopped),
-                           _num(row.moving_speed_kmh), _num(row.queue_m))
+                           _num(row.moving_speed_kmh), _num(row.queue_m),
+                           occupancy if occupancy is not None and occupancy <= 100 else None)
 
 
 def _validate(spec: WindowSpec) -> dict[str, frozenset[str]]:
@@ -190,7 +204,7 @@ def _reduce(spec, population, members):
     return claims
 
 
-def _check_projection_size(claims):
+def _check_projection_size(claims, *, limit):
     # Check the final projection, so which conflict claim arrived first
     # cannot determine whether a work item passes this guard.
     size = 2
@@ -200,11 +214,12 @@ def _check_projection_size(claims):
         else:
             (event, actual, directions), valid = entry
             record = [node, due, event, actual, valid, [
-                [row.direction, row.vehicles, row.stopped, row.moving_speed_kmh, row.queue_m]
+                ([row.direction, row.vehicles, row.stopped, row.moving_speed_kmh, row.queue_m]
+                 + ([row.occupancy_pct] if row.occupancy_pct is not None else []))
                 for row in directions
             ]]
         size += len(canonical_bytes(record)) + 1
-        if size > 256 * 1024:
+        if size > limit:
             raise ResourceLimit("projected slot bytes exceed the fixture limit")
 
 
@@ -222,15 +237,20 @@ class _Stats:
     queue_sum: float
     queue_max: float | None
     queue_p95: float | None
+    occupancy_count: int
+    occupancy_sum: float
 
 
 def _direction_stats(samples):
     load_valid = ratio_valid = speed_valid = vehicles = ratio_vehicles = stopped = moving = 0
     weighted = []
     queues = []
+    occupancy = []
     for row in samples:
         if row.queue_m is not None:
             queues.append(row.queue_m)
+        if row.occupancy_pct is not None:
+            occupancy.append(row.occupancy_pct)
         if row.vehicles is None:
             continue
         load_valid += 1
@@ -252,7 +272,8 @@ def _direction_stats(samples):
     return _Stats(load_valid, ratio_valid, speed_valid, vehicles, ratio_vehicles,
                   stopped, moving, fsum(weighted), count, fsum(queues),
                   queues[-1] if count else None,
-                  queues[(95 * count + 99) // 100 - 1] if count else None)
+                  queues[(95 * count + 99) // 100 - 1] if count else None,
+                  len(occupancy), fsum(occupancy))
 
 
 def _metric(numerator, denominator, expected, valid):
@@ -263,7 +284,7 @@ def _metric(numerator, denominator, expected, valid):
     return Metric(numerator / denominator, expected, valid, "OK")
 
 
-def _make_row(grain, intersection, direction, items, time_slots):
+def _make_row(grain, intersection, direction, items, time_slots, *, measure_occupancy):
     group = tuple(stat for _, stat in items)
     expected = len(group) * time_slots
     weighted = fsum(stat.weighted for stat in group)
@@ -291,15 +312,22 @@ def _make_row(grain, intersection, direction, items, time_slots):
             q_max = Metric(group[0].queue_max, time_slots, time_slots, "OK")
     elif direction is not None:
         q_mean = q_max = p95
+    occupancy_mean = occupancy_sum = None
+    if direction is not None and measure_occupancy:
+        stat = group[0]
+        occupancy_sum = stat.occupancy_sum
+        occupancy_mean = _metric(occupancy_sum, time_slots, time_slots, stat.occupancy_count)
     return Row(grain, intersection, direction, speed, ratio, load, q_mean, q_max, p95,
-               worst, weighted, moving, stopped, ratio_vehicles, load_vehicles, time_slots, q_sum)
+               worst, weighted, moving, stopped, ratio_vehicles, load_vehicles, time_slots, q_sum,
+               occupancy_mean, occupancy_sum)
 
 
-def compute_fixture_window(spec: WindowSpec, members) -> WindowResult:
-    """Fold a bounded fixture work item in deterministic archive/slot order."""
+def compute_fixture_window(spec: WindowSpec, members, *, definition_set="stage_a_fixture_v1") -> WindowResult:
+    """Fold a bounded work item in deterministic archive and slot order."""
+    measure_occupancy = definition_set == VERIFIED_DEFINITION
     population = _validate(spec)
     claims = _reduce(spec, population, members)
-    _check_projection_size(claims)
+    _check_projection_size(claims, limit=(512 if measure_occupancy else 256) * 1024)
     time_slots = len(spec.slots_us)
     rows = []
     slot_states = []
@@ -326,8 +354,11 @@ def compute_fixture_window(spec: WindowSpec, members) -> WindowResult:
         for direction, samples in columns.items():
             item = (intersection, direction), _direction_stats(samples)
             items.append(item)
-            rows.append(_make_row("direction", intersection, direction, (item,), time_slots))
-        rows.append(_make_row("intersection", intersection, None, items, time_slots))
+            rows.append(_make_row("direction", intersection, direction, (item,), time_slots,
+                                  measure_occupancy=measure_occupancy))
+        rows.append(_make_row("intersection", intersection, None, items, time_slots,
+                              measure_occupancy=measure_occupancy))
         network_items.extend(items)
-    rows.append(_make_row("network", None, None, network_items, time_slots))
-    return WindowResult(spec.start_us, spec.duration_s, tuple(slot_states), tuple(rows))
+    rows.append(_make_row("network", None, None, network_items, time_slots,
+                          measure_occupancy=measure_occupancy))
+    return WindowResult(spec.start_us, spec.duration_s, tuple(slot_states), tuple(rows), definition_set)

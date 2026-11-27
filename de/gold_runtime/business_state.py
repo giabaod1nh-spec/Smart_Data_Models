@@ -129,6 +129,13 @@ CREATE INDEX IF NOT EXISTS business_suppression_window
  ON core_suppression(run_key,simulation_time);
 """
 
+_RUNTIME_BINDING = """
+CREATE TABLE IF NOT EXISTS business_runtime_binding (
+ singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+ identity BLOB NOT NULL
+);
+"""
+
 
 class IsolatedBusinessStore(GoldCoreStore):
     """Opt-in additive schema; the production Core opener rejects this version."""
@@ -185,18 +192,20 @@ class IsolatedBusinessStore(GoldCoreStore):
 
     def _upgrade(self, db, version):
         if version == 1:
-            db.executescript(f"BEGIN IMMEDIATE; {_SCHEMA} {_PUBLICATION_VERIFICATION} {_COVERAGE_INDEX} "
+            db.executescript(f"BEGIN IMMEDIATE; {_SCHEMA} {_PUBLICATION_VERIFICATION} {_COVERAGE_INDEX} {_RUNTIME_BINDING} "
                              "PRAGMA user_version=2; COMMIT;")
             return
         names = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN "
-                 "('business_publication_verification','business_core_generation_fence','business_suppression_window')")}
+                 "('business_publication_verification','business_core_generation_fence','business_suppression_window',"
+                 "'business_runtime_binding')")}
         columns = {row[1] for row in db.execute("PRAGMA table_info(business_observation_schedule)")}
-        if len(names) != 3 or "lifecycle_tick" not in columns:
+        if len(names) != 4 or "lifecycle_tick" not in columns:
             # Older disposable v2 receipts without this coordinate retain their
             # verified slot and terminal evidence until the next receipt applies.
             clock_column = ("ALTER TABLE business_observation_schedule ADD COLUMN lifecycle_tick INTEGER;"
                             if "lifecycle_tick" not in columns else "")
-            db.executescript(f"BEGIN IMMEDIATE; {_PUBLICATION_VERIFICATION} {_COVERAGE_INDEX} {clock_column} COMMIT;")
+            db.executescript(f"BEGIN IMMEDIATE; {_PUBLICATION_VERIFICATION} {_COVERAGE_INDEX} {_RUNTIME_BINDING} "
+                             f"{clock_column} COMMIT;")
 
 
 def _digest(payload):
@@ -226,6 +235,14 @@ class BusinessState:
     def _tx(self):
         return self.store.transaction(self.namespace, self.lease_token)
 
+    def bind_runtime(self, identity):
+        expected = canonical_bytes(identity)
+        with self._tx() as db:
+            db.execute("INSERT OR IGNORE INTO business_runtime_binding VALUES (1,?)", (expected,))
+            actual = db.execute("SELECT identity FROM business_runtime_binding WHERE singleton=1").fetchone()[0]
+            if actual != expected:
+                raise CoreStateFault("Stage A runtime binding changed")
+
     def recover_reservations(self):
         """Release only unsealed claims from old leases or generations."""
         with self._tx() as db:
@@ -233,6 +250,31 @@ class BusinessState:
                 DELETE FROM business_reservation WHERE
                 lease_token<>? OR generation<>(SELECT generation FROM core_window WHERE id=window_id)
             """, (self.lease_token,)).rowcount
+
+    def release_unsealed(self, work):
+        with self._tx() as db:
+            db.execute("""DELETE FROM business_reservation WHERE
+                          window_id=? AND generation=? AND lease_token=?""",
+                       (work["window_id"], work["generation"], self.lease_token))
+
+    def promote_terminal_windows(self, run_key, *, limit):
+        """Use the applied terminal cutoff to close member-bearing Core windows."""
+        with self._tx() as db:
+            schedule = db.execute("""SELECT start_tick,cutoff FROM business_observation_schedule
+                WHERE run_key=? AND lifecycle IN ('ENDED','ABORTED') AND start_tick IS NOT NULL
+                  AND cutoff IS NOT NULL""", (run_key,)).fetchone()
+            if schedule is None:
+                return 0
+            started, cutoff = schedule
+            windows = db.execute("""SELECT w.id,w.generation FROM core_window w
+                WHERE w.run_key=? AND w.eligible=0 AND w.start*1000000>=? AND w.end*1000000<=?
+                  AND EXISTS (SELECT 1 FROM core_membership m WHERE m.window_id=w.id)
+                ORDER BY w.end,w.duration,w.id LIMIT ?""", (run_key, started, cutoff, limit)).fetchall()
+            for window_id, generation in windows:
+                db.execute("UPDATE core_window SET eligible=1 WHERE id=?", (window_id,))
+                db.execute("""UPDATE core_work SET state='PENDING',eligible_at=?
+                    WHERE window_id=? AND generation=? AND state='OPEN'""", (time.time(), window_id, generation))
+            return len(windows)
 
     def hold_unsealed(self, work, *, reason="RESOURCE_LIMIT"):
         with self._tx() as db:

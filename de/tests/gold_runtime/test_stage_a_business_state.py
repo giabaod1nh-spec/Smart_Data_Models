@@ -14,7 +14,7 @@ from de.gold_runtime.business_materialization import applied_window_coverage, co
 from de.gold_runtime.business_state import BusinessState, IsolatedBusinessStore
 from de.gold_runtime.checkpoint_store import CoreStateFault, GoldCoreStore
 from de.gold_runtime.instance_lock import InstanceLock
-from de.gold_runtime.processing_ledger import CoreWorkLedger
+from de.gold_runtime.processing_ledger import CoreWorkLedger, canonical_run_identity
 from de.gold_runtime.silver_readers import CanonicalGoldSource
 from de.silver.incremental_contract import canonical_bytes, canonical_hash, freeze
 from de.silver.observation_contract import ObservationMetadataCursor, VerifiedObservationMetadata
@@ -327,10 +327,11 @@ def test_metadata_requires_both_core_watermarks_and_atomically_fences_correction
         writer = BusinessPublisher(state, DisposableRows(), clock=lambda: 0)
         identity = dict(run_id="isolated", run_generation=1, topology_digest="v1:sha256:" + "a" * 64,
                         manifest_identity="b" * 64)
-        run_key = canonical_hash(identity)
+        core_identity = canonical_run_identity(*identity.values())
+        run_key = canonical_hash(core_identity)
         eid = "e" * 64
         with store.transaction("live", ledger.token) as db:
-            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(identity)))
+            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(core_identity)))
             db.execute("UPDATE core_window SET run_key=? WHERE id='w1'", (run_key,))
             db.execute("INSERT INTO core_event VALUES (?,?,1,1,'transition','bundle','normal','A',1,0.01)",
                        (eid, run_key))
@@ -405,8 +406,8 @@ def _schedule_fixture_receipt(schedule, cursor, slots=(), *, lifecycle="RUNNING"
 def test_metadata_only_close_distinguishes_absent_window_from_partial_after_restart(staged_v1, duration, terminal_partial):
     schedule = ObservationSchedule("metadata-only", 1, "b" * 64, "c" * 64, "v1:sha256:" + "a" * 64,
                                   (("A", ("East",)),), 10_000, 1_000_000, 10_000, 1)
-    run_key = canonical_hash(dict(run_id=schedule.run_id, run_generation=schedule.generation,
-        topology_digest=schedule.topology_digest, manifest_identity=schedule.manifest_digest))
+    run_key = canonical_hash(canonical_run_identity(schedule.run_id, schedule.generation,
+        schedule.topology_digest, schedule.manifest_digest))
     with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
         state = BusinessState(store, "live", ledger.token)
         metadata = BusinessMetadata(state)
@@ -443,7 +444,8 @@ def test_verified_and_late_conflicts_never_become_missing_or_add_metric_credit(s
                                   (("A", ("A-East",)), ("B", ("B-East",))), 10_000, 1_000_000, 10_000, 1)
     identity = dict(run_id=schedule.run_id, run_generation=schedule.generation,
         topology_digest=schedule.topology_digest, manifest_identity=schedule.manifest_digest)
-    run_key = canonical_hash(identity)
+    core_identity = canonical_run_identity(*identity.values())
+    run_key = canonical_hash(core_identity)
     e1, e2 = schedule.event_ids(0)
     with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
         state = BusinessState(store, "live", ledger.token)
@@ -469,7 +471,7 @@ def test_verified_and_late_conflicts_never_become_missing_or_add_metric_credit(s
         assert result.slot_states == (("A", 0, 59, 0, 1, 0), ("B", 1, 59, 0, 0, 0))
         assert result.rows[-1].observed_load.value is None
         with store.transaction("live", ledger.token) as db:
-            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(identity)))
+            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(core_identity)))
             db.execute("INSERT INTO core_suppression VALUES (?,1,'invalidation',?,0.01,'B',1,2,'proof')", (e2, run_key))
         assert applied_window_coverage(state, run_key, 0, 60) == ("CONFLICTED_WINDOW", None)
         assert store.conn.execute("SELECT count(*) FROM business_result").fetchone()[0] == 0
@@ -480,13 +482,14 @@ def test_verified_schedule_wakes_isolated_work_and_materializes_same_core_proof(
                                   (("A", ("East",)),), 10_000, 1_000_000, 10_000, 1)
     identity = dict(run_id=schedule.run_id, run_generation=1, topology_digest=schedule.topology_digest,
                     manifest_identity=schedule.manifest_digest)
-    run_key = canonical_hash(identity)
+    core_identity = canonical_run_identity(*identity.values())
+    run_key = canonical_hash(core_identity)
     with opened(staged_v1, IsolatedBusinessStore) as (store, ledger):
         state = BusinessState(store, "live", ledger.token)
         metadata = BusinessMetadata(state)
         eid = schedule.event_ids(0)[0]
         with store.transaction("live", ledger.token) as db:
-            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(identity)))
+            db.execute("INSERT INTO core_run(id,identity) VALUES (?,?)", (run_key, canonical_bytes(core_identity)))
             db.execute("UPDATE core_window SET run_key=? WHERE id='w1'", (run_key,))
             db.execute("INSERT INTO core_event VALUES (?,?,1,1,'transition','bundle','normal','A',1,0.01)",
                        (eid, run_key))

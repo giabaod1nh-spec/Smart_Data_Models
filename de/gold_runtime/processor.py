@@ -1034,22 +1034,40 @@ class CoreInputStream:
         self._check_generation()
         rows = self.runtime.ledger.members(self.window_id, self.after_event)
         if not rows:
-            final = self.runtime.discover()
-            if (final.bronze_invalidation_high_water != self.hi or
-                    self.runtime.store.cursors()["INVALIDATION"] < final.verified_invalidation_prefix):
-                raise CoreWorkChanged("Invalidation boundary changed or is not durably covered")
-            self._check_generation()
+            self._verify_end()
             self.done = True
             raise StopIteration
         member = rows[0]
         sequence = member["change_sequence"]
-        page = self.runtime.source.changes(self.runtime.binding_id, sequence - 1, entries=1)
+        page = self._read_members(sequence, 1)
+        entry = page.entries[0]
+        projection = self._verify_member(member, entry)
+        self.digest.update(len(projection).to_bytes(8, "big"))
+        self.digest.update(projection)
+        self.after_event = member["id"]
+        return entry.canonical_bundle
+
+    def _verify_end(self):
+        final = self.runtime.discover()
+        if (final.bronze_invalidation_high_water != self.hi or
+                self.runtime.store.cursors()["INVALIDATION"] < final.verified_invalidation_prefix):
+            raise CoreWorkChanged("Invalidation boundary changed or is not durably covered")
+        self._check_generation()
+
+    def _read_members(self, sequence, limit):
+        self.runtime.add_count("materialization_page_reads", 1)
+        page = self.runtime.source.changes(self.runtime.binding_id, sequence - 1, entries=limit)
         self.runtime.check_replay_page(page)
         if page.receipt is None:
             raise CoreReceiptFault("Previously committed member sequence is missing")
         if page.receipt.captured_bronze_invalidation_high_water != self.hi:
             raise CoreWorkChanged("Invalidation high-water changed during materialization")
-        entry = page.entries[0]
+        self.bytes += page.encoded_bytes
+        self.runtime.add_count("materialization_encoded_bytes", page.encoded_bytes)
+        return page
+
+    def _verify_member(self, member, entry):
+        sequence = member["change_sequence"]
         if (entry.event_id, entry.semantic_revision, entry.source_transition_hash,
                 canonical_hash(core_run_identity(entry))) != (
                 member["id"], member["revision"], member["transition_hash"], member["run_key"]):
@@ -1062,17 +1080,10 @@ class CoreInputStream:
                 member["intersection_id"], member["cycle"]):
             raise CoreReceiptFault("Materialized bundle differs from acknowledged member")
         self._check_generation()
-        projection = canonical_bytes(dict(event_id=entry.event_id, change_sequence=sequence,
+        self.count += 1
+        return canonical_bytes(dict(event_id=entry.event_id, change_sequence=sequence,
             semantic_revision=entry.semantic_revision, transition_hash=entry.source_transition_hash,
             bundle_hash=entry.bundle_hash, scenario_id=member["scenario"]))
-        self.digest.update(len(projection).to_bytes(8, "big"))
-        self.digest.update(projection)
-        self.after_event = entry.event_id
-        self.count += 1
-        self.bytes += page.encoded_bytes
-        self.runtime.add_count("materialization_page_reads", 1)
-        self.runtime.add_count("materialization_encoded_bytes", page.encoded_bytes)
-        return entry.canonical_bundle
 
     @property
     def input_hash(self):

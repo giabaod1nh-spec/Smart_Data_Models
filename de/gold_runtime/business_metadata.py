@@ -7,6 +7,7 @@ from contracts.observation_schedule import MAX_CANONICAL_INTEGER, ObservationSch
 from contracts.traffic_observation import canonical_json
 from de.gold_runtime.business_state import _digest
 from de.gold_runtime.checkpoint_store import CoreStateFault
+from de.gold_runtime.processing_ledger import canonical_run_identity
 from de.silver.incremental_contract import canonical_bytes, canonical_hash
 from de.silver.observation_contract import ObservationMetadataCursor, VerifiedObservationMetadata
 
@@ -21,8 +22,7 @@ class BusinessMetadata:
         self.state = state
 
     def cursor(self, run_id, generation, topology_digest, manifest_identity, stream):
-        key = canonical_hash(dict(run_id=run_id, run_generation=generation, topology_digest=topology_digest,
-                                  manifest_identity=manifest_identity))
+        key = canonical_hash(canonical_run_identity(run_id, generation, topology_digest, manifest_identity))
         row = self.state.store.conn.execute("SELECT * FROM business_metadata_cursor WHERE run_key=? AND stream=?",
                                             (key, stream)).fetchone()
         return self._cursor(stream, row)
@@ -66,7 +66,8 @@ class BusinessMetadata:
         encoded = canonical_bytes(receipt)
         if len(encoded) > _RECEIPT_LIMIT:
             raise CoreStateFault("Silver observation metadata receipt exceeds byte limit")
-        run = {key: getattr(receipt, key) for key in ("run_id", "run_generation", "topology_digest", "manifest_identity")}
+        run = canonical_run_identity(receipt.run_id, receipt.run_generation, receipt.topology_digest,
+                                     receipt.manifest_identity)
         run_key = canonical_hash(run)
         digest = _digest(encoded)
         with self.state._tx() as db:
